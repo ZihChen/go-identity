@@ -1,0 +1,137 @@
+package repository
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"gorm.io/gorm"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/model"
+	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repository"
+)
+
+// PlayerRepository GORM 實現的玩家資料庫
+type PlayerRepository struct {
+	db *gorm.DB
+}
+
+// NewPlayerRepository 創建玩家資料庫
+func NewPlayerRepository(db *gorm.DB) repository.PlayerRepository {
+	return &PlayerRepository{db: db}
+}
+
+// FindByID 通過ID查找玩家
+func (r *PlayerRepository) FindByID(ctx context.Context, id uint64) (*domainModel.Player, error) {
+	var player model.Player
+	result := r.db.WithContext(ctx).First(&player, id)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("record not found")
+		}
+		return nil, result.Error
+	}
+
+	return mapToDomainPlayer(&player), nil
+}
+
+// FindByGlobalID 通過全局ID查找玩家
+func (r *PlayerRepository) FindByGlobalID(ctx context.Context, globalID string) (*domainModel.Player, error) {
+	var player model.Player
+	result := r.db.WithContext(ctx).Where("global_player_id = ?", globalID).First(&player)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("record not found")
+		}
+		return nil, result.Error
+	}
+
+	return mapToDomainPlayer(&player), nil
+}
+
+// Create 創建玩家
+func (r *PlayerRepository) Create(ctx context.Context, player *domainModel.Player) error {
+	playerModel := mapToDBPlayer(player)
+	result := r.db.WithContext(ctx).Create(playerModel)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	// 更新ID
+	player.ID = playerModel.ID
+
+	return nil
+}
+
+// Update 更新玩家
+func (r *PlayerRepository) Update(ctx context.Context, player *domainModel.Player) error {
+	playerModel := mapToDBPlayer(player)
+	result := r.db.WithContext(ctx).Save(playerModel)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
+// Delete 刪除玩家
+func (r *PlayerRepository) Delete(ctx context.Context, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.Player{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("record not found")
+	}
+
+	return nil
+}
+
+// 將DB模型映射到領域模型
+func mapToDomainPlayer(player *model.Player) *domainModel.Player {
+	var deletedAt *time.Time
+	if player.DeletedAt.Valid {
+		deletedTime := player.DeletedAt.Time
+		deletedAt = &deletedTime
+	}
+
+	return &domainModel.Player{
+		ID:             player.ID,
+		MerchantID:     player.MerchantID,
+		GlobalPlayerID: player.GlobalPlayerID,
+		APIKey:         player.APIKey,
+		Account:        player.Account,
+		Email:          player.Email,
+		LastActiveAt:   player.LastActiveAt,
+		CreatedAt:      player.CreatedAt,
+		UpdatedAt:      player.UpdatedAt,
+		DeletedAt:      deletedAt,
+	}
+}
+
+// 將領域模型映射到DB模型
+func mapToDBPlayer(player *domainModel.Player) *model.Player {
+	dbPlayer := &model.Player{
+		ID:             player.ID,
+		MerchantID:     player.MerchantID,
+		GlobalPlayerID: player.GlobalPlayerID,
+		APIKey:         player.APIKey,
+		Account:        player.Account,
+		Email:          player.Email,
+		LastActiveAt:   player.LastActiveAt,
+		CreatedAt:      player.CreatedAt,
+		UpdatedAt:      player.UpdatedAt,
+	}
+
+	if player.DeletedAt != nil {
+		dbPlayer.DeletedAt = gorm.DeletedAt{
+			Time:  *player.DeletedAt,
+			Valid: true,
+		}
+	}
+
+	return dbPlayer
+}
