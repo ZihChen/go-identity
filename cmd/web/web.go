@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"github.com/spf13/viper"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/middleware"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 )
@@ -58,7 +60,7 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	// 使用Wire初始化HTTP處理器
 	httpHandler, err := di.InitializeWebServer(cfg, logger) // 使用di包中的函數
 	if err != nil {
-		logger.Fatal("Failed to initialize web server", zap.Error(err))
+		logger.Fatal("Failed to initialize web server", zap.Error(err), zap.Any("DB_HOST", viper.GetString("DB_HOST")), zap.Any("DB_USER", viper.GetString("DB_USER")), zap.Any("DB_PASSWORD", viper.GetString("DB_PASSWORD")))
 	}
 	// 使用命令行指定的端口或配置中的端口
 	if port == 0 {
@@ -75,6 +77,9 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 
 	// 創建 Gin 路由
 	router := gin.Default()
+
+	// 添加追踪中間件
+	router.Use(middleware.TracingMiddleware())
 
 	// 註冊路由
 	httpHandler.RegisterRoutes(router)

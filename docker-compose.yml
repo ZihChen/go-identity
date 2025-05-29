@@ -1,0 +1,30 @@
+services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: fat-cat-redis
+    volumes:
+      - redis_data:/data
+    networks:
+      - fatcatnet
+    restart: always
+  ms-identity-cat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fat-identity-cat
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    networks:
+      - fatcatnet
+    restart: always
+
+volumes:
+  redis_data:
+
+networks:
+  fatcatnet:
+    external: true
