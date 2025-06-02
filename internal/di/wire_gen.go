@@ -11,6 +11,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
@@ -27,7 +28,7 @@ import (
 // Injectors from wire.go:
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger *zap.Logger) (*handler.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger *zap.Logger, asyncLogger infra.Logger) (*handler.HTTPHandler, error) {
 	db, err := provideDatabaseConnection(cfg)
 	if err != nil {
 		return nil, err
@@ -48,15 +49,15 @@ func InitializeWebServer(cfg *config.Config, logger *zap.Logger) (*handler.HTTPH
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
-	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger)
+	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, asyncLogger)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
-	httpHandler := handler.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger)
+	httpHandler := handler.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger, asyncLogger)
 	return httpHandler, nil
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger) (*handler.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger, asyncLogger infra.Logger) (*handler.WorkerHandler, error) {
 	db, err := provideDatabaseConnection(cfg)
 	if err != nil {
 		return nil, err
@@ -77,7 +78,7 @@ func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger) (*handler.Wo
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
-	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger)
+	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, asyncLogger)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
 	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, logger)
@@ -85,7 +86,7 @@ func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger) (*handler.Wo
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger) (*WorkerComponents, error) {
+func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger, asyncLogger infra.Logger) (*WorkerComponents, error) {
 	db, err := provideDatabaseConnection(cfg)
 	if err != nil {
 		return nil, err
@@ -106,7 +107,7 @@ func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger) (*Worker
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
-	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger)
+	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, asyncLogger)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
 	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, logger)

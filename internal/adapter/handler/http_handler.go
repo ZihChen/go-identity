@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
 	"net/http"
 	"strconv"
 
@@ -34,6 +35,7 @@ type HTTPHandler struct {
 	playerUseCase   *usecase.PlayerUseCase
 	managerUseCase  *usecase.ManagerUseCase
 	logger          *zap.Logger
+	asyncLogger     infra.Logger
 }
 
 // NewHTTPHandler 創建HTTP處理器
@@ -42,12 +44,14 @@ func NewHTTPHandler(
 	playerUseCase *usecase.PlayerUseCase,
 	managerUseCase *usecase.ManagerUseCase,
 	logger *zap.Logger,
+	asyncLogger infra.Logger,
 ) *HTTPHandler {
 	return &HTTPHandler{
 		merchantUseCase: merchantUseCase,
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
 		logger:          logger,
+		asyncLogger:     asyncLogger,
 	}
 }
 

@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	asynclogger "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"os"
 	"os/signal"
 	"syscall"
@@ -49,6 +50,9 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	ctx, rootSpan := tracing.StartSpan(context.Background(), "WorkerService")
 	defer rootSpan.End()
 
+	asyncLogger := asynclogger.NewAsyncLogger(cfg, 1)
+	defer asyncLogger.Close()
+
 	rootSpan.SetAttributes(
 		attribute.String("service.name", cfg.App.Name),
 		attribute.String("service.type", "worker"),
@@ -56,7 +60,7 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	)
 
 	// 使用Wire初始化Worker組件
-	components, err := di.InitializeWorkerComponents(cfg, logger)
+	components, err := di.InitializeWorkerComponents(cfg, logger, asyncLogger)
 	if err != nil {
 		logger.Fatal("Failed to initialize worker components", zap.Error(err))
 		rootSpan.RecordError(err)

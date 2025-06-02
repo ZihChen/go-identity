@@ -292,3 +292,13 @@ func InjectTraceparentToJSON(ctx context.Context, data []byte) ([]byte, error) {
 
 	return json.Marshal(jsonData)
 }
+
+func GetTraceID(ctx context.Context) string {
+	spanCtx := trace.SpanContextFromContext(ctx)
+	return spanCtx.TraceID().String()
+}
+
+func GetSpanID(ctx context.Context) string {
+	spanCtx := trace.SpanContextFromContext(ctx)
+	return spanCtx.SpanID().String()
+}

@@ -1,12 +1,12 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
-
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 )
 
 // TracingMiddleware 紀錄每筆Request的Tracing record
@@ -28,6 +28,7 @@ func TracingMiddleware() gin.HandlerFunc {
 			attribute.String("http.path", c.FullPath()),
 		)
 
+		ctx = withTraceContext(ctx)
 		c.Request = c.Request.WithContext(ctx)
 
 		c.Next()
@@ -39,4 +40,9 @@ func TracingMiddleware() gin.HandlerFunc {
 			fmt.Printf("Trace error %+v", c.Errors)
 		}
 	}
+}
+
+func withTraceContext(ctx context.Context) context.Context {
+	c := context.WithValue(ctx, "trace_id", tracing.GetTraceID(ctx))
+	return context.WithValue(c, "span_id", tracing.GetSpanID(c))
 }

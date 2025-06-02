@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
@@ -24,6 +25,7 @@ type PlayerUseCase struct {
 	merchantRepo  repository.MerchantRepository
 	eventProducer service.EventProducer
 	logger        *zap.Logger
+	asyncLogger   infra.Logger
 }
 
 // NewPlayerUseCase 創建玩家用例
@@ -32,12 +34,14 @@ func NewPlayerUseCase(
 	merchantRepo repository.MerchantRepository,
 	eventProducer service.EventProducer,
 	logger *zap.Logger,
+	asyncLogger infra.Logger,
 ) *PlayerUseCase {
 	return &PlayerUseCase{
 		playerRepo:    playerRepo,
 		merchantRepo:  merchantRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
+		asyncLogger:   asyncLogger,
 	}
 }
 

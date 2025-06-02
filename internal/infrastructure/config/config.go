@@ -17,6 +17,7 @@ type Config struct {
 	Redis    RedisConfig
 	AWS      AWSConfig
 	Tracing  TracingConfig
+	Logs     LogsConfig
 	Events   EventsConfig
 }
 
@@ -65,6 +66,12 @@ type TracingConfig struct {
 	Endpoint   string
 	APIKey     string
 	StreamName string
+}
+
+type LogsConfig struct {
+	Endpoint string
+	Username string
+	Password string
 }
 
 // EventsConfig 事件配置
@@ -127,6 +134,11 @@ func LoadConfig() (*Config, error) {
 			Endpoint:   viper.GetString("OPENOBSERVE_TRACE_API_ENDPOINT"),
 			APIKey:     viper.GetString("OPENOBSERVE_TRACE_API_KEY"),
 			StreamName: viper.GetString("OPENOBSERVE_TRACE_STREAM_NAME"),
+		},
+		Logs: LogsConfig{
+			Endpoint: viper.GetString("OPENOBSERVE_LOGS_API_ENDPOINT"),
+			Username: viper.GetString("OPENOBSERVE_LOGS_USERNAME"),
+			Password: viper.GetString("OPENOBSERVE_LOGS_PASSWORD"),
 		},
 		Events: EventsConfig{
 			MerchantSync:         viper.GetString("EVENT_MERCHANT_SYNC"),
