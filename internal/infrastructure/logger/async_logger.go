@@ -19,14 +19,6 @@ import (
 	"time"
 )
 
-const (
-	LevelDebug = "DEBUG"
-	LevelInfo  = "INFO"
-	LevelWarn  = "WARN"
-	LevelError = "ERROR"
-	LevelFatal = "FATAL"
-)
-
 type LogEntry struct {
 	Timestamp string `json:"timestamp"`
 	Level     string `json:"level"`

@@ -8,12 +8,12 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/deduplication"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	redisInfra "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/usecase"
@@ -64,7 +64,7 @@ func provideEventProducer(kdsService *kds.KDSService, logger *zap.Logger) servic
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger *zap.Logger, asyncLogger *logger.AsyncLogger) (*handler.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infra.Logger) (*handler.HTTPHandler, error) {
 	wire.Build(
 		baseSet,
 		kds.NewKDSService,

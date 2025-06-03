@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"fmt"
+	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/spf13/viper"
 	"net/http"
 	"os"
@@ -17,7 +18,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/middleware"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
-	asynclogger "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 )
 
@@ -55,14 +55,13 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	}
 	defer tracer.Shutdown(context.Background())
 
-	asyncLogger := asynclogger.NewAsyncLogger(cfg, 1)
-	defer asyncLogger.Close()
-
 	ctx, rootSpan := tracing.StartSpan(context.Background(), "WebService")
 	defer rootSpan.End()
 
+	serviceLog := sLog.NewServiceLogger(cfg)
+
 	// 使用Wire初始化HTTP處理器
-	httpHandler, err := di.InitializeWebServer(cfg, logger, asyncLogger) // 使用di包中的函數
+	httpHandler, err := di.InitializeWebServer(cfg, logger, serviceLog) // 使用di包中的函數
 	if err != nil {
 		logger.Fatal("Failed to initialize web server", zap.Error(err), zap.Any("DB_HOST", viper.GetString("DB_HOST")), zap.Any("DB_USER", viper.GetString("DB_USER")), zap.Any("DB_PASSWORD", viper.GetString("DB_PASSWORD")))
 	}

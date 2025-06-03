@@ -35,7 +35,7 @@ type HTTPHandler struct {
 	playerUseCase   *usecase.PlayerUseCase
 	managerUseCase  *usecase.ManagerUseCase
 	logger          *zap.Logger
-	asyncLogger     infra.Logger
+	serviceLog      infra.Logger
 }
 
 // NewHTTPHandler 創建HTTP處理器
@@ -44,14 +44,14 @@ func NewHTTPHandler(
 	playerUseCase *usecase.PlayerUseCase,
 	managerUseCase *usecase.ManagerUseCase,
 	logger *zap.Logger,
-	asyncLogger infra.Logger,
+	serviceLog infra.Logger,
 ) *HTTPHandler {
 	return &HTTPHandler{
 		merchantUseCase: merchantUseCase,
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
 		logger:          logger,
-		asyncLogger:     asyncLogger,
+		serviceLog:      serviceLog,
 	}
 }
 
@@ -269,7 +269,6 @@ func (h *HTTPHandler) GetPlayerByGlobalID(c *gin.Context) {
 		})
 		return
 	}
-
 	c.JSON(http.StatusOK, player)
 }
 

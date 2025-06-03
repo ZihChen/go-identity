@@ -59,6 +59,8 @@ func initConfig() {
 func initLogger(debug bool) *zap.Logger {
 	var config zap.Config
 
+	config.EncoderConfig.NameKey = "app"
+
 	if debug {
 		config = zap.NewDevelopmentConfig()
 		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
@@ -74,6 +76,9 @@ func initLogger(debug bool) *zap.Logger {
 		os.Exit(1)
 	}
 
+	logger = logger.With(
+		zap.String("app", "fat-identity-cat"),
+	)
 	return logger
 }
 
