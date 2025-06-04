@@ -12,13 +12,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/cobra"
-	"go.uber.org/zap"
-
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/middleware"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -47,23 +45,28 @@ func init() {
 func runWebServer(cobraCmd *cobra.Command, args []string) {
 	cfg := cmd.GetConfig()
 	logger := cmd.GetLogger()
+	// 獲取ServiceLogger實例
+	sLogger := sLog.NewServiceLogger(cfg)
 
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
-		logger.Fatal("Failed to initialize tracer", zap.Error(err))
+		sLogger.FatalLog("Failed to initialize tracer", sLogger.Error("err", err))
 	}
 	defer tracer.Shutdown(context.Background())
+	sLogger.InfoLog("Successfully initialized web tracer!")
 
 	ctx, rootSpan := tracing.StartSpan(context.Background(), "WebService")
 	defer rootSpan.End()
 
-	serviceLog := sLog.NewServiceLogger(cfg)
-
 	// 使用Wire初始化HTTP處理器
-	httpHandler, err := di.InitializeWebServer(cfg, logger, serviceLog) // 使用di包中的函數
+	httpHandler, err := di.InitializeWebServer(cfg, logger, sLogger) // 使用di包中的函數
 	if err != nil {
-		logger.Fatal("Failed to initialize web server", zap.Error(err), zap.Any("DB_HOST", viper.GetString("DB_HOST")), zap.Any("DB_USER", viper.GetString("DB_USER")), zap.Any("DB_PASSWORD", viper.GetString("DB_PASSWORD")))
+		sLogger.FatalLog("Failed to initialize web server",
+			sLogger.Error("err", err),
+			sLogger.String("DB_HOST", viper.GetString("DB_HOST")),
+			sLogger.String("DB_USER", viper.GetString("DB_USER")),
+			sLogger.String("DB_PASSWORD", viper.GetString("DB_PASSWORD")))
 	}
 	// 使用命令行指定的端口或配置中的端口
 	if port == 0 {
@@ -94,9 +97,9 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	}
 	// 在後台運行服務器
 	go func() {
-		logger.Info("Starting web server", zap.Int("port", port))
+		sLogger.InfoLog("Starting web server", sLogger.Int("port", port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Failed to start server", zap.Error(err))
+			sLogger.FatalLog("Failed to start server", sLogger.Error("err", err))
 		}
 	}()
 	// 等待中斷信號優雅地關閉服務器
@@ -104,7 +107,7 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Shutting down server...")
+	sLogger.InfoLog("Shutting down web server...")
 
 	// 記錄關閉事件
 	tracing.TraceEvent(rootSpan, "Shutting down web server")
@@ -114,12 +117,11 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Fatal("Server forced to shutdown", zap.Error(err))
+		sLogger.FatalLog("Server forced to shutdown", sLogger.Error("err", err))
 	}
 
 	// 記錄成功關閉
 	tracing.TraceEvent(rootSpan, "Web server exited gracefully")
 
-	logger.Info("Server exited")
-
+	sLogger.InfoLog("Web server exited")
 }

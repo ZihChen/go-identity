@@ -13,35 +13,25 @@ import (
 	"time"
 )
 
+type LogLevel string
+
 const (
-	LevelDebug = "DEBUG"
-	LevelInfo  = "INFO"
-	LevelWarn  = "WARN"
-	LevelError = "ERROR"
-	LevelFatal = "FATAL"
+	LevelDebug LogLevel = "DEBUG"
+	LevelInfo  LogLevel = "INFO"
+	LevelWarn  LogLevel = "WARN"
+	LevelError LogLevel = "ERROR"
+	LevelFatal LogLevel = "FATAL"
 )
 
 type ServiceLogger struct {
-	Logger  *zap.Logger
+	logger  *zap.Logger
 	AppName string
 	Env     string
 }
 
 // NewServiceLogger creates a new ServiceLogger
 func NewServiceLogger(cfg *config.Config) infra.Logger {
-	var config zap.Config
-
-	config.EncoderConfig.NameKey = "app"
-
-	if cfg.App.Debug {
-		config = zap.NewDevelopmentConfig()
-		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	} else {
-		config = zap.NewProductionConfig()
-		config.EncoderConfig.TimeKey = "timestamp"
-		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	}
-
+	config := createZapConfig(cfg.App.Debug)
 	logger, err := config.Build()
 	if err != nil {
 		fmt.Printf("Failed to initialize logger: %v\n", err)
@@ -54,23 +44,63 @@ func NewServiceLogger(cfg *config.Config) infra.Logger {
 	)
 
 	return &ServiceLogger{
-		Logger:  logger,
+		logger:  logger,
 		AppName: cfg.App.Name,
 		Env:     cfg.App.Env,
 	}
 }
 
-func (s *ServiceLogger) InfoWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
-	traceID := ""
+func createZapConfig(debug bool) zap.Config {
+	var config zap.Config
+	config.EncoderConfig.NameKey = "app"
+
+	if debug {
+		config = zap.NewDevelopmentConfig()
+		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		config = zap.NewProductionConfig()
+		config.EncoderConfig.TimeKey = "timestamp"
+		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	}
+
+	return config
+}
+
+func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg string, fields ...*model.LoggerFiled) {
+	traceID, spanID := s.extractTraceInfo(ctx)
+	zapFields := s.createZapFields(traceID, spanID, fields)
+
+	switch level {
+	case LevelDebug:
+		s.logger.Debug(msg, zapFields...)
+	case LevelInfo:
+		s.logger.Info(msg, zapFields...)
+	case LevelWarn:
+		s.logger.Warn(msg, zapFields...)
+	case LevelError:
+		s.logger.Error(msg, zapFields...)
+	case LevelFatal:
+		s.logger.Fatal(msg, zapFields...)
+	}
+
+	// 创建并输出JSON格式日志
+	s.outputJSONLog(level, msg, traceID, spanID, fields)
+}
+
+func (s *ServiceLogger) extractTraceInfo(ctx context.Context) (traceID, spanID string) {
+	if ctx == nil {
+		return "", ""
+	}
 	if v, ok := ctx.Value("trace_id").(string); ok {
 		traceID = v
 	}
-
-	spanID := ""
 	if v, ok := ctx.Value("span_id").(string); ok {
 		spanID = v
 	}
+	return
+}
 
+func (s *ServiceLogger) createZapFields(traceID, spanID string, fields []*model.LoggerFiled) []zap.Field {
 	zapFields := make([]zap.Field, 0, len(fields)+2)
 	if traceID != "" {
 		zapFields = append(zapFields, zap.String("trace_id", traceID))
@@ -78,18 +108,18 @@ func (s *ServiceLogger) InfoWithContext(ctx context.Context, msg string, fields 
 	if spanID != "" {
 		zapFields = append(zapFields, zap.String("span_id", spanID))
 	}
-
 	for _, field := range fields {
 		zapFields = append(zapFields, zap.Any(field.Key, field.Value))
 	}
+	return zapFields
+}
 
-	s.Logger.Info(msg, zapFields...)
-
+func (s *ServiceLogger) outputJSONLog(level LogLevel, msg, traceID, spanID string, fields []*model.LoggerFiled) {
 	logData := map[string]interface{}{
 		"app":       s.AppName,
 		"env":       s.Env,
 		"timestamp": time.Now().Format(time.RFC3339),
-		"level":     LevelInfo,
+		"level":     level,
 		"message":   msg,
 	}
 
@@ -99,227 +129,56 @@ func (s *ServiceLogger) InfoWithContext(ctx context.Context, msg string, fields 
 	if spanID != "" {
 		logData["span_id"] = spanID
 	}
-
 	for _, field := range fields {
 		logData[field.Key] = field.Value
 	}
 
 	jsonData, err := json.Marshal(logData)
 	if err != nil {
-		s.Logger.Error("Failed to marshal log data to JSON", zap.Error(err))
+		s.logger.Error("Failed to marshal log data to JSON", zap.Error(err))
 		return
 	}
-
 	fmt.Println(string(jsonData))
+}
+
+func (s *ServiceLogger) InfoWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+	s.logWithLevel(ctx, LevelInfo, msg, fields...)
 }
 
 func (s *ServiceLogger) DebugWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
-	traceID := ""
-	if v, ok := ctx.Value("trace_id").(string); ok {
-		traceID = v
-	}
-
-	spanID := ""
-	if v, ok := ctx.Value("span_id").(string); ok {
-		spanID = v
-	}
-
-	zapFields := make([]zap.Field, 0, len(fields)+2)
-	if traceID != "" {
-		zapFields = append(zapFields, zap.String("trace_id", traceID))
-	}
-	if spanID != "" {
-		zapFields = append(zapFields, zap.String("span_id", spanID))
-	}
-
-	for _, field := range fields {
-		zapFields = append(zapFields, zap.Any(field.Key, field.Value))
-	}
-
-	s.Logger.Debug(msg, zapFields...)
-
-	logData := map[string]interface{}{
-		"app":       s.AppName,
-		"env":       s.Env,
-		"timestamp": time.Now().Format(time.RFC3339),
-		"level":     LevelDebug,
-		"message":   msg,
-	}
-
-	if traceID != "" {
-		logData["trace_id"] = traceID
-	}
-	if spanID != "" {
-		logData["span_id"] = spanID
-	}
-
-	for _, field := range fields {
-		logData[field.Key] = field.Value
-	}
-
-	jsonData, err := json.Marshal(logData)
-	if err != nil {
-		s.Logger.Error("Failed to marshal log data to JSON", zap.Error(err))
-		return
-	}
-
-	fmt.Println(string(jsonData))
+	s.logWithLevel(ctx, LevelDebug, msg, fields...)
 }
 
 func (s *ServiceLogger) ErrorWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
-	traceID := ""
-	if v, ok := ctx.Value("trace_id").(string); ok {
-		traceID = v
-	}
-	spanID := ""
-	if v, ok := ctx.Value("span_id").(string); ok {
-		spanID = v
-	}
-
-	zapFields := make([]zap.Field, 0, len(fields)+2)
-	if traceID != "" {
-		zapFields = append(zapFields, zap.String("trace_id", traceID))
-	}
-	if spanID != "" {
-		zapFields = append(zapFields, zap.String("span_id", spanID))
-	}
-
-	for _, field := range fields {
-		zapFields = append(zapFields, zap.Any(field.Key, field.Value))
-	}
-
-	s.Logger.Error(msg, zapFields...)
-
-	logData := map[string]interface{}{
-		"app":       s.AppName,
-		"env":       s.Env,
-		"timestamp": time.Now().Format(time.RFC3339),
-		"level":     LevelError,
-		"message":   msg,
-	}
-
-	if traceID != "" {
-		logData["trace_id"] = traceID
-	}
-	if spanID != "" {
-		logData["span_id"] = spanID
-	}
-
-	for _, field := range fields {
-		logData[field.Key] = field.Value
-	}
-
-	jsonData, err := json.Marshal(logData)
-	if err != nil {
-		s.Logger.Error("Failed to marshal log data to JSON", zap.Error(err))
-		return
-	}
-
-	fmt.Println(string(jsonData))
+	s.logWithLevel(ctx, LevelError, msg, fields...)
 }
 
 func (s *ServiceLogger) WarnWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
-	traceID := ""
-	if v, ok := ctx.Value("trace_id").(string); ok {
-		traceID = v
-	}
-	spanID := ""
-	if v, ok := ctx.Value("span_id").(string); ok {
-		spanID = v
-	}
-
-	zapFields := make([]zap.Field, 0, len(fields)+2)
-	if traceID != "" {
-		zapFields = append(zapFields, zap.String("trace_id", traceID))
-	}
-	if spanID != "" {
-		zapFields = append(zapFields, zap.String("span_id", spanID))
-	}
-
-	for _, field := range fields {
-		zapFields = append(zapFields, zap.Any(field.Key, field.Value))
-	}
-
-	s.Logger.Warn(msg, zapFields...)
-
-	logData := map[string]interface{}{
-		"app":       s.AppName,
-		"env":       s.Env,
-		"timestamp": time.Now().Format(time.RFC3339),
-		"level":     LevelWarn,
-		"message":   msg,
-	}
-
-	if traceID != "" {
-		logData["trace_id"] = traceID
-	}
-	if spanID != "" {
-		logData["span_id"] = spanID
-	}
-
-	for _, field := range fields {
-		logData[field.Key] = field.Value
-	}
-
-	jsonData, err := json.Marshal(logData)
-	if err != nil {
-		s.Logger.Error("Failed to marshal log data to JSON", zap.Error(err))
-		return
-	}
-
-	fmt.Println(string(jsonData))
+	s.logWithLevel(ctx, LevelWarn, msg, fields...)
 }
 
 func (s *ServiceLogger) FatalWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
-	traceID := ""
-	if v, ok := ctx.Value("trace_id").(string); ok {
-		traceID = v
-	}
-	spanID := ""
-	if v, ok := ctx.Value("span_id").(string); ok {
-		spanID = v
-	}
+	s.logWithLevel(ctx, LevelFatal, msg, fields...)
+}
 
-	zapFields := make([]zap.Field, 0, len(fields)+2)
-	if traceID != "" {
-		zapFields = append(zapFields, zap.String("trace_id", traceID))
-	}
-	if spanID != "" {
-		zapFields = append(zapFields, zap.String("span_id", spanID))
-	}
+func (s *ServiceLogger) DebugLog(msg string, fields ...*model.LoggerFiled) {
+	s.logWithLevel(nil, LevelDebug, msg, fields...)
+}
 
-	for _, field := range fields {
-		zapFields = append(zapFields, zap.Any(field.Key, field.Value))
-	}
+func (s *ServiceLogger) InfoLog(msg string, fields ...*model.LoggerFiled) {
+	s.logWithLevel(nil, LevelInfo, msg, fields...)
+}
 
-	s.Logger.Fatal(msg, zapFields...)
+func (s *ServiceLogger) ErrorLog(msg string, fields ...*model.LoggerFiled) {
+	s.logWithLevel(nil, LevelError, msg, fields...)
+}
 
-	logData := map[string]interface{}{
-		"app":       s.AppName,
-		"env":       s.Env,
-		"timestamp": time.Now().Format(time.RFC3339),
-		"level":     LevelFatal,
-		"message":   msg,
-	}
+func (s *ServiceLogger) WarnLog(msg string, fields ...*model.LoggerFiled) {
+	s.logWithLevel(nil, LevelWarn, msg, fields...)
+}
 
-	if traceID != "" {
-		logData["trace_id"] = traceID
-	}
-	if spanID != "" {
-		logData["span_id"] = spanID
-	}
-
-	for _, field := range fields {
-		logData[field.Key] = field.Value
-	}
-
-	jsonData, err := json.Marshal(logData)
-	if err != nil {
-		s.Logger.Error("Failed to marshal log data to JSON", zap.Error(err))
-		return
-	}
-
-	fmt.Println(string(jsonData))
+func (s *ServiceLogger) FatalLog(msg string, fields ...*model.LoggerFiled) {
+	s.logWithLevel(nil, LevelFatal, msg, fields...)
 }
 
 func (s *ServiceLogger) Error(key string, value error) *model.LoggerFiled {

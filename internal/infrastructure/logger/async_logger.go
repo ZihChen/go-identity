@@ -19,13 +19,15 @@ import (
 	"time"
 )
 
+// TODO:Log改由Fluent-bit蒐集(棄用)
+
 type LogEntry struct {
-	Timestamp string `json:"timestamp"`
-	Level     string `json:"level"`
-	Message   string `json:"message"`
-	TraceID   string `json:"trace_id,omitempty"`
-	SpanID    string `json:"span_id,omitempty"`
-	Fields    string `json:"fields,omitempty"`
+	Timestamp string   `json:"timestamp"`
+	Level     LogLevel `json:"level"`
+	Message   string   `json:"message"`
+	TraceID   string   `json:"trace_id,omitempty"`
+	SpanID    string   `json:"span_id,omitempty"`
+	Fields    string   `json:"fields,omitempty"`
 }
 
 type Field struct {
@@ -309,6 +311,16 @@ func (al *AsyncLogger) FatalWithContext(ctx context.Context, msg string, fields 
 	al.Logger.Fatal(msg, zapFields...)
 	al.LogChannel <- entry
 }
+
+func (al *AsyncLogger) DebugLog(msg string, fields ...*model.LoggerFiled) {}
+
+func (al *AsyncLogger) InfoLog(msg string, fields ...*model.LoggerFiled) {}
+
+func (al *AsyncLogger) ErrorLog(msg string, fields ...*model.LoggerFiled) {}
+
+func (al *AsyncLogger) WarnLog(msg string, fields ...*model.LoggerFiled) {}
+
+func (al *AsyncLogger) FatalLog(msg string, fields ...*model.LoggerFiled) {}
 
 func (al *AsyncLogger) Error(key string, value error) *model.LoggerFiled {
 	return &model.LoggerFiled{Key: key, Value: value}
