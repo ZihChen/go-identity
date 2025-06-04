@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.uber.org/zap"
@@ -30,7 +30,7 @@ type ServiceLogger struct {
 }
 
 // NewServiceLogger creates a new ServiceLogger
-func NewServiceLogger(cfg *config.Config) infra.Logger {
+func NewServiceLogger(cfg *config.Config) infraport.Logger {
 	config := createZapConfig(cfg.App.Debug)
 	logger, err := config.Build()
 	if err != nil {

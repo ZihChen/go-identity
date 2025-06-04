@@ -13,26 +13,27 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repository"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 )
 
 // ManagerUseCase 管理員用例
 type ManagerUseCase struct {
-	managerRepo   repository.ManagerRepository
-	merchantRepo  repository.MerchantRepository
-	eventProducer service.EventProducer
+	managerRepo   repositoryport.ManagerRepository
+	merchantRepo  repositoryport.MerchantRepository
+	eventProducer serviceport.EventProducer
 	logger        *zap.Logger
 }
 
 // NewManagerUseCase 創建管理員用例
 func NewManagerUseCase(
-	managerRepo repository.ManagerRepository,
-	merchantRepo repository.MerchantRepository,
-	eventProducer service.EventProducer,
+	managerRepo repositoryport.ManagerRepository,
+	merchantRepo repositoryport.MerchantRepository,
+	eventProducer serviceport.EventProducer,
 	logger *zap.Logger,
-) *ManagerUseCase {
+) usecaseport.ManagerUseCase {
 	return &ManagerUseCase{
 		managerRepo:   managerRepo,
 		merchantRepo:  merchantRepo,
@@ -78,27 +79,18 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 
 	// 添加管理員信息到 span
 	span.SetAttributes(
-		attribute.String("merchant.global_id", managerEvent.GlobalMerchantID),
 		attribute.String("manager.global_id", managerEvent.Manager.GlobalManagerID),
 		attribute.String("manager.account", managerEvent.Manager.Account),
+		attribute.String("merchant.global_id", managerEvent.GlobalMerchantID),
 	)
 
-	// 查找對應的商戶
-	tracing.TraceEvent(span, "Finding merchant")
+	// 查找商戶是否存在
+	tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, managerEvent.GlobalMerchantID)
 	if err != nil {
 		span.RecordError(err)
-		// 如果找不到商戶，將事件放回隊列延遲處理
-		if err.Error() == "record not found" {
-			u.logger.Warn("Merchant not found, re-queuing manager sync event",
-				zap.String("global_merchant_id", managerEvent.GlobalMerchantID),
-				zap.String("global_manager_id", managerEvent.Manager.GlobalManagerID))
-			return fmt.Errorf("find merchant (will retry): %w", err)
-		}
 		return fmt.Errorf("find merchant: %w", err)
 	}
-
-	span.SetAttributes(attribute.Int64("merchant.id", int64(merchant.ID)))
 
 	// 查找管理員是否存在
 	tracing.TraceEvent(span, "Checking if manager exists")
@@ -106,12 +98,6 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 	if err != nil && err.Error() != "record not found" {
 		span.RecordError(err)
 		return fmt.Errorf("find manager: %w", err)
-	}
-
-	// 設置電子郵件
-	var email *string
-	if managerEvent.Manager.Email != "" {
-		email = &managerEvent.Manager.Email
 	}
 
 	// 創建或更新管理員
@@ -123,11 +109,10 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 			MerchantID:      merchant.ID,
 			GlobalManagerID: managerEvent.Manager.GlobalManagerID,
 			Account:         managerEvent.Manager.Account,
-			Email:           email,
+			Email:           &managerEvent.Manager.Email,
 			CreatedAt:       time.Now(),
 			UpdatedAt:       time.Now(),
 		}
-
 		if err := u.managerRepo.Create(ctx, &manager); err != nil {
 			span.RecordError(err)
 			return fmt.Errorf("create manager: %w", err)
@@ -138,37 +123,9 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 	} else {
 		// 更新現有管理員
 		tracing.TraceEvent(span, "Updating existing manager")
-
-		// 確保幂等性：檢查更新時間，只有更新的數據才會覆蓋現有數據
-		// 從事件中獲取最後更新時間
-		var eventTime time.Time
-		if cloudEvent.Time.After(time.Time{}) {
-			eventTime = cloudEvent.Time
-		} else {
-			eventTime = time.Now()
-		}
-
-		// 如果現有記錄的更新時間較新，則跳過更新（確保幂等性）
-		if existing.UpdatedAt.After(eventTime) {
-			u.logger.Info("Skipping manager update as existing data is newer",
-				zap.String("global_id", existing.GlobalManagerID),
-				zap.Time("existing_updated_at", existing.UpdatedAt),
-				zap.Time("event_time", eventTime))
-
-			// 發布管理員同步事件到KDS確認我們已處理
-			tracing.TraceEvent(span, "Publishing manager sync confirmation event to KDS")
-			if err := u.publishManagerSyncEvent(ctx, existing, managerEvent.GlobalMerchantID, cloudEvent.TraceParent); err != nil {
-				u.logger.Warn("Failed to publish manager sync confirmation event",
-					zap.String("global_id", existing.GlobalManagerID),
-					zap.Error(err))
-			}
-
-			return nil
-		}
-
 		manager = *existing
 		manager.Account = managerEvent.Manager.Account
-		manager.Email = email
+		manager.Email = &managerEvent.Manager.Email
 		manager.UpdatedAt = time.Now()
 
 		if err := u.managerRepo.Update(ctx, &manager); err != nil {
@@ -182,7 +139,6 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 
 	// 記錄資料庫操作完成
 	tracing.TraceEvent(span, "Database operation completed")
-	span.SetAttributes(attribute.Int64("manager.id", int64(manager.ID)))
 
 	// 發布管理員同步事件到KDS
 	tracing.TraceEvent(span, "Publishing manager sync event to KDS")
@@ -197,8 +153,8 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 	return nil
 }
 
-// 發布管理員同步事件
-func (u *ManagerUseCase) publishManagerSyncEvent(ctx context.Context, manager *model.Manager, globalMerchantID, traceParent string) error {
+// publishManagerSyncEvent 發布管理員同步事件
+func (u *ManagerUseCase) publishManagerSyncEvent(ctx context.Context, manager *model.Manager, globalMerchantID string, traceParent string) error {
 	// 獲取當前 span
 	span := trace.SpanFromContext(ctx)
 
@@ -206,11 +162,6 @@ func (u *ManagerUseCase) publishManagerSyncEvent(ctx context.Context, manager *m
 	tracing.TraceEvent(span, "Preparing manager sync event for KDS")
 
 	// 構建事件數據
-	var deletedAt string
-	if manager.DeletedAt != nil {
-		deletedAt = manager.DeletedAt.Format(time.RFC3339)
-	}
-
 	syncEvent := event.IdentityManagerSyncEvent{
 		GlobalMerchantID: globalMerchantID,
 		GlobalManagerID:  manager.GlobalManagerID,
@@ -220,7 +171,10 @@ func (u *ManagerUseCase) publishManagerSyncEvent(ctx context.Context, manager *m
 		Email:            manager.Email,
 		CreatedAt:        manager.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        manager.UpdatedAt.Format(time.RFC3339),
-		DeletedAt:        deletedAt,
+	}
+
+	if manager.DeletedAt != nil {
+		syncEvent.DeletedAt = manager.DeletedAt.Format(time.RFC3339)
 	}
 
 	// 構建CloudEvent
@@ -277,7 +231,6 @@ func (u *ManagerUseCase) GetManagerByID(ctx context.Context, id uint64) (*model.
 	span.SetAttributes(
 		attribute.String("manager.global_id", manager.GlobalManagerID),
 		attribute.String("manager.account", manager.Account),
-		attribute.Int64("merchant.id", int64(manager.MerchantID)),
 	)
 
 	return manager, nil
@@ -299,9 +252,7 @@ func (u *ManagerUseCase) GetManagerByGlobalID(ctx context.Context, globalID stri
 
 	// 添加管理員信息到 span
 	span.SetAttributes(
-		attribute.Int64("manager.id", int64(manager.ID)),
 		attribute.String("manager.account", manager.Account),
-		attribute.Int64("merchant.id", int64(manager.MerchantID)),
 	)
 
 	return manager, nil

@@ -10,7 +10,7 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/model"
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repository"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 )
 
 // ManagerRepository GORM 實現的管理員資料庫
@@ -19,7 +19,7 @@ type ManagerRepository struct {
 }
 
 // NewManagerRepository 創建管理員資料庫
-func NewManagerRepository(db *gorm.DB) repository.ManagerRepository {
+func NewManagerRepository(db *gorm.DB) repositoryport.ManagerRepository {
 	return &ManagerRepository{db: db}
 }
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/model"
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repository"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 )
 
 // MerchantRepository GORM 實現的商戶資料庫
@@ -19,7 +19,7 @@ type MerchantRepository struct {
 }
 
 // NewMerchantRepository 創建商戶資料庫
-func NewMerchantRepository(db *gorm.DB) repository.MerchantRepository {
+func NewMerchantRepository(db *gorm.DB) repositoryport.MerchantRepository {
 	return &MerchantRepository{db: db}
 }
 

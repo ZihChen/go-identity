@@ -40,7 +40,7 @@ func TestKDSToRedisManagerSync(t *testing.T) {
 
 	// 創建Redis隊列客戶端
 	queueService, err := queue.NewQueueService(cfg, logger)
-	require.NoError(t, err, "Should create queue service without error")
+	require.NoError(t, err, "Should create queue serviceport without error")
 
 	// 從ARN中提取stream名稱
 	streamARN := cfg.AWS.KinesisStream
@@ -130,7 +130,7 @@ func TestKDSToRedisPlayerSync(t *testing.T) {
 
 	// 創建Redis隊列客戶端
 	queueService, err := queue.NewQueueService(cfg, logger)
-	require.NoError(t, err, "Should create queue service without error")
+	require.NoError(t, err, "Should create queue serviceport without error")
 
 	// 從ARN中提取stream名稱
 	streamARN := cfg.AWS.KinesisStream
@@ -220,7 +220,7 @@ func TestKDSToRedisMerchantSync(t *testing.T) {
 
 	// 創建Redis隊列客戶端
 	queueService, err := queue.NewQueueService(cfg, logger)
-	require.NoError(t, err, "Should create queue service without error")
+	require.NoError(t, err, "Should create queue serviceport without error")
 
 	// 從ARN中提取stream名稱
 	streamARN := cfg.AWS.KinesisStream

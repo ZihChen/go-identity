@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 )
 
@@ -19,7 +19,7 @@ type EventService struct {
 }
 
 // NewEventService 創建事件服務
-func NewEventService(kdsService *kds.KDSService, logger *zap.Logger) service.EventProducer {
+func NewEventService(kdsService *kds.KDSService, logger *zap.Logger) serviceport.EventProducer {
 	return &EventService{
 		kdsService: kdsService,
 		logger:     logger,

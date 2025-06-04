@@ -8,15 +8,15 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
+	adapterUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/deduplication"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	redisInfra "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/redis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/usecase"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -44,9 +44,9 @@ var baseSet = wire.NewSet(
 	provideEventProducer,
 
 	// 用例層
-	usecase.NewMerchantUseCase,
-	usecase.NewPlayerUseCase,
-	usecase.NewManagerUseCase,
+	adapterUsecase.NewMerchantUseCase,
+	adapterUsecase.NewPlayerUseCase,
+	adapterUsecase.NewManagerUseCase,
 )
 
 // 資料庫連接提供者
@@ -59,12 +59,12 @@ func provideDatabaseConnection(cfg *config.Config) (*gorm.DB, error) {
 }
 
 // 事件生產者提供者
-func provideEventProducer(kdsService *kds.KDSService, logger *zap.Logger) service.EventProducer {
+func provideEventProducer(kdsService *kds.KDSService, logger *zap.Logger) serviceport.EventProducer {
 	return kdsService
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infra.Logger) (*handler.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*handler.HTTPHandler, error) {
 	wire.Build(
 		baseSet,
 		kds.NewKDSService,
@@ -116,6 +116,6 @@ func provideRedisClient(cfg *config.Config) (*redis.Client, error) {
 }
 
 // 提供事件去重服務
-func provideDeduplicationService(redisClient *redis.Client, logger *zap.Logger) service.EventDeduplicationService {
+func provideDeduplicationService(redisClient *redis.Client, logger *zap.Logger) serviceport.EventDeduplicationService {
 	return deduplication.NewRedisDeduplicationService(redisClient, logger)
 }

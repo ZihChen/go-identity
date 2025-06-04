@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"net/http"
 	"strconv"
 
@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/usecase"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 )
 
 // 為 Swagger 提供的類型別名
@@ -31,20 +31,20 @@ type SuccessResponse struct {
 
 // HTTPHandler HTTP接口處理器
 type HTTPHandler struct {
-	merchantUseCase *usecase.MerchantUseCase
-	playerUseCase   *usecase.PlayerUseCase
-	managerUseCase  *usecase.ManagerUseCase
+	merchantUseCase usecaseport.MerchantUseCase
+	playerUseCase   usecaseport.PlayerUseCase
+	managerUseCase  usecaseport.ManagerUseCase
 	logger          *zap.Logger
-	serviceLog      infra.Logger
+	serviceLog      infraport.Logger
 }
 
 // NewHTTPHandler 創建HTTP處理器
 func NewHTTPHandler(
-	merchantUseCase *usecase.MerchantUseCase,
-	playerUseCase *usecase.PlayerUseCase,
-	managerUseCase *usecase.ManagerUseCase,
+	merchantUseCase usecaseport.MerchantUseCase,
+	playerUseCase usecaseport.PlayerUseCase,
+	managerUseCase usecaseport.ManagerUseCase,
 	logger *zap.Logger,
-	serviceLog infra.Logger,
+	serviceLog infraport.Logger,
 ) *HTTPHandler {
 	return &HTTPHandler{
 		merchantUseCase: merchantUseCase,

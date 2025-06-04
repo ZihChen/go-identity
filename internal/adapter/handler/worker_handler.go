@@ -9,9 +9,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/usecase"
 )
 
 func getTaskID(task *asynq.Task) string {
@@ -27,17 +27,17 @@ func getTaskID(task *asynq.Task) string {
 
 // WorkerHandler Worker Handler
 type WorkerHandler struct {
-	merchantUseCase *usecase.MerchantUseCase
-	playerUseCase   *usecase.PlayerUseCase
-	managerUseCase  *usecase.ManagerUseCase
+	merchantUseCase usecaseport.MerchantUseCase
+	playerUseCase   usecaseport.PlayerUseCase
+	managerUseCase  usecaseport.ManagerUseCase
 	logger          *zap.Logger
 }
 
 // NewWorkerHandler 創建Worker Handler
 func NewWorkerHandler(
-	merchantUseCase *usecase.MerchantUseCase,
-	playerUseCase *usecase.PlayerUseCase,
-	managerUseCase *usecase.ManagerUseCase,
+	merchantUseCase usecaseport.MerchantUseCase,
+	playerUseCase usecaseport.PlayerUseCase,
+	managerUseCase usecaseport.ManagerUseCase,
 	logger *zap.Logger,
 ) *WorkerHandler {
 	return &WorkerHandler{

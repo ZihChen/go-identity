@@ -11,15 +11,15 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/deduplication"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	redis2 "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/redis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/usecase"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -28,7 +28,7 @@ import (
 // Injectors from wire.go:
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infra.Logger) (*handler.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*handler.HTTPHandler, error) {
 	db, err := provideDatabaseConnection(cfg)
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func provideDatabaseConnection(cfg *config.Config) (*gorm.DB, error) {
 }
 
 // 事件生產者提供者
-func provideEventProducer(kdsService *kds.KDSService, logger *zap.Logger) service.EventProducer {
+func provideEventProducer(kdsService *kds.KDSService, logger *zap.Logger) serviceport.EventProducer {
 	return kdsService
 }
 
@@ -178,6 +178,6 @@ func provideRedisClient(cfg *config.Config) (*redis.Client, error) {
 }
 
 // 提供事件去重服務
-func provideDeduplicationService(redisClient *redis.Client, logger *zap.Logger) service.EventDeduplicationService {
+func provideDeduplicationService(redisClient *redis.Client, logger *zap.Logger) serviceport.EventDeduplicationService {
 	return deduplication.NewRedisDeduplicationService(redisClient, logger)
 }

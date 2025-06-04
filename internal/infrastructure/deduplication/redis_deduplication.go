@@ -8,7 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 )
 
 const (
@@ -25,7 +25,7 @@ type RedisDeduplicationService struct {
 }
 
 // NewRedisDeduplicationService 創建新的Redis去重服務
-func NewRedisDeduplicationService(client *redis.Client, logger *zap.Logger) service.EventDeduplicationService {
+func NewRedisDeduplicationService(client *redis.Client, logger *zap.Logger) serviceport.EventDeduplicationService {
 	return &RedisDeduplicationService{
 		client: client,
 		logger: logger,

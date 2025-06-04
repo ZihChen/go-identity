@@ -13,7 +13,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
@@ -33,7 +33,7 @@ type QueueService struct {
 }
 
 // NewQueueService 創建佇列服務
-func NewQueueService(cfg *config.Config, logger *zap.Logger) (service.QueueService, error) {
+func NewQueueService(cfg *config.Config, logger *zap.Logger) (serviceport.QueueService, error) {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Domain, cfg.Redis.Port)
 
 	logger.Info("Connecting to Redis",

@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	cfg "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 )
@@ -47,12 +47,12 @@ type KDSService struct {
 	partitionKey string
 	sortKey      string
 	config       *cfg.Config
-	queueService service.QueueService
+	queueService serviceport.QueueService
 	logger       *zap.Logger
 }
 
 // NewKDSService 創建KDS服務
-func NewKDSService(config *cfg.Config, queueService service.QueueService, redisClient *redis.Client, logger *zap.Logger) (*KDSService, error) {
+func NewKDSService(config *cfg.Config, queueService serviceport.QueueService, redisClient *redis.Client, logger *zap.Logger) (*KDSService, error) {
 	// 創建AWS配置
 	awsConfig, err := config.LoadAWSConfig(context.Background())
 	if err != nil {

@@ -13,24 +13,25 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repository"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 )
 
 // MerchantUseCase 商戶用例
 type MerchantUseCase struct {
-	merchantRepo  repository.MerchantRepository
-	eventProducer service.EventProducer
+	merchantRepo  repositoryport.MerchantRepository
+	eventProducer serviceport.EventProducer
 	logger        *zap.Logger
 }
 
 // NewMerchantUseCase 創建商戶用例
 func NewMerchantUseCase(
-	merchantRepo repository.MerchantRepository,
-	eventProducer service.EventProducer,
+	merchantRepo repositoryport.MerchantRepository,
+	eventProducer serviceport.EventProducer,
 	logger *zap.Logger,
-) *MerchantUseCase {
+) usecaseport.MerchantUseCase {
 	return &MerchantUseCase{
 		merchantRepo:  merchantRepo,
 		eventProducer: eventProducer,
@@ -110,34 +111,6 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 	} else {
 		// 更新現有商戶
 		tracing.TraceEvent(span, "Updating existing merchant")
-
-		// 確保幂等性：檢查更新時間，只有更新的數據才會覆蓋現有數據
-		// 從事件中獲取最後更新時間
-		var eventTime time.Time
-		if cloudEvent.Time.After(time.Time{}) {
-			eventTime = cloudEvent.Time
-		} else {
-			eventTime = time.Now()
-		}
-
-		// 如果現有記錄的更新時間較新，則跳過更新（確保幂等性）
-		if existing.UpdatedAt.After(eventTime) {
-			u.logger.Info("Skipping merchant update as existing data is newer",
-				zap.String("global_id", existing.GlobalMerchantID),
-				zap.Time("existing_updated_at", existing.UpdatedAt),
-				zap.Time("event_time", eventTime))
-
-			// 發布商戶同步事件到KDS確認我們已處理
-			tracing.TraceEvent(span, "Publishing merchant sync confirmation event to KDS")
-			if err := u.publishMerchantSyncEvent(ctx, existing, cloudEvent.TraceParent); err != nil {
-				u.logger.Warn("Failed to publish merchant sync confirmation event",
-					zap.String("global_id", existing.GlobalMerchantID),
-					zap.Error(err))
-			}
-
-			return nil
-		}
-
 		merchant = *existing
 		merchant.Name = merchantEvent.Merchant.Name
 		merchant.DisplayName = merchantEvent.Merchant.DisplayName
@@ -168,7 +141,7 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 	return nil
 }
 
-// 發布商戶同步事件
+// publishMerchantSyncEvent 發布商戶同步事件
 func (u *MerchantUseCase) publishMerchantSyncEvent(ctx context.Context, merchant *model.Merchant, traceParent string) error {
 	// 獲取當前 span
 	span := trace.SpanFromContext(ctx)
@@ -266,7 +239,6 @@ func (u *MerchantUseCase) GetMerchantByGlobalID(ctx context.Context, globalID st
 
 	// 添加商戶信息到 span
 	span.SetAttributes(
-		attribute.Int64("merchant.id", int64(merchant.ID)),
 		attribute.String("merchant.name", merchant.Name),
 	)
 

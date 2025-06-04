@@ -10,7 +10,7 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/model"
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repository"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 )
 
 // PlayerRepository GORM 實現的玩家資料庫
@@ -19,7 +19,7 @@ type PlayerRepository struct {
 }
 
 // NewPlayerRepository 創建玩家資料庫
-func NewPlayerRepository(db *gorm.DB) repository.PlayerRepository {
+func NewPlayerRepository(db *gorm.DB) repositoryport.PlayerRepository {
 	return &PlayerRepository{db: db}
 }
 

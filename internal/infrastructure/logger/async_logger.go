@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infra"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.uber.org/zap"
@@ -44,7 +44,7 @@ type AsyncLogger struct {
 }
 
 // NewAsyncLogger workerCount擴增worker數量，default為1
-func NewAsyncLogger(cfg *config.Config, workerCount int) infra.Logger {
+func NewAsyncLogger(cfg *config.Config, workerCount int) infraport.Logger {
 	var zapConfig zap.Config
 
 	if cfg.App.Debug {
