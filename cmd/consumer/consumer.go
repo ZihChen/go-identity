@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"fmt"
+	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -52,15 +53,18 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 獲取配置和日誌
 	cfg := cmd.GetConfig()
 	logger := cmd.GetLogger()
+	// 獲取ServiceLogger實例
+	sLogger := sLog.NewServiceLogger(cfg)
 
 	rootCtx := context.Background()
 
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
-		logger.Fatal("Failed to initialize tracer", zap.Error(err))
+		sLogger.FatalLog("Failed to initialize consumer tracer", sLogger.Error("err", err))
 	}
 	defer tracer.Shutdown(context.Background())
+	sLogger.InfoLog("Successfully initialized consumer tracer!")
 
 	rootCtx, rootSpan := tracing.StartSpan(rootCtx, "ConsumerService")
 	rootSpan.SetAttributes(
@@ -71,10 +75,11 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	defer rootSpan.End()
 
 	// 使用Wire初始化KDS服務
-	kdsService, err := di.InitializeConsumer(cfg, logger)
+	kdsService, err := di.InitializeConsumer(cfg, logger, sLogger)
 	if err != nil {
-		logger.Fatal("Failed to initialize KDS service", zap.Error(err))
+		sLogger.FatalLog("Failed to initialize KDS service", sLogger.Error("err", err))
 	}
+	sLogger.InfoLog("Successfully initialized KDS service!")
 
 	// 創建上下文
 	ctx, cancel := context.WithCancel(rootCtx)
@@ -109,7 +114,7 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	}
 
 	// 啟動所有Consumer
-	logger.Info("Starting KDS consumers", zap.Int("consumer_count", len(consumers)))
+	sLogger.InfoLog("Starting KDS consumers", sLogger.Int("consumer_count", len(consumers)))
 	for _, consumer := range consumers {
 		wg.Add(1)
 		go startConsumer(ctx, &wg, consumer, logger)
@@ -117,7 +122,7 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 
 	// 等待中斷信號
 	<-quit
-	logger.Info("Shutting down consumer...")
+	sLogger.InfoLog("Shutting down consumer...")
 
 	// 記錄關閉事件
 	tracing.TraceEvent(rootSpan, "Shutting down consumer service")
@@ -133,15 +138,14 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 等待優雅關閉或超時
 	select {
 	case <-done:
-		logger.Info("All consumers exited gracefully")
+		sLogger.InfoLog("All consumers exited gracefully")
 	case <-time.After(10 * time.Second):
-		logger.Warn("Shutdown timeout - some consumers may still be running")
+		sLogger.WarnLog("Shutdown timeout - some consumers may still be running")
 	}
 
 	// 記錄成功退出
 	tracing.TraceEvent(rootSpan, "Consumer service exited gracefully")
-
-	logger.Info("Consumer exited")
+	sLogger.InfoLog("Consumer exited")
 }
 
 // startConsumer 啟動單個Consumer

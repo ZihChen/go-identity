@@ -2,20 +2,49 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: fat-cat-redis
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
       - fatcatnet
     restart: always
-  ms-identity-cat:
+  fat-identity-web:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fat-identity-cat
+    container_name: fat-identity-web
+    command: ["./fat-identity-cat", "web"]
     environment:
       - TZ=Asia/Taipei
     ports:
       - "8080:8080"
+    depends_on:
+      - redis
+    networks:
+      - fatcatnet
+    restart: always
+  fat-identity-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fat-identity-consumer
+    command: [ "./fat-identity-cat", "consumer" ]
+    environment:
+      - TZ=Asia/Taipei
+    depends_on:
+      - redis
+    networks:
+      - fatcatnet
+    restart: always
+  fat-identity-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fat-identity-worker
+    command: [ "./fat-identity-cat", "worker" ]
+    environment:
+      - TZ=Asia/Taipei
     depends_on:
       - redis
     networks:

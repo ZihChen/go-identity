@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -160,7 +161,13 @@ func WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
 		ctxWithTrace := tracing.ExtractTraceContext(ctx, data)
 
 		// 創建處理任務的 span
-		ctxWithTrace, span := tracing.TraceRedisToWorker(ctxWithTrace, task.Type(), task.ResultWriter().TaskID())
+		taskID := "unknown"
+		if w := task.ResultWriter(); w != nil {
+			taskID = w.TaskID()
+		} else {
+			taskID = fmt.Sprintf("no-writer-%s", uuid.New().String()) // 保證唯一性
+		}
+		ctxWithTrace, span := tracing.TraceRedisToWorker(ctxWithTrace, task.Type(), taskID)
 		defer span.End()
 
 		// 記錄任務開始處理
@@ -248,8 +255,14 @@ func NewWorkerServer(cfg *config.Config, zapLogger *zap.Logger) (*asynq.Server, 
 			Logger:      asynqLogger,
 			RetryDelayFunc: func(n int, err error, task *asynq.Task) time.Duration {
 				// 增加指標記錄重試
+				taskID := "unknown"
+				if w := task.ResultWriter(); w != nil {
+					taskID = w.TaskID()
+				} else {
+					taskID = fmt.Sprintf("no-writer-%s", uuid.New().String()) // 保證唯一性
+				}
 				zapLogger.Info("Task retry scheduled",
-					zap.String("task_id", task.ResultWriter().TaskID()),
+					zap.String("task_id", taskID),
 					zap.String("task_type", task.Type()),
 					zap.Int("retry_count", n),
 					zap.Error(err))

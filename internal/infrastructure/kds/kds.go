@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"sync"
 	"time"
 
@@ -49,10 +50,11 @@ type KDSService struct {
 	config       *cfg.Config
 	queueService serviceport.QueueService
 	logger       *zap.Logger
+	serviceLog   infraport.Logger
 }
 
 // NewKDSService 創建KDS服務
-func NewKDSService(config *cfg.Config, queueService serviceport.QueueService, redisClient *redis.Client, logger *zap.Logger) (*KDSService, error) {
+func NewKDSService(config *cfg.Config, queueService serviceport.QueueService, redisClient *redis.Client, logger *zap.Logger, serviceLog infraport.Logger) (*KDSService, error) {
 	// 創建AWS配置
 	awsConfig, err := config.LoadAWSConfig(context.Background())
 	if err != nil {
@@ -94,6 +96,7 @@ func NewKDSService(config *cfg.Config, queueService serviceport.QueueService, re
 		config:       config,
 		queueService: queueService,
 		logger:       logger,
+		serviceLog:   serviceLog,
 	}, nil
 }
 
@@ -131,7 +134,7 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 		attribute.String("messaging.partition_key", partitionKey),
 	)
 
-	_, err := k.client.PutRecord(ctx, &kinesis.PutRecordInput{
+	res, err := k.client.PutRecord(ctx, &kinesis.PutRecordInput{
 		Data:         data,
 		StreamName:   aws.String(k.streamName),
 		PartitionKey: aws.String(partitionKey),
@@ -150,7 +153,8 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 
 	k.logger.Info("Published event to KDS",
 		zap.String("event_type", eventType),
-		zap.String("partition_key", partitionKey))
+		zap.String("partition_key", partitionKey),
+		zap.Any("response", res))
 
 	return nil
 }
@@ -253,7 +257,7 @@ func (k *KDSService) consumeEvents(ctx context.Context, eventType string, enqueu
 			defer shardSpan.End()
 
 			currentIterator := initialIterator
-			recordCount := 0
+			//recordCount := 0
 
 			for {
 				select {
@@ -303,12 +307,13 @@ func (k *KDSService) consumeEvents(ctx context.Context, eventType string, enqueu
 
 					// 處理獲取的記錄
 					for _, record := range recordsOutput.Records {
+						sequenceNumber := *record.SequenceNumber
 						msgCtx, msgSpan := tracing.TraceKDSToRedis(shardCtx, eventType, "")
 
 						// 記錄消息數據
 						msgSpan.SetAttributes(
 							attribute.String("messaging.shard_id", shardId),
-							attribute.String("messaging.sequence_number", *record.SequenceNumber),
+							attribute.String("messaging.sequence_number", sequenceNumber),
 							attribute.Int("messaging.payload_size_bytes", len(record.Data)),
 						)
 
@@ -334,13 +339,15 @@ func (k *KDSService) consumeEvents(ctx context.Context, eventType string, enqueu
 						if err != nil {
 							k.logger.Warn("Failed to check if event is processed, will process anyway",
 								zap.String("event_id", eventID),
+								zap.String("sequence_number", sequenceNumber),
 								zap.Error(err))
 						}
 
 						if processed {
 							k.logger.Info("Skipping already processed event",
 								zap.String("event_id", eventID),
-								zap.String("event_type", eventType))
+								zap.String("event_type", eventType),
+								zap.String("sequence_number", sequenceNumber))
 							msgSpan.End()
 							continue
 						}
@@ -356,6 +363,7 @@ func (k *KDSService) consumeEvents(ctx context.Context, eventType string, enqueu
 							k.logger.Error("Failed to enqueue message",
 								zap.String("event_type", eventType),
 								zap.String("event_id", eventID),
+								zap.String("sequence_number", sequenceNumber),
 								zap.Error(err))
 							msgSpan.RecordError(err)
 							msgSpan.End()
@@ -366,6 +374,7 @@ func (k *KDSService) consumeEvents(ctx context.Context, eventType string, enqueu
 						if err := k.markEventProcessed(msgCtx, eventID); err != nil {
 							k.logger.Warn("Failed to mark event as processed",
 								zap.String("event_id", eventID),
+								zap.String("sequence_number", sequenceNumber),
 								zap.Error(err))
 						}
 
@@ -375,24 +384,24 @@ func (k *KDSService) consumeEvents(ctx context.Context, eventType string, enqueu
 						k.logger.Info("Consumed event from KDS and enqueued to Redis",
 							zap.String("event_type", eventType),
 							zap.String("event_id", eventID),
-							zap.String("sequence_number", *record.SequenceNumber))
+							zap.String("sequence_number", sequenceNumber))
 
 						// 更新檢查點（每處理checkpointBatchSize條記錄更新一次）
-						recordCount++
-						if recordCount >= checkpointBatchSize {
-							if err := k.updateCheckpoint(msgCtx, shardId, *record.SequenceNumber, globalMerchantID); err != nil {
-								k.logger.Warn("Failed to update checkpoint",
-									zap.String("shard_id", shardId),
-									zap.String("sequence_number", *record.SequenceNumber),
-									zap.Error(err))
-							} else {
-								k.logger.Info("Updated checkpoint",
-									zap.String("shard_id", shardId),
-									zap.String("sequence_number", *record.SequenceNumber),
-									zap.String("global_merchant_id", globalMerchantID))
-								recordCount = 0
-							}
+						//recordCount++
+						//if recordCount >= checkpointBatchSize {
+						if err := k.updateCheckpoint(msgCtx, shardId, sequenceNumber, globalMerchantID); err != nil {
+							k.logger.Warn("Failed to update checkpoint",
+								zap.String("shard_id", shardId),
+								zap.String("sequence_number", sequenceNumber),
+								zap.Error(err))
+						} else {
+							k.logger.Info("Updated checkpoint",
+								zap.String("shard_id", shardId),
+								zap.String("sequence_number", sequenceNumber),
+								zap.String("global_merchant_id", globalMerchantID))
+							//recordCount = 0
 						}
+						//}
 
 						msgSpan.End()
 					}
@@ -445,6 +454,9 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 		if shard.ShardId != nil && *shard.ShardId != "" {
 			// 檢查DynamoDB中是否有這個分片的checkpoint
 			checkpoint, err := k.getCheckpoint(ctx, *shard.ShardId)
+			k.logger.Info("Current checkpoint",
+				zap.String("shard_id", *shard.ShardId),
+				zap.String("checkpoint", checkpoint))
 
 			iteratorType := types.ShardIteratorTypeLatest
 			var sequenceNumber *string = nil
@@ -457,8 +469,9 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 					zap.String("shard_id", *shard.ShardId),
 					zap.String("sequence_number", checkpoint))
 			} else {
-				k.logger.Info("No checkpoint found, starting from latest position",
-					zap.String("shard_id", *shard.ShardId))
+				k.logger.Error("No checkpoint found, starting from latest position",
+					zap.String("shard_id", *shard.ShardId),
+					zap.Error(err))
 			}
 
 			iterOutput, err := k.client.GetShardIterator(ctx, &kinesis.GetShardIteratorInput{
@@ -489,33 +502,22 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 
 // getCheckpoint 從DynamoDB獲取指定分片的checkpoint
 func (k *KDSService) getCheckpoint(ctx context.Context, shardId string) (string, error) {
-	// 如果使用Redis存儲checkpoint
-	if k.redisClient != nil {
-		checkpointKey := checkpointKeyPrefix + shardId
-		sequenceNumber, err := k.redisClient.Get(ctx, checkpointKey).Result()
-		if err == redis.Nil {
-			return "", fmt.Errorf("checkpoint not found")
-		} else if err != nil {
-			return "", err
-		}
-		return sequenceNumber, nil
-	}
-
 	// 使用DynamoDB存儲checkpoint
 	result, err := k.dynamoClient.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(k.tableName),
 		Key: map[string]dynamodbtypes.AttributeValue{
 			k.partitionKey: &dynamodbtypes.AttributeValueMemberS{Value: shardId},
+			k.sortKey:      &dynamodbtypes.AttributeValueMemberS{Value: "883"},
 		},
 	})
 	if err != nil {
+		k.logger.Error("Failed to get checkpoint from DynamoDB",
+			zap.String("tableName", k.tableName),
+			zap.String("partitionKey", k.partitionKey),
+			zap.String("shardId", shardId),
+			zap.Error(err))
 		return "", fmt.Errorf("failed to get checkpoint from DynamoDB: %w", err)
 	}
-
-	if result.Item == nil {
-		return "", fmt.Errorf("checkpoint not found")
-	}
-
 	// 從DynamoDB項目中提取序列號
 	sequenceAttr, ok := result.Item["sequence_number"]
 	if !ok {
@@ -532,16 +534,8 @@ func (k *KDSService) getCheckpoint(ctx context.Context, shardId string) (string,
 
 // updateCheckpoint 更新指定分片的checkpoint到DynamoDB
 func (k *KDSService) updateCheckpoint(ctx context.Context, shardId string, sequenceNumber string, globalMerchantId string) error {
-	// 如果使用Redis存儲checkpoint
-	if k.redisClient != nil {
-		checkpointKey := checkpointKeyPrefix + shardId
-		// 使用 Redis 存儲 checkpoint，設置 7 天過期
-		_, err := k.redisClient.Set(ctx, checkpointKey, sequenceNumber, 7*24*time.Hour).Result()
-		return err
-	}
-
 	// 使用DynamoDB存儲checkpoint
-	_, err := k.dynamoClient.PutItem(ctx, &dynamodb.PutItemInput{
+	r, err := k.dynamoClient.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(k.tableName),
 		Item: map[string]dynamodbtypes.AttributeValue{
 			k.partitionKey:    &dynamodbtypes.AttributeValueMemberS{Value: shardId},
@@ -553,7 +547,7 @@ func (k *KDSService) updateCheckpoint(ctx context.Context, shardId string, seque
 	if err != nil {
 		return fmt.Errorf("failed to update checkpoint in DynamoDB: %w", err)
 	}
-
+	k.logger.Info("[DynamoDB]Update checkpoint successfully", zap.Any("result", r))
 	return nil
 }
 

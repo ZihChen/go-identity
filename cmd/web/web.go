@@ -51,7 +51,7 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
-		sLogger.FatalLog("Failed to initialize tracer", sLogger.Error("err", err))
+		sLogger.FatalLog("Failed to initialize web tracer", sLogger.Error("err", err))
 	}
 	defer tracer.Shutdown(context.Background())
 	sLogger.InfoLog("Successfully initialized web tracer!")

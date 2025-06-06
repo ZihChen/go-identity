@@ -74,7 +74,7 @@ func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infr
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger) (*handler.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*handler.WorkerHandler, error) {
 	wire.Build(
 		baseSet,
 		kds.NewKDSService,
@@ -84,7 +84,7 @@ func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger) (*handler.Wo
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger) (*WorkerComponents, error) {
+func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*WorkerComponents, error) {
 	wire.Build(
 		wire.Struct(new(WorkerComponents), "*"),
 		baseSet,
@@ -101,7 +101,7 @@ func provideWorkerServer(cfg *config.Config, logger *zap.Logger) (*asynq.Server,
 }
 
 // InitializeConsumer 初始化 Consumer 服務的 KDS 服務
-func InitializeConsumer(cfg *config.Config, logger *zap.Logger) (*kds.KDSService, error) {
+func InitializeConsumer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*kds.KDSService, error) {
 	wire.Build(
 		queue.NewQueueService,
 		provideRedisClient,

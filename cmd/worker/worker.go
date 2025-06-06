@@ -2,19 +2,18 @@ package worker
 
 import (
 	"context"
+	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/hibiken/asynq"
-	"github.com/spf13/cobra"
-	"go.opentelemetry.io/otel/attribute"
-	"go.uber.org/zap"
-
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
+	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Command 創建並返回worker
@@ -38,13 +37,16 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	// 獲取配置和日誌
 	cfg := cmd.GetConfig()
 	logger := cmd.GetLogger()
+	// 獲取ServiceLogger實例
+	sLogger := sLog.NewServiceLogger(cfg)
 
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
-		logger.Fatal("Failed to initialize tracer", zap.Error(err))
+		sLogger.FatalLog("[RunWorker]Failed to initialize worker tracer", sLogger.Error("err", err))
 	}
 	defer tracer.Shutdown(context.Background())
+	sLogger.InfoLog("[RunWorker]Successfully initialized worker tracer!")
 
 	ctx, rootSpan := tracing.StartSpan(context.Background(), "WorkerService")
 	defer rootSpan.End()
@@ -56,28 +58,27 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	)
 
 	// 使用Wire初始化Worker組件
-	components, err := di.InitializeWorkerComponents(cfg, logger)
+	components, err := di.InitializeWorkerComponents(cfg, logger, sLogger)
 	if err != nil {
-		logger.Fatal("Failed to initialize worker components", zap.Error(err))
+		sLogger.FatalLog("[RunWorker]Failed to initialize worker components", sLogger.Error("err", err))
 		rootSpan.RecordError(err)
 		return
 	}
+	sLogger.InfoLog("[RunWorker]Successfully initialized worker components!")
 
 	mux := asynq.NewServeMux()
 
 	// 記錄Worker啟動
-	logger.Info("Starting worker service",
-		zap.String("redis", cfg.Redis.Domain),
-		zap.Int("redis_port", cfg.Redis.Port))
+	sLogger.InfoLog("[RunWorker]Starting worker...", sLogger.String("redis_domain", cfg.Redis.Domain), sLogger.Int("redis_port", cfg.Redis.Port))
 	tracing.TraceEvent(rootSpan, "Starting worker service")
 
 	components.Handler.RegisterHandlers(mux)
-	logger.Info("Task handlers registered")
+	sLogger.InfoLog("[RunWorker]Task handlers registered")
 
 	go func() {
 		if err := components.Server.Start(mux); err != nil {
 			if err != asynq.ErrServerClosed {
-				logger.Fatal("Failed to start worker server", zap.Error(err))
+				sLogger.FatalLog("[RunWorker]Failed to start worker server", sLogger.Error("err", err))
 				rootSpan.RecordError(err)
 			}
 		}
@@ -88,7 +89,7 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Shutting down worker...")
+	sLogger.InfoLog("[RunWorker]Shutting down worker...")
 	// 記錄關閉事件
 	tracing.TraceEvent(rootSpan, "Shutting down worker service")
 
@@ -104,13 +105,12 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 
 	select {
 	case <-done:
-		logger.Info("Worker service shutdown completed gracefully")
+		sLogger.InfoLog("[RunWorker]Worker service exited gracefully")
 	case <-shutdownCtx.Done():
-		logger.Warn("Worker service shutdown timeout - forcing exit")
+		sLogger.WarnLog("[RunWorker]Worker service forced to shutdown after 10 seconds")
 	}
 
 	// 記錄成功關閉
 	tracing.TraceEvent(rootSpan, "Worker service exited gracefully")
-
-	logger.Info("Worker exited")
+	sLogger.InfoLog("[RunWorker]Worker exited!")
 }

@@ -13,7 +13,7 @@ COPY . .
 
 # 構建應用程序
 ARG CI_COMMIT_SHA
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.Version=$CI_COMMIT_SHA" -o ms-identity-cat
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.Version=$CI_COMMIT_SHA" -o fat-identity-cat
 
 # 創建最終運行時映像
 FROM alpine:latest
@@ -24,16 +24,10 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
 # 從構建階段複製編譯後的應用程序
-COPY --from=builder /app/ms-identity-cat .
+COPY --from=builder /app/fat-identity-cat .
 
 # 複製配置文件
 COPY --from=builder /app/.env* ./
 
 # 設置時區
 ENV TZ=Asia/Taipei
-
-# 暴露端口
-EXPOSE 8080
-
-# 啟動 web 服務
-CMD ["./ms-identity-cat", "web"]
