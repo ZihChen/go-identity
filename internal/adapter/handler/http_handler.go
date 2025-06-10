@@ -1,7 +1,12 @@
 package handler
 
 import (
+	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
+	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
+	redis2 "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/redis"
 	"net/http"
 	"strconv"
 
@@ -82,6 +87,13 @@ func (h *HTTPHandler) RegisterRoutes(router *gin.Engine) {
 	{
 		managers.GET("/:id", h.GetManagerByID)
 		managers.GET("/global/:global_id", h.GetManagerByGlobalID)
+	}
+
+	// 調試接口
+	debugger := api.Group("/debugger")
+	{
+		debugger.GET("/", h.DebuggerForDev)
+		debugger.GET("/publish", h.DebuggerForPublish)
 	}
 
 	// 健康檢查
@@ -400,4 +412,35 @@ func (h *HTTPHandler) GetManagerByGlobalID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, manager)
+}
+
+func (h *HTTPHandler) DebuggerForDev(c *gin.Context) {
+	cfg := cmd.GetConfig()
+	logger := cmd.GetLogger()
+	sLogger := sLog.NewServiceLogger(cfg)
+	queueService, _ := queue.NewQueueService(cfg, logger)
+	client, _ := redis2.NewRedis(cfg)
+	ks, _ := kds.NewKDSService(cfg, queueService, client, logger, sLogger)
+	ks.ConsumeAllEvents(c.Request.Context())
+}
+
+func (h *HTTPHandler) DebuggerForPublish(c *gin.Context) {
+	player, err := h.playerUseCase.GetPlayerByID(c.Request.Context(), 1)
+	if err != nil {
+		if err.Error() == "record not found" {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Player not found",
+			})
+			return
+		}
+
+		h.logger.Error("Failed to get player by ID",
+			zap.Error(err))
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get player",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, player)
 }

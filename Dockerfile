@@ -13,18 +13,28 @@ COPY . .
 
 # 構建應用程序
 ARG CI_COMMIT_SHA
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.Version=$CI_COMMIT_SHA" -o fat-identity-cat
+RUN CGO_ENABLED=0 GOOS=linux go build -gcflags="all=-N -l" -ldflags "-X main.Version=$CI_COMMIT_SHA" -o fat-identity-cat
+
+# Install Delve debugger 並指定安裝位置
+RUN GOBIN=/usr/local/bin go install github.com/go-delve/delve/cmd/dlv@latest
 
 # 創建最終運行時映像
 FROM alpine:latest
 
 # 安裝必要的運行時依賴
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    curl \
+    busybox-extras \
+    libc6-compat
 
 WORKDIR /app
 
 # 從構建階段複製編譯後的應用程序
 COPY --from=builder /app/fat-identity-cat .
+# 添加這行來複製 dlv
+COPY --from=builder /usr/local/bin/dlv /usr/local/bin/dlv
 
 # 複製配置文件
 COPY --from=builder /app/.env* ./

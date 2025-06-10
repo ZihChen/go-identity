@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.uber.org/zap"
 
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
@@ -38,15 +37,7 @@ func init() {
 	cmd.AddCommand(Command())
 }
 
-// 定義Consumer結構
-type consumerConfig struct {
-	name      string          // Consumer名稱
-	eventType string          // 事件類型
-	consumeFn consumeFunction // 消費函數
-}
-
-// 定義消費函數
-type consumeFunction func(context.Context) error
+// 不再需要單獨的Consumer結構，因為我們現在使用單一的Consumer來處理所有事件類型
 
 // runConsumer 啟動Consumer
 func runConsumer(cobraCmd *cobra.Command, args []string) {
@@ -66,7 +57,7 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	defer tracer.Shutdown(context.Background())
 	sLogger.InfoLog("Successfully initialized consumer tracer!")
 
-	rootCtx, rootSpan := tracing.StartSpan(rootCtx, "ConsumerService")
+	rootCtx, rootSpan := tracing.StartSpan(rootCtx, "ConsumerService.Start")
 	rootSpan.SetAttributes(
 		attribute.String("service.name", cfg.App.Name),
 		attribute.String("service.type", "consumer"),
@@ -94,35 +85,135 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 記錄Consumer啟動
 	tracing.TraceEvent(rootSpan, "Starting KDS consumers")
 
-	// 定義需要啟動的Consumer清單
-	consumers := []consumerConfig{
-		{
-			name:      "MerchantSync",
-			eventType: cfg.Events.MerchantSync,
-			consumeFn: kdsService.ConsumeMerchantSync,
-		},
-		{
-			name:      "PlayerSync",
-			eventType: cfg.Events.PlayerSync,
-			consumeFn: kdsService.ConsumePlayerSync,
-		},
-		{
-			name:      "ManagerSync",
-			eventType: cfg.Events.ManagerSync,
-			consumeFn: kdsService.ConsumeManagerSync,
-		},
-	}
+	sLogger.InfoLog("Starting KDS consumer for all event types")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// 創建Consumer span
+		consumerCtx, consumerSpan := tracing.StartSpan(rootCtx, "AllEventsConsumer")
+		defer consumerSpan.End()
 
-	// 啟動所有Consumer
-	sLogger.InfoLog("Starting KDS consumers", sLogger.Int("consumer_count", len(consumers)))
-	for _, consumer := range consumers {
-		wg.Add(1)
-		go startConsumer(ctx, &wg, consumer, logger)
-	}
+		consumerSpan.SetAttributes(
+			attribute.String("consumer.type", "all_events"),
+		)
+		sLogger.InfoWithContext(consumerCtx, "Starting all events consumer")
+		tracing.TraceEvent(consumerSpan, "All events consumer started")
+
+		for {
+			// 外層無限循環，確保Consumer持續運行
+			// 檢查上下文是否取消 (每次Consume前)
+			if ctx.Err() != nil {
+				sLogger.InfoWithContext(consumerCtx, "All events consumer stopping due to context cancellation")
+				tracing.TraceEvent(consumerSpan, "All events consumer stopped due to cancellation")
+				return
+			}
+
+			// 添加重試邏輯
+			maxRetries := 5
+			retryDelay := 2 * time.Second
+			var lastError error
+			var success bool // 標記是否成功消費
+
+			for attempt := 0; attempt < maxRetries; attempt++ {
+				// 檢查上下文是否取消 (在每次重試嘗試前)
+				if ctx.Err() != nil {
+					sLogger.InfoWithContext(consumerCtx, "All events consumer stopping due to context cancellation during retry")
+					tracing.TraceEvent(consumerSpan, "All events consumer stopped due to cancellation during retry")
+					return
+				}
+
+				// 添加 recover 機制
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							const size = 64 << 10
+							buf := make([]byte, size)
+							buf = buf[:runtime.Stack(buf, false)]
+							err, ok := r.(error)
+							if ok {
+								lastError = fmt.Errorf("panic recovered: %w\n%s", err, buf)
+							} else {
+								lastError = fmt.Errorf("panic recovered: %v\n%s", r, buf)
+							}
+							sLogger.ErrorWithContext(consumerCtx, "All events consumer panicked", sLogger.Error("error", lastError))
+							consumerSpan.RecordError(lastError)
+							consumerSpan.SetStatus(codes.Error, lastError.Error())
+						}
+					}()
+
+					if attempt > 0 {
+						sLogger.InfoWithContext(consumerCtx, "[x]Retrying all events consumer",
+							sLogger.Int("attempt", attempt+1),
+							sLogger.Int("max_retries", maxRetries),
+							sLogger.String("retry_delay", retryDelay.String()))
+						tracing.TraceEvent(consumerSpan, "Retrying consumer",
+							attribute.Int("attempt", attempt+1),
+							attribute.Int("max_retries", maxRetries))
+						backoffDuration := retryDelay * time.Duration(attempt)
+						// 加入些許隨機性，避免集中重試
+						jitter := time.Duration(rand.Int63n(int64(500 * time.Millisecond)))
+						time.Sleep(backoffDuration + jitter)
+					}
+					// 嘗試啟動Consumer
+					consumeCtx, cancel := context.WithTimeout(consumerCtx, 30*time.Second)
+					err := kdsService.ConsumeAllEvents(consumeCtx)
+					cancel()
+					// 上下文被取消，
+					if err == context.Canceled || consumeCtx.Err() == context.Canceled {
+						sLogger.InfoWithContext(consumeCtx, "All events consumer stopped due to context cancellation during consume")
+						tracing.TraceEvent(consumerSpan, "All events consumer stopped gracefully during consume")
+						return
+					}
+					// 超時錯誤，記錄並重試
+					if consumeCtx.Err() == context.DeadlineExceeded {
+						lastError = fmt.Errorf("consumer timed out: %w", consumeCtx.Err())
+						sLogger.ErrorWithContext(consumeCtx, "All events consumer timed out, will retry",
+							sLogger.Error("error", lastError),
+							sLogger.Int("attempt", attempt+1),
+							sLogger.Int("max_retries", maxRetries))
+						consumerSpan.RecordError(lastError)
+						return
+					}
+					// 其他錯誤重試
+					if err != nil {
+						lastError = err
+						sLogger.ErrorWithContext(consumeCtx, "All events consumer failed, will retry",
+							sLogger.Error("error", err),
+							sLogger.Int("attempt", attempt+1),
+							sLogger.Int("max_retries", maxRetries))
+						consumerSpan.RecordError(err)
+						return
+					}
+
+					// 如果沒有錯誤，則成功
+					sLogger.InfoWithContext(consumeCtx, "All events consumer completed successfully")
+					tracing.TraceEvent(consumerSpan, "All events consumer completed")
+					success = true
+				}() // 立即執行 recover 的匿名函數
+
+				if success || ctx.Err() != nil {
+					break // 成功或上下文取消，跳出內層重試循環
+				}
+			}
+
+			// 重試次數達到上限
+			if !success {
+				sLogger.ErrorWithContext(consumerCtx, "All events consumer failed after max retries",
+					sLogger.Error("error", lastError),
+					sLogger.Int("max_retries", maxRetries))
+				tracing.TraceEvent(consumerSpan, "All events consumer failed after max retries",
+					attribute.String("error", lastError.Error()))
+				consumerSpan.SetStatus(codes.Error, fmt.Sprintf("Consumer failed after %d retries: %v", maxRetries, lastError))
+				time.Sleep(10 * time.Second) // 失敗後等待一段時間再嘗試下一次外層循環
+			} else {
+				time.Sleep(5 * time.Second) // 防止頻繁消費
+			}
+		}
+	}()
 
 	// 等待中斷信號
 	<-quit
-	sLogger.InfoLog("Shutting down consumer...")
+	sLogger.InfoWithContext(rootCtx, "Shutting down consumer...")
 
 	// 記錄關閉事件
 	tracing.TraceEvent(rootSpan, "Shutting down consumer service")
@@ -138,137 +229,12 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 等待優雅關閉或超時
 	select {
 	case <-done:
-		sLogger.InfoLog("All consumers exited gracefully")
+		sLogger.InfoWithContext(rootCtx, "All consumers exited gracefully")
 	case <-time.After(10 * time.Second):
-		sLogger.WarnLog("Shutdown timeout - some consumers may still be running")
+		sLogger.WarnWithContext(rootCtx, "Shutdown timeout - some consumers may still be running")
 	}
 
 	// 記錄成功退出
 	tracing.TraceEvent(rootSpan, "Consumer service exited gracefully")
-	sLogger.InfoLog("Consumer exited")
-}
-
-// startConsumer 啟動單個Consumer
-func startConsumer(ctx context.Context, wg *sync.WaitGroup, config consumerConfig, logger *zap.Logger) {
-	defer wg.Done()
-	// 創建Consumer span
-	consumerCtx, consumerSpan := tracing.StartSpan(ctx, config.name+"Consumer")
-	defer consumerSpan.End()
-	consumerSpan.SetAttributes(
-		attribute.String("consumer.event_type", config.eventType),
-	)
-	logger.Info("Starting "+config.name+" event consumer",
-		zap.String("event_type", config.eventType))
-	tracing.TraceEvent(consumerSpan, config.name+" consumer started")
-
-	for {
-		// 外層無限循環，確保Consumer持續運行
-		// 檢查上下文是否取消 (每次Consume前)
-		if ctx.Err() != nil {
-			logger.Info(config.name + " consumer stopping due to context cancellation")
-			tracing.TraceEvent(consumerSpan, config.name+" consumer stopped due to cancellation")
-			return
-		}
-
-		// 添加重試邏輯
-		maxRetries := 5
-		retryDelay := 2 * time.Second
-		var lastError error
-		var success bool // 標記是否成功消費
-
-		for attempt := 0; attempt < maxRetries; attempt++ {
-			// 檢查上下文是否取消 (在每次重試嘗試前)
-			if ctx.Err() != nil {
-				logger.Info(config.name + " consumer stopping due to context cancellation during retry")
-				tracing.TraceEvent(consumerSpan, config.name+" consumer stopped due to cancellation during retry")
-				return
-			}
-
-			// 添加 recover 機制
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						const size = 64 << 10
-						buf := make([]byte, size)
-						buf = buf[:runtime.Stack(buf, false)]
-						err, ok := r.(error)
-						if ok {
-							lastError = fmt.Errorf("panic recovered: %w\n%s", err, buf)
-						} else {
-							lastError = fmt.Errorf("panic recovered: %v\n%s", r, buf)
-						}
-						logger.Error(config.name+" consumer panicked", zap.Error(lastError))
-						consumerSpan.RecordError(lastError)
-						consumerSpan.SetStatus(codes.Error, lastError.Error())
-					}
-				}()
-
-				if attempt > 0 {
-					logger.Info("Retrying "+config.name+" consumer",
-						zap.Int("attempt", attempt+1),
-						zap.Int("max_retries", maxRetries),
-						zap.Duration("retry_delay", retryDelay))
-					tracing.TraceEvent(consumerSpan, "Retrying consumer",
-						attribute.Int("attempt", attempt+1),
-						attribute.Int("max_retries", maxRetries))
-					backoffDuration := retryDelay * time.Duration(attempt)
-					// 加入些許隨機性，避免集中重試
-					jitter := time.Duration(rand.Int63n(int64(500 * time.Millisecond)))
-					time.Sleep(backoffDuration + jitter)
-				}
-				// 嘗試啟動Consumer
-				consumeCtx, cancel := context.WithTimeout(consumerCtx, 30*time.Second)
-				err := config.consumeFn(consumeCtx)
-				cancel()
-				// 上下文被取消，
-				if err == context.Canceled || consumeCtx.Err() == context.Canceled {
-					logger.Info(config.name + " consumer stopped due to context cancellation during consume")
-					tracing.TraceEvent(consumerSpan, config.name+" consumer stopped gracefully during consume")
-					return
-				}
-				// 超時錯誤，記錄並重試
-				if consumeCtx.Err() == context.DeadlineExceeded {
-					lastError = fmt.Errorf("consumer timed out: %w", consumeCtx.Err())
-					logger.Error(config.name+" event consumer timed out, will retry",
-						zap.Error(lastError),
-						zap.Int("attempt", attempt+1),
-						zap.Int("max_retries", maxRetries))
-					consumerSpan.RecordError(lastError)
-					return
-				}
-				// 其他錯誤重試
-				if err != nil {
-					lastError = err
-					logger.Error(config.name+" event consumer failed, will retry",
-						zap.Error(err),
-						zap.Int("attempt", attempt+1),
-						zap.Int("max_retries", maxRetries))
-					consumerSpan.RecordError(err)
-					return
-				}
-
-				// 如果沒有錯誤，則成功
-				logger.Info(config.name + " event consumer completed successfully")
-				tracing.TraceEvent(consumerSpan, config.name+" consumer completed")
-				success = true
-			}() // 立即執行 recover 的匿名函數
-
-			if success || ctx.Err() != nil {
-				break // 成功或上下文取消，跳出內層重試循環
-			}
-		}
-
-		// 重試次數達到上限
-		if !success {
-			logger.Error(config.name+" event consumer failed after max retries",
-				zap.Error(lastError),
-				zap.Int("max_retries", maxRetries))
-			tracing.TraceEvent(consumerSpan, config.name+" consumer failed after max retries",
-				attribute.String("error", lastError.Error()))
-			consumerSpan.SetStatus(codes.Error, fmt.Sprintf("Consumer failed after %d retries: %v", maxRetries, lastError))
-			time.Sleep(10 * time.Second) // 失敗後等待一段時間再嘗試下一次外層循環
-		} else {
-			time.Sleep(5 * time.Second) // 防止頻繁消費
-		}
-	}
+	sLogger.InfoWithContext(rootCtx, "Consumer exited")
 }

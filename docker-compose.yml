@@ -14,11 +14,27 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fat-identity-web
-    command: ["./fat-identity-cat", "web"]
+    entrypoint: [
+      "dlv",
+      "--listen=:6380",
+      "--headless=true",
+      "--api-version=2",
+      "--accept-multiclient",
+      "exec",
+      "./fat-identity-cat",
+      "--",
+      "web"
+    ]
     environment:
       - TZ=Asia/Taipei
     ports:
       - "8080:8080"
+      - "6380:6380"
+      - "6060:6060"
+    security_opt:
+      - "seccomp=unconfined"
+    cap_add:
+      - SYS_PTRACE
     depends_on:
       - redis
     networks:

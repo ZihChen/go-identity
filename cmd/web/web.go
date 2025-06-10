@@ -2,12 +2,15 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/spf13/viper"
 	"net/http"
+	_ "net/http/pprof" // 自動註冊 pprof 處理器
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -95,6 +98,39 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: router,
 	}
+
+	// 啟動調試服務器，用於性能分析和調試
+	go func() {
+		// 創建調試服務器的路由
+		debugMux := http.NewServeMux()
+
+		// 添加一個簡單的健康檢查端點
+		debugMux.HandleFunc("/debug/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		})
+
+		// 添加一個顯示運行時信息的端點
+		debugMux.HandleFunc("/debug/info", func(w http.ResponseWriter, r *http.Request) {
+			info := map[string]interface{}{
+				"go_version": runtime.Version(),
+				"goroutines": runtime.NumGoroutine(),
+				"cpus":       runtime.NumCPU(),
+				"time":       time.Now().Format(time.RFC3339),
+			}
+			json.NewEncoder(w).Encode(info)
+		})
+
+		serverDebug := &http.Server{
+			Addr:    fmt.Sprintf(":%d", 6060),
+			Handler: debugMux,
+		}
+
+		sLogger.InfoLog("Starting debug server on port 6060")
+		if err := serverDebug.ListenAndServe(); err != nil {
+			sLogger.ErrorLog("Failed to start debug server", sLogger.Error("err", err))
+		}
+	}()
 	// 在後台運行服務器
 	go func() {
 		sLogger.InfoLog("Starting web server", sLogger.Int("port", port))

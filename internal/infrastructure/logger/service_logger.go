@@ -7,6 +7,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
@@ -42,7 +43,7 @@ func NewServiceLogger(cfg *config.Config) infraport.Logger {
 		zap.String("app", cfg.App.Name),
 		zap.String("env", cfg.App.Env),
 	)
-
+	logger = logger.WithOptions(zap.AddCallerSkip(2))
 	return &ServiceLogger{
 		logger:  logger,
 		AppName: cfg.App.Name,
@@ -67,7 +68,9 @@ func createZapConfig(debug bool) zap.Config {
 }
 
 func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg string, fields ...*model.LoggerFiled) {
-	traceID, spanID := s.extractTraceInfo(ctx)
+	spanCtx := trace.SpanContextFromContext(ctx)
+	traceID := spanCtx.TraceID().String()
+	spanID := spanCtx.SpanID().String()
 	zapFields := s.createZapFields(traceID, spanID, fields)
 
 	switch level {
