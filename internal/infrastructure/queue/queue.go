@@ -88,17 +88,24 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 		attribute.String("messaging.task_type", taskType),
 	)
 
-	// 提取事件ID並添加到span
+	// 提取事件ID並添加到span - 嘗試從上下文中獲取已解析的事件ID
 	var eventID string
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal(data, &jsonData); err == nil {
-		if id, ok := jsonData["id"].(string); ok {
-			eventID = id
-			span.SetAttributes(attribute.String("messaging.event_id", id))
+	if id, ok := ctx.Value("event_id").(string); ok && id != "" {
+		// 如果上下文中已有事件ID，直接使用
+		eventID = id
+		span.SetAttributes(attribute.String("messaging.event_id", id))
+	} else {
+		// 否則從數據中解析
+		var jsonData map[string]interface{}
+		if err := json.Unmarshal(data, &jsonData); err == nil {
+			if id, ok := jsonData["id"].(string); ok {
+				eventID = id
+				span.SetAttributes(attribute.String("messaging.event_id", id))
+			}
 		}
 	}
 
-	// 將追蹤上下文注入數據中
+	// 將追蹤上下文注入數據中 - 使用更高效的方法
 	tracedData, err := tracing.InjectTraceparentToJSON(ctx, data)
 	if err == nil {
 		data = tracedData
@@ -111,7 +118,6 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 	tracing.TraceEvent(span, "Task created for Redis queue")
 
 	// 設置任務選項 - 改進的重試策略
-	// 修復：用正確的 asynq.Option 設置
 	opts := []asynq.Option{
 		// 指數退避重試策略，最多重試5次
 		asynq.MaxRetry(5),
@@ -147,8 +153,7 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 		zap.String("task_type", taskType),
 		zap.String("task_id", info.ID),
 		zap.String("queue", info.Queue),
-		zap.String("event_id", eventID),
-		zap.Time("enqueued_at", time.Now()))
+		zap.String("event_id", eventID))
 
 	return nil
 }

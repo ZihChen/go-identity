@@ -258,12 +258,16 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 			defer shardSpan.End()
 
 			currentIterator := initialIterator
-			recordCount := 0
+
+			// 自適應退避策略參數設置
+			backoffDuration, minBackoff, maxBackoff := 500*time.Millisecond, 500*time.Millisecond, 5*time.Second
 
 			for {
 				select {
 				case <-shardCtx.Done():
+					return
 				default:
+					// 獲取記錄
 					recordsOutput, err := k.client.GetRecords(shardCtx, &kinesis.GetRecordsInput{
 						ShardIterator: aws.String(currentIterator),
 						Limit:         aws.Int32(100), // 每次獲取的記錄數
@@ -273,8 +277,12 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 							k.serviceLog.String("shardId", shardId),
 							k.serviceLog.Error("error", err))
 
-						// 遇到錯誤時暫停一下再重試
-						time.Sleep(2 * time.Second)
+						// 遇到錯誤時增加退避時間
+						backoffDuration = time.Duration(float64(backoffDuration) * 1.5)
+						if backoffDuration > maxBackoff {
+							backoffDuration = maxBackoff
+						}
+						time.Sleep(backoffDuration)
 
 						// 重新獲取迭代器
 						iterators, err := k.getShardIterators(shardCtx)
@@ -301,29 +309,45 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						continue
 					}
 
+					// 處理記錄
+					recordsCount := len(recordsOutput.Records)
+
+					// 根據獲取的記錄數調整退避時間
+					if recordsCount == 0 {
+						// 沒有記錄，增加退避時間
+						backoffDuration = time.Duration(float64(backoffDuration) * 1.2)
+						if backoffDuration > maxBackoff {
+							backoffDuration = maxBackoff
+						}
+					} else {
+						// 有記錄，減少退避時間
+						backoffDuration = time.Duration(float64(backoffDuration) * 0.8)
+						if backoffDuration < minBackoff {
+							backoffDuration = minBackoff
+						}
+					}
+
+					// 批量處理記錄，減少重複解析JSON
 					for _, record := range recordsOutput.Records {
 						sequenceNumber := *record.SequenceNumber
-						k.logger.Info("[Info][PrintSequenceNumber]",
-							zap.String("shardId", shardId),
-							zap.String("sequence_number", sequenceNumber))
 
-						// 提取事件ID和全局商戶ID
-						var eventID, globalMerchantID, eventType string
+						// 只解析一次JSON數據
 						var jsonData map[string]interface{}
-						if err := json.Unmarshal(record.Data, &jsonData); err == nil {
-							if id, ok := jsonData["id"].(string); ok {
-								eventID = id
-							}
-							// 提取 event type
-							if typ, ok := jsonData["type"].(string); ok {
-								eventType = typ
-							}
-							// 提取 global_merchant_id
-							if data, ok := jsonData["data"].(map[string]interface{}); ok {
-								if gmid, ok := data["global_merchant_id"].(string); ok {
-									globalMerchantID = gmid
-								}
-							}
+						if err := json.Unmarshal(record.Data, &jsonData); err != nil {
+							k.logger.Warn("Failed to unmarshal record data, skipping",
+								zap.String("sequence_number", sequenceNumber),
+								zap.Error(err))
+							continue
+						}
+
+						// 提取事件ID和事件類型
+						eventID, _ := jsonData["id"].(string)
+						eventType, _ := jsonData["type"].(string)
+
+						// 提取全局商戶ID
+						var globalMerchantID string
+						if data, ok := jsonData["data"].(map[string]interface{}); ok {
+							globalMerchantID, _ = data["global_merchant_id"].(string)
 						}
 
 						// 如果無法確定事件類型，則跳過
@@ -344,6 +368,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 							attribute.String("messaging.event_id", eventID),
 							attribute.String("messaging.event_type", eventType),
 						)
+
 						// 檢查該事件是否已處理過（去重)
 						processed, err := k.isEventProcessed(msgCtx, eventID)
 						if err != nil {
@@ -363,15 +388,18 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 							continue
 						}
 
+						// 將事件ID添加到上下文中，避免隊列服務重複解析JSON
+						msgCtxWithID := context.WithValue(msgCtx, "event_id", eventID)
+
 						// 根據事件類型選擇合適的處理函數
 						var enqueueErr error
 						switch {
 						case eventType == k.config.Events.IdentityMerchantSync:
-							enqueueErr = k.queueService.EnqueueMerchantSync(msgCtx, record.Data)
+							enqueueErr = k.queueService.EnqueueMerchantSync(msgCtxWithID, record.Data)
 						case eventType == k.config.Events.IdentityPlayerSync:
-							enqueueErr = k.queueService.EnqueuePlayerSync(msgCtx, record.Data)
+							enqueueErr = k.queueService.EnqueuePlayerSync(msgCtxWithID, record.Data)
 						case eventType == k.config.Events.IdentityManagerSync:
-							enqueueErr = k.queueService.EnqueueManagerSync(msgCtx, record.Data)
+							enqueueErr = k.queueService.EnqueueManagerSync(msgCtxWithID, record.Data)
 						default:
 							k.logger.Warn("Unknown event type, skipping",
 								zap.String("event_type", eventType),
@@ -408,43 +436,36 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 							zap.String("event_id", eventID),
 							zap.String("sequence_number", sequenceNumber))
 
-						if recordCount >= checkpointBatchSize {
-							// 更新檢查點
-							if err := k.updateCheckpoint(msgCtx, shardId, sequenceNumber); err != nil {
-								k.logger.Warn("Failed to update checkpoint",
-									zap.String("shard_id", shardId),
-									zap.String("checkpoint_id", ""),
-									zap.String("sequence_number", sequenceNumber),
-									zap.Error(err))
-							} else {
-								k.logger.Info("Updated checkpoint",
-									zap.String("shard_id", shardId),
-									zap.String("checkpoint_id", ""),
-									zap.String("sequence_number", sequenceNumber),
-									zap.String("global_merchant_id", globalMerchantID))
-							}
+						// 更新檢查點
+						if err := k.updateCheckpoint(msgCtx, shardId, sequenceNumber); err != nil {
+							k.logger.Warn("Failed to update checkpoint",
+								zap.String("shard_id", shardId),
+								zap.String("checkpoint_id", ""),
+								zap.String("sequence_number", sequenceNumber),
+								zap.Error(err))
+						} else {
+							k.logger.Info("Updated checkpoint",
+								zap.String("shard_id", shardId),
+								zap.String("checkpoint_id", ""),
+								zap.String("sequence_number", sequenceNumber),
+								zap.String("global_merchant_id", globalMerchantID))
+
 						}
-						recordCount++
 						msgSpan.End()
 					}
 
 					// 獲取下一個迭代器
 					if recordsOutput.NextShardIterator != nil {
 						currentIterator = *recordsOutput.NextShardIterator
-
-						// 如果沒有記錄，短暫暫停避免過快請求
-						if len(recordsOutput.Records) == 0 {
-							time.Sleep(500 * time.Millisecond)
-						}
 					} else {
 						// 分片已關閉
 						k.logger.Info("Shard has been closed", zap.String("shard_id", shardId))
 						return
 					}
-					time.Sleep(1 * time.Second)
+					// 使用自適應退避策略：避免過度頻繁請求造成資源消耗
+					time.Sleep(backoffDuration)
 				}
 			}
-
 		}(shardId, iterator)
 	}
 
@@ -452,6 +473,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 	go func() {
 		shardWaiters.Wait()
 		close(shardErrs)
+		k.logger.Info("KDS consumer has been stopped")
 	}()
 
 	// 檢查是否有錯誤
@@ -462,7 +484,6 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -682,7 +703,6 @@ func (k *KDSService) consumeEvents(ctx context.Context, eventType string, enqueu
 	// 等待上下文取消或任一分片錯誤
 	select {
 	case <-ctx.Done():
-		rootSpan.AddEvent("Context cancelled, stopping KDS consumer")
 		// 等待所有分片處理協程結束
 		shardWaiters.Wait()
 		return ctx.Err()

@@ -29,7 +29,7 @@ services:
       - TZ=Asia/Taipei
     ports:
       - "8080:8080"
-      - "6380:6380"
+      - "6380:6380"   #debugger接口
       - "6060:6060"
     security_opt:
       - "seccomp=unconfined"
@@ -45,9 +45,25 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fat-identity-consumer
-    command: [ "./fat-identity-cat", "consumer" ]
+    entrypoint: [
+      "dlv",
+      "--listen=:6381",
+      "--headless=true",
+      "--api-version=2",
+      "--accept-multiclient",
+      "exec",
+      "./fat-identity-cat",
+      "--",
+      "consumer"
+    ]
     environment:
       - TZ=Asia/Taipei
+    ports:
+      - "6381:6381"   #debugger接口
+    security_opt:
+      - "seccomp=unconfined"
+    cap_add:
+      - SYS_PTRACE
     depends_on:
       - redis
     networks:

@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"math/rand"
@@ -110,7 +111,7 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 
 			// 添加重試邏輯
 			maxRetries := 5
-			retryDelay := 2 * time.Second
+			retryDelay := 1 * time.Second // 減少初始重試延遲，以確保更快地重試並減少整體延遲
 			var lastError error
 			var success bool // 標記是否成功消費
 
@@ -159,7 +160,7 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 					err := kdsService.ConsumeAllEvents(consumeCtx)
 					cancel()
 					// 上下文被取消，
-					if err == context.Canceled || consumeCtx.Err() == context.Canceled {
+					if errors.Is(err, context.Canceled) || errors.Is(consumeCtx.Err(), context.Canceled) {
 						sLogger.InfoWithContext(consumeCtx, "All events consumer stopped due to context cancellation during consume")
 						tracing.TraceEvent(consumerSpan, "All events consumer stopped gracefully during consume")
 						return
@@ -204,9 +205,9 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 				tracing.TraceEvent(consumerSpan, "All events consumer failed after max retries",
 					attribute.String("error", lastError.Error()))
 				consumerSpan.SetStatus(codes.Error, fmt.Sprintf("Consumer failed after %d retries: %v", maxRetries, lastError))
-				time.Sleep(10 * time.Second) // 失敗後等待一段時間再嘗試下一次外層循環
+				time.Sleep(3 * time.Second) // 失敗後等待一段時間再嘗試下一次外層循環
 			} else {
-				time.Sleep(5 * time.Second) // 防止頻繁消費
+				time.Sleep(2 * time.Second) // 防止頻繁消費
 			}
 		}
 	}()
