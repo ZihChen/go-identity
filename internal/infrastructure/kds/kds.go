@@ -440,13 +440,11 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						if err := k.updateCheckpoint(msgCtx, shardId, sequenceNumber); err != nil {
 							k.logger.Warn("Failed to update checkpoint",
 								zap.String("shard_id", shardId),
-								zap.String("checkpoint_id", ""),
 								zap.String("sequence_number", sequenceNumber),
 								zap.Error(err))
 						} else {
 							k.logger.Info("Updated checkpoint",
 								zap.String("shard_id", shardId),
-								zap.String("checkpoint_id", ""),
 								zap.String("sequence_number", sequenceNumber),
 								zap.String("global_merchant_id", globalMerchantID))
 
@@ -778,12 +776,10 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 // getCheckpoint 從DynamoDB獲取指定分片的checkpoint
 func (k *KDSService) getCheckpoint(ctx context.Context, shardId string) (string, error) {
 	checkPointKey := k.composeDynamoDBKey(shardId)
-	// 使用DynamoDB存儲checkpoint
 	result, err := k.dynamoClient.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(k.tableName),
 		Key: map[string]dynamodbtypes.AttributeValue{
 			k.partitionKey: &dynamodbtypes.AttributeValueMemberS{Value: checkPointKey},
-			k.sortKey:      &dynamodbtypes.AttributeValueMemberS{Value: "883"},
 		},
 	})
 	if err != nil {
@@ -812,12 +808,10 @@ func (k *KDSService) getCheckpoint(ctx context.Context, shardId string) (string,
 // updateCheckpoint 更新指定分片的checkpoint到DynamoDB
 func (k *KDSService) updateCheckpoint(ctx context.Context, shardId string, sequenceNumber string) error {
 	checkPointKey := k.composeDynamoDBKey(shardId)
-	// 使用DynamoDB存儲checkpoint
-	r, err := k.dynamoClient.PutItem(ctx, &dynamodb.PutItemInput{
+	_, err := k.dynamoClient.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(k.tableName),
 		Item: map[string]dynamodbtypes.AttributeValue{
 			k.partitionKey:    &dynamodbtypes.AttributeValueMemberS{Value: checkPointKey},
-			k.sortKey:         &dynamodbtypes.AttributeValueMemberS{Value: "883"},
 			"sequence_number": &dynamodbtypes.AttributeValueMemberS{Value: sequenceNumber},
 			"updated_at":      &dynamodbtypes.AttributeValueMemberS{Value: time.Now().Format(time.RFC3339)},
 		},
@@ -825,7 +819,7 @@ func (k *KDSService) updateCheckpoint(ctx context.Context, shardId string, seque
 	if err != nil {
 		return fmt.Errorf("[KDS][DynamoDB]Failed to update checkpoint in DynamoDB: %w", err)
 	}
-	k.logger.Info("[KDS][DynamoDB]Update checkpoint successfully", zap.Any("result", r))
+	k.logger.Info("[KDS][DynamoDB]Update checkpoint successfully", zap.String("tableName", k.tableName), zap.String("checkPointKey", checkPointKey))
 	return nil
 }
 
