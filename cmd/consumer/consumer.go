@@ -13,13 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/spf13/cobra"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
+	"github.com/spf13/cobra"
 )
 
 // Command 創建
@@ -38,9 +35,7 @@ func init() {
 	cmd.AddCommand(Command())
 }
 
-// 不再需要單獨的Consumer結構，因為我們現在使用單一的Consumer來處理所有事件類型
-
-// runConsumer 啟動Consumer
+// runConsumer 啟動消費者服務
 func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 獲取配置和日誌
 	cfg := cmd.GetConfig()
@@ -48,78 +43,59 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 獲取ServiceLogger實例
 	sLogger := sLog.NewServiceLogger(cfg)
 
-	rootCtx := context.Background()
+	// 主程序的Context
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	defer rootCancel()
 
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
-		sLogger.FatalLog("Failed to initialize consumer tracer", sLogger.Error("err", err))
+		sLogger.FatalWithContext(rootCtx, "[Fatal][Consumer][runConsumer] Failed to initialize tracer", sLogger.Error("error", err))
 	}
-	defer tracer.Shutdown(context.Background())
-	sLogger.InfoLog("Successfully initialized consumer tracer!")
-
-	rootCtx, rootSpan := tracing.StartSpan(rootCtx, "ConsumerService.Start")
-	rootSpan.SetAttributes(
-		attribute.String("service.name", cfg.App.Name),
-		attribute.String("service.type", "consumer"),
-		attribute.String("service.environment", cfg.App.Env),
-	)
-	defer rootSpan.End()
+	defer tracer.Shutdown(rootCtx)
+	sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] Successfully initialized tracer!")
 
 	// 使用Wire初始化KDS服務
 	kdsService, err := di.InitializeConsumer(cfg, logger, sLogger)
 	if err != nil {
-		sLogger.FatalLog("Failed to initialize KDS service", sLogger.Error("err", err))
+		sLogger.FatalWithContext(rootCtx, "[Fatal][Consumer][runConsumer] Failed to initialize KDS service", sLogger.Error("error", err))
 	}
-	sLogger.InfoLog("Successfully initialized KDS service!")
-
-	// 創建上下文
-	ctx, cancel := context.WithCancel(rootCtx)
-	defer cancel()
+	sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] Successfully initialized KDS service!")
 
 	// 等待中斷信號
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	var wg sync.WaitGroup
-
-	// 記錄Consumer啟動
-	tracing.TraceEvent(rootSpan, "Starting KDS consumers")
-
-	sLogger.InfoLog("Starting KDS consumer for all event types")
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
-		// 創建Consumer span
-		consumerCtx, consumerSpan := tracing.StartSpan(rootCtx, "AllEventsConsumer")
-		defer consumerSpan.End()
+		sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] Starting Consumer for all event listening")
 
-		consumerSpan.SetAttributes(
-			attribute.String("consumer.type", "all_events"),
-		)
-		sLogger.InfoWithContext(consumerCtx, "Starting all events consumer")
-		tracing.TraceEvent(consumerSpan, "All events consumer started")
-
+		// 外層無限循環，確保Consumer持續運行
 		for {
-			// 外層無限循環，確保Consumer持續運行
-			// 檢查上下文是否取消 (每次Consume前)
-			if ctx.Err() != nil {
-				sLogger.InfoWithContext(consumerCtx, "All events consumer stopping due to context cancellation")
-				tracing.TraceEvent(consumerSpan, "All events consumer stopped due to cancellation")
+			// 使用rootCtx創建consumerCtx，確保上下文取消可以正確傳遞
+			consumerCtx, consumerCancel := context.WithCancel(rootCtx)
+
+			// 主程序Context取消，次Context也需一並取消
+			if rootCtx.Err() != nil {
+				sLogger.WarnWithContext(consumerCtx, "[Warn][Consumer][runConsumer] All events consumer stopping due to rootCtx cancellation")
+				consumerCancel()
 				return
 			}
 
 			// 添加重試邏輯
 			maxRetries := 5
-			retryDelay := 1 * time.Second // 減少初始重試延遲，以確保更快地重試並減少整體延遲
+			retryDelay := 200 * time.Millisecond // 重試延遲時間
 			var lastError error
 			var success bool // 標記是否成功消費
 
 			for attempt := 0; attempt < maxRetries; attempt++ {
-				// 檢查上下文是否取消 (在每次重試嘗試前)
-				if ctx.Err() != nil {
-					sLogger.InfoWithContext(consumerCtx, "All events consumer stopping due to context cancellation during retry")
-					tracing.TraceEvent(consumerSpan, "All events consumer stopped due to cancellation during retry")
+				// Retry前先檢查主程序是否終止
+				if rootCtx.Err() != nil {
+					sLogger.WarnWithContext(consumerCtx, "[Warn][Consumer][runConsumer] All events consumer stopping due to rootCtx cancellation during retry")
+					consumerCancel()
 					return
 				}
 
@@ -136,90 +112,85 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 							} else {
 								lastError = fmt.Errorf("panic recovered: %v\n%s", r, buf)
 							}
-							sLogger.ErrorWithContext(consumerCtx, "All events consumer panicked", sLogger.Error("error", lastError))
-							consumerSpan.RecordError(lastError)
-							consumerSpan.SetStatus(codes.Error, lastError.Error())
+							sLogger.ErrorWithContext(consumerCtx, "[Error][Consumer][runConsumer] All events consumer panicked", sLogger.Error("error", lastError))
 						}
 					}()
 
 					if attempt > 0 {
-						sLogger.InfoWithContext(consumerCtx, "[x]Retrying all events consumer",
+						sLogger.InfoWithContext(consumerCtx, "[Info][Consumer][runConsumer] Retrying",
 							sLogger.Int("attempt", attempt+1),
 							sLogger.Int("max_retries", maxRetries),
 							sLogger.String("retry_delay", retryDelay.String()))
-						tracing.TraceEvent(consumerSpan, "Retrying consumer",
-							attribute.Int("attempt", attempt+1),
-							attribute.Int("max_retries", maxRetries))
-						backoffDuration := retryDelay * time.Duration(attempt)
+
+						// 退避策略，避免後續重試等待時間過長
+						backoffDuration := retryDelay * time.Duration(1+attempt/2) // 每兩次重試才增加一次基本延遲
 						// 加入些許隨機性，避免集中重試
-						jitter := time.Duration(rand.Int63n(int64(500 * time.Millisecond)))
+						jitter := time.Duration(rand.Int63n(int64(200 * time.Millisecond)))
 						time.Sleep(backoffDuration + jitter)
 					}
-					// 嘗試啟動Consumer
-					consumeCtx, cancel := context.WithTimeout(consumerCtx, 30*time.Second)
+
+					// 啟動Consumer，使用consumerCtx創建帶有超時的consumeCtx
+					consumeCtx, consumeCancel := context.WithTimeout(consumerCtx, 30*time.Second)
+					defer consumeCancel()
+
+					// 執行消費操作
 					err := kdsService.ConsumeAllEvents(consumeCtx)
-					cancel()
-					// 上下文被取消，
+
+					// 檢查Context是否被取消
 					if errors.Is(err, context.Canceled) || errors.Is(consumeCtx.Err(), context.Canceled) {
-						sLogger.InfoWithContext(consumeCtx, "All events consumer stopped due to context cancellation during consume")
-						tracing.TraceEvent(consumerSpan, "All events consumer stopped gracefully during consume")
+						sLogger.WarnWithContext(consumerCtx, "[Warn][Consumer][runConsumer] All events consumer stopped due to context cancellation during consume")
 						return
 					}
-					// 超時錯誤，記錄並重試
-					if consumeCtx.Err() == context.DeadlineExceeded {
+
+					// 檢查Context是否超時
+					if errors.Is(consumeCtx.Err(), context.DeadlineExceeded) {
 						lastError = fmt.Errorf("consumer timed out: %w", consumeCtx.Err())
-						sLogger.ErrorWithContext(consumeCtx, "All events consumer timed out, will retry",
+						sLogger.ErrorWithContext(consumerCtx, "[Error][Consumer][runConsumer] All events consumer timed out",
 							sLogger.Error("error", lastError),
 							sLogger.Int("attempt", attempt+1),
 							sLogger.Int("max_retries", maxRetries))
-						consumerSpan.RecordError(lastError)
 						return
 					}
+
 					// 其他錯誤重試
 					if err != nil {
 						lastError = err
-						sLogger.ErrorWithContext(consumeCtx, "All events consumer failed, will retry",
+						sLogger.ErrorWithContext(consumeCtx, "[Error][Consumer][runConsumer] All events consumer failed",
 							sLogger.Error("error", err),
 							sLogger.Int("attempt", attempt+1),
 							sLogger.Int("max_retries", maxRetries))
-						consumerSpan.RecordError(err)
 						return
 					}
 
+					sLogger.InfoWithContext(consumeCtx, "[Info][Consumer][runConsumer] All events consumer completed successfully")
 					// 如果沒有錯誤，則成功
-					sLogger.InfoWithContext(consumeCtx, "All events consumer completed successfully")
-					tracing.TraceEvent(consumerSpan, "All events consumer completed")
 					success = true
-				}() // 立即執行 recover 的匿名函數
+				}()
 
-				if success || ctx.Err() != nil {
+				if success || rootCtx.Err() != nil {
 					break // 成功或上下文取消，跳出內層重試循環
 				}
 			}
 
 			// 重試次數達到上限
 			if !success {
-				sLogger.ErrorWithContext(consumerCtx, "All events consumer failed after max retries",
+				sLogger.ErrorWithContext(consumerCtx, "[Error][Consumer][runConsumer] All events consumer failed after max retries",
 					sLogger.Error("error", lastError),
 					sLogger.Int("max_retries", maxRetries))
-				tracing.TraceEvent(consumerSpan, "All events consumer failed after max retries",
-					attribute.String("error", lastError.Error()))
-				consumerSpan.SetStatus(codes.Error, fmt.Sprintf("Consumer failed after %d retries: %v", maxRetries, lastError))
-				time.Sleep(3 * time.Second) // 失敗後等待一段時間再嘗試下一次外層循環
+				consumerCancel()            // 確保在循環結束前取消consumerCtx
+				time.Sleep(1 * time.Second) // 失敗後等待一段時間再嘗試下一次外層循環
 			} else {
-				time.Sleep(2 * time.Second) // 防止頻繁消費
+				consumerCancel()                   // 確保在循環結束前取消consumerCtx
+				time.Sleep(500 * time.Millisecond) // 完整做完一個循環，防止頻繁消費
 			}
 		}
 	}()
 
 	// 等待中斷信號
 	<-quit
-	sLogger.InfoWithContext(rootCtx, "Shutting down consumer...")
-
-	// 記錄關閉事件
-	tracing.TraceEvent(rootSpan, "Shutting down consumer service")
-
-	cancel()
+	sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] Shutting down consumer...")
+	// 收到中斷訊號後就要調用rootCancel()將次context全部取消
+	rootCancel()
 
 	done := make(chan struct{})
 	go func() {
@@ -230,12 +201,9 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 等待優雅關閉或超時
 	select {
 	case <-done:
-		sLogger.InfoWithContext(rootCtx, "All consumers exited gracefully")
-	case <-time.After(10 * time.Second):
-		sLogger.WarnWithContext(rootCtx, "Shutdown timeout - some consumers may still be running")
+		sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] All consumers exited gracefully")
+	case <-time.After(15 * time.Second):
+		sLogger.WarnWithContext(rootCtx, "[Warn][Consumer][runConsumer] Force Shutdown - some consumers may still be running")
 	}
-
-	// 記錄成功退出
-	tracing.TraceEvent(rootSpan, "Consumer service exited gracefully")
-	sLogger.InfoWithContext(rootCtx, "Consumer exited")
+	sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] All consumer exited")
 }
