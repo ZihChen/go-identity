@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"os"
 	"os/signal"
@@ -13,7 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/spf13/cobra"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // Command 創建並返回worker
@@ -39,47 +39,38 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	logger := cmd.GetLogger()
 	// 獲取ServiceLogger實例
 	sLogger := sLog.NewServiceLogger(cfg)
-
+	// 主程序的Context
+	rootCtx := context.Background()
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
-		sLogger.FatalLog("[RunWorker]Failed to initialize worker tracer", sLogger.Error("err", err))
+		sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWorker] Failed to initialize tracer", sLogger.Error("error", err))
 	}
 	defer tracer.Shutdown(context.Background())
-	sLogger.InfoLog("[RunWorker]Successfully initialized worker tracer!")
-
-	ctx, rootSpan := tracing.StartSpan(context.Background(), "WorkerService")
-	defer rootSpan.End()
-
-	rootSpan.SetAttributes(
-		attribute.String("service.name", cfg.App.Name),
-		attribute.String("service.type", "worker"),
-		attribute.String("service.environment", cfg.App.Env),
-	)
+	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Successfully initialized tracer!")
 
 	// 使用Wire初始化Worker組件
 	components, err := di.InitializeWorkerComponents(cfg, logger, sLogger)
 	if err != nil {
-		sLogger.FatalLog("[RunWorker]Failed to initialize worker components", sLogger.Error("err", err))
-		rootSpan.RecordError(err)
+		sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWorker] Failed to initialize worker components", sLogger.Error("error", err))
 		return
 	}
-	sLogger.InfoLog("[RunWorker]Successfully initialized worker components!")
+	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Successfully initialized worker components!")
 
 	mux := asynq.NewServeMux()
 
 	// 記錄Worker啟動
-	sLogger.InfoLog("[RunWorker]Starting worker...", sLogger.String("redis_domain", cfg.Redis.Domain), sLogger.Int("redis_port", cfg.Redis.Port))
-	tracing.TraceEvent(rootSpan, "Starting worker service")
+	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Starting worker...",
+		sLogger.String("redisDomain", cfg.Redis.Domain),
+		sLogger.Int("redisPort", cfg.Redis.Port))
 
 	components.Handler.RegisterHandlers(mux)
-	sLogger.InfoLog("[RunWorker]Task handlers registered")
+	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Task handlers registered")
 
 	go func() {
 		if err := components.Server.Start(mux); err != nil {
-			if err != asynq.ErrServerClosed {
-				sLogger.FatalLog("[RunWorker]Failed to start worker server", sLogger.Error("err", err))
-				rootSpan.RecordError(err)
+			if !errors.Is(err, asynq.ErrServerClosed) {
+				sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWorker] Failed to start worker server", sLogger.Error("error", err))
 			}
 		}
 	}()
@@ -89,11 +80,9 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	sLogger.InfoLog("[RunWorker]Shutting down worker...")
-	// 記錄關閉事件
-	tracing.TraceEvent(rootSpan, "Shutting down worker service")
+	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Shutting down worker...")
 
-	shutdownCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(rootCtx, 10*time.Second)
 	defer cancel()
 
 	// 關閉Worker
@@ -105,12 +94,12 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 
 	select {
 	case <-done:
-		sLogger.InfoLog("[RunWorker]Worker service exited gracefully")
+		sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Worker service exited gracefully")
 	case <-shutdownCtx.Done():
-		sLogger.WarnLog("[RunWorker]Worker service forced to shutdown after 10 seconds")
+		sLogger.WarnWithContext(rootCtx, "[Warn][Worker][runWorker] Worker service forced to shutdown after 10 seconds",
+			sLogger.Error("error", shutdownCtx.Err()))
 	}
 
 	// 記錄成功關閉
-	tracing.TraceEvent(rootSpan, "Worker service exited gracefully")
-	sLogger.InfoLog("[RunWorker]Worker exited!")
+	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Worker exited")
 }

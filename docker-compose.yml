@@ -74,9 +74,21 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fat-identity-worker
-    command: [ "./fat-identity-cat", "worker" ]
+    entrypoint: [
+      "dlv",
+      "--listen=:6382",
+      "--headless=true",
+      "--api-version=2",
+      "--accept-multiclient",
+      "exec",
+      "./fat-identity-cat",
+      "--",
+      "worker"
+    ]
     environment:
       - TZ=Asia/Taipei
+    ports:
+      - "6382:6382"   #debugger接口
     depends_on:
       - redis
     networks:
