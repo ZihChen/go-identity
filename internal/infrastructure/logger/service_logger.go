@@ -69,8 +69,11 @@ func createZapConfig(debug bool) zap.Config {
 
 func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg string, fields ...*model.LoggerFiled) {
 	spanCtx := trace.SpanContextFromContext(ctx)
-	traceID := spanCtx.TraceID().String()
-	spanID := spanCtx.SpanID().String()
+	var traceID, spanID string
+	if spanCtx.IsValid() {
+		traceID = spanCtx.TraceID().String()
+		spanID = spanCtx.SpanID().String()
+	}
 	zapFields := s.createZapFields(traceID, spanID, fields)
 
 	switch level {

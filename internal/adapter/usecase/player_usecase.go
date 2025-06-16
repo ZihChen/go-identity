@@ -164,7 +164,8 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 // publishPlayerSyncEvent 發布玩家同步事件
 func (u *PlayerUseCase) publishPlayerSyncEvent(ctx context.Context, player *model.Player, globalMerchantID string, traceParent string) error {
 	// 獲取當前 span
-	span := trace.SpanFromContext(ctx)
+	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.publishPlayerSyncEvent")
+	defer span.End()
 
 	// 記錄發布事件開始
 	tracing.TraceEvent(span, "Preparing player sync event for KDS")

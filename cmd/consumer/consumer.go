@@ -130,21 +130,21 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 					}
 
 					// 啟動Consumer，使用consumerCtx創建帶有超時的consumeCtx
-					consumeCtx, consumeCancel := context.WithTimeout(consumerCtx, 30*time.Second)
+					consumerCtx, consumeCancel := context.WithTimeout(consumerCtx, 5*time.Second)
 					defer consumeCancel()
 
 					// 執行消費操作
-					err := kdsService.ConsumeAllEvents(consumeCtx)
+					err := kdsService.ConsumeAllEvents(consumerCtx)
 
 					// 檢查Context是否被取消
-					if errors.Is(err, context.Canceled) || errors.Is(consumeCtx.Err(), context.Canceled) {
+					if errors.Is(err, context.Canceled) || errors.Is(consumerCtx.Err(), context.Canceled) {
 						sLogger.WarnWithContext(consumerCtx, "[Warn][Consumer][runConsumer] All events consumer stopped due to context cancellation during consume")
 						return
 					}
 
 					// 檢查Context是否超時
-					if errors.Is(consumeCtx.Err(), context.DeadlineExceeded) {
-						lastError = fmt.Errorf("consumer timed out: %w", consumeCtx.Err())
+					if errors.Is(consumerCtx.Err(), context.DeadlineExceeded) {
+						lastError = fmt.Errorf("consumer timed out: %w", consumerCtx.Err())
 						sLogger.ErrorWithContext(consumerCtx, "[Error][Consumer][runConsumer] All events consumer timed out",
 							sLogger.Error("error", lastError),
 							sLogger.Int("attempt", attempt+1),
@@ -155,14 +155,14 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 					// 其他錯誤重試
 					if err != nil {
 						lastError = err
-						sLogger.ErrorWithContext(consumeCtx, "[Error][Consumer][runConsumer] All events consumer failed",
+						sLogger.ErrorWithContext(consumerCtx, "[Error][Consumer][runConsumer] All events consumer failed",
 							sLogger.Error("error", err),
 							sLogger.Int("attempt", attempt+1),
 							sLogger.Int("max_retries", maxRetries))
 						return
 					}
 
-					sLogger.InfoWithContext(consumeCtx, "[Info][Consumer][runConsumer] All events consumer completed successfully")
+					sLogger.InfoWithContext(consumerCtx, "[Info][Consumer][runConsumer] All events consumer completed successfully")
 					// 如果沒有錯誤，則成功
 					success = true
 				}()
@@ -202,7 +202,7 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	select {
 	case <-done:
 		sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] All consumers exited gracefully")
-	case <-time.After(15 * time.Second):
+	case <-time.After(10 * time.Second):
 		sLogger.WarnWithContext(rootCtx, "[Warn][Consumer][runConsumer] Force Shutdown - some consumers may still be running")
 	}
 	sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] All consumer exited")

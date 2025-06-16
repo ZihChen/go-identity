@@ -51,7 +51,7 @@ type KDSService struct {
 	config       *cfg.Config
 	queueService serviceport.QueueService
 	logger       *zap.Logger
-	serviceLog   infraport.Logger
+	sLogger      infraport.Logger
 }
 
 // NewKDSService 創建KDS服務
@@ -97,7 +97,7 @@ func NewKDSService(config *cfg.Config, queueService serviceport.QueueService, re
 		config:       config,
 		queueService: queueService,
 		logger:       logger,
-		serviceLog:   serviceLog,
+		sLogger:      serviceLog,
 	}, nil
 }
 
@@ -214,22 +214,12 @@ func (k *KDSService) ConsumeManagerSync(ctx context.Context) error {
 
 // ConsumeAllEvents 消費所有事件類型
 func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
-	rootCtx, rootSpan := tracing.StartSpan(ctx, "KDS.ConsumeAllEvents")
-	rootCtx = context.WithValue(ctx, "trace_id", tracing.GetTraceID(rootCtx))
-	defer rootSpan.End()
-
-	rootSpan.SetAttributes(
-		attribute.String("messaging.system", "kds"),
-		attribute.String("messaging.consumer_group", "ms-identity-cat"),
-	)
-
-	k.serviceLog.InfoWithContext(rootCtx, "Starting to consume all events from KDS",
-		k.serviceLog.String("stream_name", k.streamName))
+	k.sLogger.InfoWithContext(ctx, "[Info][KDS][ConsumeAllEvents] Starting to consume all events from KDS",
+		k.sLogger.String("stream_name", k.streamName))
 
 	// 獲取分片信息
-	shards, err := k.getShardIterators(rootCtx)
+	shards, err := k.getShardIterators(ctx)
 	if err != nil {
-		rootSpan.RecordError(err)
 		return fmt.Errorf("failed to get shard iterators: %w", err)
 	}
 
@@ -240,22 +230,24 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 	// 處理每個分片
 	for shardId, iterator := range shards {
 		shardWaiters.Add(1)
-		k.serviceLog.InfoWithContext(rootCtx, "Starting shard consumer", k.serviceLog.String("shard_id", shardId))
+		k.sLogger.InfoWithContext(ctx, "[Info][KDS][ConsumeAllEvents] Starting shard consumer", k.sLogger.String("shard_id", shardId))
 
 		// 為每個分片創建一個協程
 		go func(shardId, initialIterator string) {
-			k.logger.Info(fmt.Sprintf("[Info][ShardsLoop]ShardId:%s", shardId))
+			shardCtx, shardCancel := context.WithCancel(ctx)
+			defer shardCancel()
+
+			k.sLogger.InfoWithContext(shardCtx, fmt.Sprintf("[Info][KDS][ConsumeAllEvents] ShardsLoop ShardId:%s", shardId))
+
 			defer shardWaiters.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					k.serviceLog.ErrorWithContext(rootCtx, "Recovered from panic in shard consumer",
-						k.serviceLog.String("shard_id", shardId),
-						k.serviceLog.Any("recover", r),
-						k.serviceLog.String("stacktrace", string(debug.Stack())))
+					k.sLogger.ErrorWithContext(shardCtx, "[Error][KDS][ConsumeAllEvents] Recovered from panic in shard consumer",
+						k.sLogger.String("shard_id", shardId),
+						k.sLogger.Any("recover", r),
+						k.sLogger.String("stacktrace", string(debug.Stack())))
 				}
 			}()
-			shardCtx, shardSpan := tracing.StartSpan(rootCtx, "ProcessShard:"+shardId)
-			defer shardSpan.End()
 
 			currentIterator := initialIterator
 
@@ -273,9 +265,9 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						Limit:         aws.Int32(100), // 每次獲取的記錄數
 					})
 					if err != nil {
-						k.serviceLog.ErrorWithContext(shardCtx, "[x]Failed to get records from shard",
-							k.serviceLog.String("shardId", shardId),
-							k.serviceLog.Error("error", err))
+						k.sLogger.ErrorWithContext(shardCtx, "[Error][KDS][ConsumeAllEvents] Failed to get records from shard",
+							k.sLogger.String("shard_id", shardId),
+							k.sLogger.Error("error", err))
 
 						// 遇到錯誤時增加退避時間
 						backoffDuration = time.Duration(float64(backoffDuration) * 1.5)
@@ -287,9 +279,9 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						// 重新獲取迭代器
 						iterators, err := k.getShardIterators(shardCtx)
 						if err != nil {
-							k.logger.Error("Failed to refresh shard iterator",
-								zap.String("shardId", shardId),
-								zap.Error(err))
+							k.sLogger.ErrorWithContext(shardCtx, "[Error][KDS][ConsumeAllEvents] Failed to refresh shard iterator",
+								k.sLogger.String("shard_id", shardId),
+								k.sLogger.Error("error", err))
 
 							// 只有在上下文被取消時才報告錯誤
 							if shardCtx.Err() == nil {
@@ -301,8 +293,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						if newIterator, ok := iterators[shardId]; ok {
 							currentIterator = newIterator
 						} else {
-							k.logger.Error("Shard no longer available",
-								zap.String("shard_id", shardId))
+							k.sLogger.ErrorWithContext(shardCtx, "[Error][KDS][ConsumeAllEvents] Shard no longer available", k.sLogger.String("shard_id", shardId))
 							return
 						}
 
@@ -329,14 +320,18 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 
 					// 批量處理記錄，減少重複解析JSON
 					for _, record := range recordsOutput.Records {
-						sequenceNumber := *record.SequenceNumber
+						// 從資料中取得上層traceparent作為事件追蹤用
+						ctxWithTrace := tracing.ExtractTraceContext(ctx, record.Data)
+						// 根據事件類型創建追踪
+						eventCtx, eventSpan := tracing.StartSpan(ctxWithTrace, "KDS.EventRecord.StartProcessing")
 
+						sequenceNumber := *record.SequenceNumber
 						// 只解析一次JSON數據
 						var jsonData map[string]interface{}
 						if err := json.Unmarshal(record.Data, &jsonData); err != nil {
-							k.logger.Warn("Failed to unmarshal record data, skipping",
-								zap.String("sequence_number", sequenceNumber),
-								zap.Error(err))
+							k.sLogger.WarnWithContext(eventCtx, "[Warn][KDS][ConsumeAllEvents] Failed to unmarshal record data, skipping",
+								k.sLogger.String("sequence_number", sequenceNumber),
+								k.sLogger.Error("error", err))
 							continue
 						}
 
@@ -352,44 +347,41 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 
 						// 如果無法確定事件類型，則跳過
 						if eventType == "" {
-							k.logger.Warn("Skipping event with unknown type",
-								zap.String("event_id", eventID),
-								zap.String("sequence_number", sequenceNumber))
+							k.sLogger.WarnWithContext(eventCtx, "[Warn][KDS][ConsumeAllEvents] Skipping event with unknown type",
+								k.sLogger.String("sequence_number", sequenceNumber),
+								k.sLogger.String("event_id", eventID))
 							continue
 						}
 
-						// 根據事件類型創建追踪
-						msgCtx, msgSpan := tracing.TraceKDSToRedis(shardCtx, eventType, "")
 						// 記錄消息數據
-						msgSpan.SetAttributes(
+						eventSpan.SetAttributes(
 							attribute.String("messaging.shard_id", shardId),
 							attribute.String("messaging.sequence_number", sequenceNumber),
-							attribute.Int("messaging.payload_size_bytes", len(record.Data)),
 							attribute.String("messaging.event_id", eventID),
 							attribute.String("messaging.event_type", eventType),
 						)
 
 						// 檢查該事件是否已處理過（去重)
-						processed, err := k.isEventProcessed(msgCtx, eventID)
+						processed, err := k.isEventProcessed(eventCtx, eventID)
 						if err != nil {
-							k.logger.Warn("Failed to check if event is processed, will process anyway",
-								zap.String("event_id", eventID),
-								zap.String("sequence_number", sequenceNumber),
-								zap.Error(err))
+							k.sLogger.WarnWithContext(eventCtx, "[Warn][KDS][ConsumeAllEvents] Failed to check if event is processed, will process anyway",
+								k.sLogger.String("sequence_number", sequenceNumber),
+								k.sLogger.String("event_id", eventID),
+								k.sLogger.Error("error", err))
 						}
 
 						// 事件已被處理則跳過
 						if processed {
-							k.logger.Warn("Skipping already processed event",
-								zap.String("event_id", eventID),
-								zap.String("event_type", eventType),
-								zap.String("sequence_number", sequenceNumber))
-							msgSpan.End()
+							k.sLogger.WarnWithContext(eventCtx, "[Warn][KDS][ConsumeAllEvents] Skipping already processed event",
+								k.sLogger.String("sequence_number", sequenceNumber),
+								k.sLogger.String("event_id", eventID),
+								k.sLogger.String("event_type", eventType))
+							eventSpan.End()
 							continue
 						}
 
 						// 將事件ID添加到上下文中，避免隊列服務重複解析JSON
-						msgCtxWithID := context.WithValue(msgCtx, "event_id", eventID)
+						msgCtxWithID := context.WithValue(eventCtx, "event_id", eventID)
 
 						// 根據事件類型選擇合適的處理函數
 						var enqueueErr error
@@ -401,55 +393,54 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						case eventType == k.config.Events.IdentityManagerSync:
 							enqueueErr = k.queueService.EnqueueManagerSync(msgCtxWithID, record.Data)
 						default:
-							k.logger.Warn("Unknown event type, skipping",
-								zap.String("event_type", eventType),
-								zap.String("event_id", eventID))
-							msgSpan.End()
+							k.sLogger.WarnWithContext(eventCtx, "[Warn][KDS][ConsumeAllEvents] Unknown event type, skipping",
+								k.sLogger.String("event_id", eventID),
+								k.sLogger.String("event_type", eventType))
+							eventSpan.End()
 							continue
 						}
 
 						// 檢查入隊錯誤
 						if enqueueErr != nil {
-							k.logger.Error("Failed to enqueue message",
-								zap.String("event_type", eventType),
-								zap.String("event_id", eventID),
-								zap.String("sequence_number", sequenceNumber),
-								zap.Error(enqueueErr))
-							msgSpan.RecordError(enqueueErr)
-							msgSpan.End()
+							k.sLogger.ErrorWithContext(eventCtx, "[Error][KDS][ConsumeAllEvents] Failed to enqueue message",
+								k.sLogger.String("event_type", eventType),
+								k.sLogger.String("event_id", eventID),
+								k.sLogger.String("sequence_number", sequenceNumber),
+								k.sLogger.Error("error", enqueueErr))
+							eventSpan.RecordError(enqueueErr)
+							eventSpan.End()
 							continue
 						}
 
 						// 標記事件為已處理
-						if err := k.markEventProcessed(msgCtx, eventID); err != nil {
-							k.logger.Warn("Failed to mark event as processed",
-								zap.String("event_id", eventID),
-								zap.String("sequence_number", sequenceNumber),
-								zap.Error(err))
+						if err := k.markEventProcessed(eventCtx, eventID); err != nil {
+							k.sLogger.WarnWithContext(eventCtx, "[Warn][KDS][ConsumeAllEvents] Failed to mark event as processed",
+								k.sLogger.String("event_id", eventID),
+								k.sLogger.String("sequence_number", sequenceNumber),
+								k.sLogger.Error("error", err))
 						}
 
 						// 記錄成功事件
-						tracing.TraceEvent(msgSpan, "Message enqueued to Redis successfully")
+						tracing.TraceEvent(eventSpan, "Message enqueued to Redis successfully")
 
-						k.logger.Info("Consumed event from KDS and enqueued to Redis",
-							zap.String("event_type", eventType),
-							zap.String("event_id", eventID),
-							zap.String("sequence_number", sequenceNumber))
+						k.sLogger.InfoWithContext(eventCtx, "[Info][KDS][ConsumeAllEvents] Consumed event from KDS and enqueued to Redis",
+							k.sLogger.String("event_type", eventType),
+							k.sLogger.String("event_id", eventID),
+							k.sLogger.String("sequence_number", sequenceNumber))
 
 						// 更新檢查點
-						if err := k.updateCheckpoint(msgCtx, shardId, sequenceNumber); err != nil {
-							k.logger.Warn("Failed to update checkpoint",
-								zap.String("shard_id", shardId),
-								zap.String("sequence_number", sequenceNumber),
-								zap.Error(err))
+						if err := k.updateCheckpoint(eventCtx, shardId, sequenceNumber); err != nil {
+							k.sLogger.WarnWithContext(eventCtx, "[Warn][KDS][ConsumeAllEvents] Failed to update checkpoint",
+								k.sLogger.String("shard_id", shardId),
+								k.sLogger.String("sequence_number", sequenceNumber),
+								k.sLogger.Error("error", err))
 						} else {
-							k.logger.Info("Updated checkpoint",
-								zap.String("shard_id", shardId),
-								zap.String("sequence_number", sequenceNumber),
-								zap.String("global_merchant_id", globalMerchantID))
-
+							k.sLogger.InfoWithContext(eventCtx, "[Info][KDS][ConsumeAllEvents] Updated checkpoint",
+								k.sLogger.String("shard_id", shardId),
+								k.sLogger.String("sequence_number", sequenceNumber),
+								k.sLogger.String("global_merchant_id", globalMerchantID))
 						}
-						msgSpan.End()
+						eventSpan.End()
 					}
 
 					// 獲取下一個迭代器
@@ -478,7 +469,6 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 	for err := range shardErrs {
 		if err != nil {
 			k.logger.Error("Error in shard processing", zap.Error(err))
-			rootSpan.RecordError(err)
 			return err
 		}
 	}
@@ -521,14 +511,14 @@ func (k *KDSService) consumeEvents(ctx context.Context, eventType string, enqueu
 			defer shardWaiters.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					k.serviceLog.ErrorWithContext(rootCtx, "Recovered from panic in shard consumer",
-						k.serviceLog.String("shard_id", shardId),
-						k.serviceLog.Any("recover", r),
-						k.serviceLog.String("stacktrace", "stack trace omitted"))
+					k.sLogger.ErrorWithContext(rootCtx, "Recovered from panic in shard consumer",
+						k.sLogger.String("shard_id", shardId),
+						k.sLogger.Any("recover", r),
+						k.sLogger.String("stacktrace", "stack trace omitted"))
 				}
 			}()
-			shardCtx, shardSpan := tracing.StartSpan(rootCtx, "ProcessShard:"+shardId)
-			defer shardSpan.End()
+			shardCtx, shardCancel := context.WithCancel(rootCtx)
+			defer shardCancel()
 
 			currentIterator := initialIterator
 			//recordCount := 0
