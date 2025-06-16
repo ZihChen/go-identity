@@ -3,22 +3,24 @@ package kds
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
-	"runtime/debug"
-	"sync"
-	"time"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dynamodbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
+	"net"
+	"runtime/debug"
+	"sync"
+	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
@@ -262,7 +264,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 					// 獲取記錄
 					recordsOutput, err := k.client.GetRecords(shardCtx, &kinesis.GetRecordsInput{
 						ShardIterator: aws.String(currentIterator),
-						Limit:         aws.Int32(100), // 每次獲取的記錄數
+						Limit:         aws.Int32(1000),
 					})
 					if err != nil {
 						k.sLogger.ErrorWithContext(shardCtx, "[Error][KDS][ConsumeAllEvents] Failed to get records from shard",
@@ -473,6 +475,56 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (k *KDSService) getRecordsWithRetry(ctx context.Context, shardIterator string) (*kinesis.GetRecordsOutput, error) {
+	var records *kinesis.GetRecordsOutput
+
+	// 配置指數退避策略
+	exponentialBackoff := backoff.NewExponentialBackOff()
+	exponentialBackoff.InitialInterval = 1 * time.Second // 初始重試間隔
+	exponentialBackoff.MaxInterval = 30 * time.Second    // 最大重試間隔
+	exponentialBackoff.MaxElapsedTime = 2 * time.Minute  // 最大總重試時間
+	exponentialBackoff.Multiplier = 2.0                  // 每次重試間隔的倍數
+
+	operation := func() error {
+		var err error
+		records, err = k.client.GetRecords(ctx, &kinesis.GetRecordsInput{
+			ShardIterator: aws.String(shardIterator),
+			Limit:         aws.Int32(10000),
+		})
+
+		if err != nil {
+			// 檢查上下文超時
+			if errors.Is(err, context.DeadlineExceeded) {
+				k.sLogger.ErrorWithContext(ctx, "[Error][KDS][GetRecordsWithRetry] GetRecords timeout]", k.sLogger.Error("error", err))
+				return err
+			}
+
+			// 檢查網絡超時
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				k.sLogger.ErrorWithContext(ctx, "[Error][KDS][GetRecordsWithRetry] Network timeout]", k.sLogger.Error("error", err))
+				return err
+			}
+
+			// 檢查是否為可重試的 AWS 錯誤
+			var throughputErr *types.ProvisionedThroughputExceededException
+			if errors.As(err, &throughputErr) {
+				k.sLogger.WarnWithContext(ctx, "[Warn][KDS][GetRecordsWithRetry] Throughput exceeded, will retry", k.sLogger.Error("error", err))
+				return err
+			}
+			// 其他錯誤視為永久性錯誤，不再重試
+			return backoff.Permanent(err)
+		}
+		return nil
+	}
+
+	err := backoff.Retry(operation, exponentialBackoff)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get records after retries: %w", err)
+	}
+	return records, nil
 }
 
 // 內部方法：从KDS消費事件並轉發到Redis隊列

@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -163,5 +164,11 @@ func (c *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 				SecretAccessKey: c.AWS.SecretAccessKey,
 			}, nil
 		})),
+		awsconfig.WithRetryer(func() aws.Retryer {
+			return retry.NewStandard(func(o *retry.StandardOptions) {
+				o.MaxAttempts = 3               // 最大重試次數
+				o.MaxBackoff = 10 * time.Second // 最大重試間隔
+			})
+		}),
 	)
 }

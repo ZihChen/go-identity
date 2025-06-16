@@ -130,7 +130,7 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 					}
 
 					// 啟動Consumer，使用consumerCtx創建帶有超時的consumeCtx
-					consumerCtx, consumeCancel := context.WithTimeout(consumerCtx, 5*time.Second)
+					consumerCtx, consumeCancel := context.WithTimeout(consumerCtx, 30*time.Second)
 					defer consumeCancel()
 
 					// 執行消費操作
