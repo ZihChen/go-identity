@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/usecase"
 )
 
 // 資料庫模擬

@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap/zaptest"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/usecase"
 )
 
 // 資料庫模擬
