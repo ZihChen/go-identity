@@ -1,0 +1,485 @@
+package usecase
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+)
+
+// Mock implementations
+type MockPlayerRepository struct {
+	mock.Mock
+}
+
+func (m *MockPlayerRepository) FindByID(ctx context.Context, id uint64) (*entity.Player, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.Player), args.Error(1)
+}
+
+func (m *MockPlayerRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
+	args := m.Called(ctx, globalID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.Player), args.Error(1)
+}
+
+func (m *MockPlayerRepository) Create(ctx context.Context, player *entity.Player) error {
+	args := m.Called(ctx, player)
+	// Simulate ID assignment like a real database would
+	if player.ID == 0 {
+		player.ID = 1
+	}
+	return args.Error(0)
+}
+
+func (m *MockPlayerRepository) Update(ctx context.Context, player *entity.Player) error {
+	args := m.Called(ctx, player)
+	return args.Error(0)
+}
+
+func (m *MockPlayerRepository) Delete(ctx context.Context, id uint64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+type MockMerchantRepository struct {
+	mock.Mock
+}
+
+func (m *MockMerchantRepository) FindByID(ctx context.Context, id uint64) (*entity.Merchant, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.Merchant), args.Error(1)
+}
+
+func (m *MockMerchantRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error) {
+	args := m.Called(ctx, globalID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.Merchant), args.Error(1)
+}
+
+func (m *MockMerchantRepository) Create(ctx context.Context, merchant *entity.Merchant) error {
+	args := m.Called(ctx, merchant)
+	return args.Error(0)
+}
+
+func (m *MockMerchantRepository) Update(ctx context.Context, merchant *entity.Merchant) error {
+	args := m.Called(ctx, merchant)
+	return args.Error(0)
+}
+
+func (m *MockMerchantRepository) Delete(ctx context.Context, id uint64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+type MockEventProducer struct {
+	mock.Mock
+}
+
+func (m *MockEventProducer) PublishMerchantSync(ctx context.Context, event *event.CloudEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockEventProducer) PublishPlayerSync(ctx context.Context, event *event.CloudEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockEventProducer) PublishManagerSync(ctx context.Context, event *event.CloudEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+// Helper functions
+func createTestContext() context.Context {
+	return context.Background()
+}
+
+func createMockDependencies(t *testing.T) (*MockPlayerRepository, *MockMerchantRepository, *MockEventProducer, *zap.Logger) {
+	playerRepo := new(MockPlayerRepository)
+	merchantRepo := new(MockMerchantRepository)
+	eventProducer := new(MockEventProducer)
+	logger := zaptest.NewLogger(t)
+	return playerRepo, merchantRepo, eventProducer, logger
+}
+
+func createTestPlayer() *entity.Player {
+	email := "test@example.com"
+	now := time.Now()
+	lastActive := now.Add(-1 * time.Hour)
+	return &entity.Player{
+		ID:             1,
+		MerchantID:     2,
+		GlobalPlayerID: "FATCAT-PLAYER-1",
+		APIKey:         "player-api-key",
+		Account:        "TestPlayer",
+		Email:          &email,
+		LastActiveAt:   &lastActive,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+}
+
+func createTestMerchant() *entity.Merchant {
+	now := time.Now()
+	return &entity.Merchant{
+		ID:               2,
+		GlobalMerchantID: "FATCAT-MERCHANT-1",
+		Name:             "TestMerchant",
+		DisplayName:      "Test Merchant",
+		APIKey:           "merchant-api-key",
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+}
+
+func createPlayerSyncEvent() ([]byte, error) {
+	playerEvent := event.PlayerSyncEvent{
+		GlobalMerchantID: "FATCAT-MERCHANT-1",
+		Player: event.PlayerData{
+			GlobalPlayerID: "FATCAT-PLAYER-1",
+			Account:        "TestPlayer",
+			Email:          "test@example.com",
+			Status:         "active",
+		},
+	}
+
+	cloudEvent := event.CloudEvent{
+		SpecVersion:     "1.0",
+		Type:            "tw.jvd.fatidentitycat.player.sync.v1",
+		Source:          "/fatidentitycat/FATCAT",
+		Subject:         "player_sync",
+		ID:              uuid.New().String(),
+		Time:            time.Now(),
+		DataContentType: "application/json",
+		TraceParent:     "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+		Data:            playerEvent,
+	}
+
+	return json.Marshal(cloudEvent)
+}
+
+// Tests
+func TestNewPlayerUseCase(t *testing.T) {
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	assert.NotNil(t, useCase)
+	assert.IsType(t, &PlayerUseCase{}, useCase)
+}
+
+func TestPlayerUseCase_SyncPlayer_CreateNew(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks
+	merchant := createTestMerchant()
+	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
+
+	// Player doesn't exist yet
+	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(nil, errors.New("record not found"))
+
+	// Expect Create to be called
+	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
+
+	// Expect PublishPlayerSync to be called
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Create test event data
+	eventData, err := createPlayerSyncEvent()
+	require.NoError(t, err)
+
+	// Execute the function
+	err = useCase.SyncPlayer(ctx, eventData)
+
+	// Verify results
+	assert.NoError(t, err)
+	playerRepo.AssertExpectations(t)
+	merchantRepo.AssertExpectations(t)
+	eventProducer.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_SyncPlayer_UpdateExisting(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks
+	merchant := createTestMerchant()
+	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
+
+	// Player exists
+	player := createTestPlayer()
+	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(player, nil)
+
+	// Expect Update to be called
+	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
+
+	// Expect PublishPlayerSync to be called
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Create test event data
+	eventData, err := createPlayerSyncEvent()
+	require.NoError(t, err)
+
+	// Execute the function
+	err = useCase.SyncPlayer(ctx, eventData)
+
+	// Verify results
+	assert.NoError(t, err)
+	playerRepo.AssertExpectations(t)
+	merchantRepo.AssertExpectations(t)
+	eventProducer.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_SyncPlayer_MerchantNotFound(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks - merchant not found
+	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(nil, errors.New("record not found"))
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Create test event data
+	eventData, err := createPlayerSyncEvent()
+	require.NoError(t, err)
+
+	// Execute the function
+	err = useCase.SyncPlayer(ctx, eventData)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "find merchant")
+	merchantRepo.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_SyncPlayer_CreateError(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks
+	merchant := createTestMerchant()
+	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
+
+	// Player doesn't exist yet
+	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(nil, errors.New("record not found"))
+
+	// Create fails
+	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(errors.New("create error"))
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Create test event data
+	eventData, err := createPlayerSyncEvent()
+	require.NoError(t, err)
+
+	// Execute the function
+	err = useCase.SyncPlayer(ctx, eventData)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "create player")
+	playerRepo.AssertExpectations(t)
+	merchantRepo.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks
+	player := createTestPlayer()
+	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
+
+	// Expect PublishPlayerSync to be called
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Execute the function
+	result, err := useCase.GetPlayerByID(ctx, 1)
+
+	// Verify results
+	assert.NoError(t, err)
+	assert.Equal(t, player, result)
+	playerRepo.AssertExpectations(t)
+	eventProducer.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks - player not found
+	playerRepo.On("FindByID", mock.Anything, uint64(999)).Return(nil, errors.New("player not found"))
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Execute the function
+	result, err := useCase.GetPlayerByID(ctx, 999)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "find player")
+	playerRepo.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_GetPlayerByID_PublishError(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks
+	player := createTestPlayer()
+	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
+
+	// PublishPlayerSync fails
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(errors.New("publish error"))
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Execute the function
+	result, err := useCase.GetPlayerByID(ctx, 1)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	playerRepo.AssertExpectations(t)
+	eventProducer.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks
+	player := createTestPlayer()
+	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(player, nil)
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Execute the function
+	result, err := useCase.GetPlayerByGlobalID(ctx, "FATCAT-PLAYER-1")
+
+	// Verify results
+	assert.NoError(t, err)
+	assert.Equal(t, player, result)
+	playerRepo.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks - player not found
+	playerRepo.On("FindByGlobalID", mock.Anything, "NONEXISTENT").Return(nil, errors.New("player not found"))
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Execute the function
+	result, err := useCase.GetPlayerByGlobalID(ctx, "NONEXISTENT")
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "find player")
+	playerRepo.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks
+	player := createTestPlayer()
+	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
+	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Execute the function
+	err := useCase.UpdatePlayerLastActive(ctx, 1)
+
+	// Verify results
+	assert.NoError(t, err)
+	playerRepo.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks - player not found
+	playerRepo.On("FindByID", mock.Anything, uint64(999)).Return(nil, errors.New("player not found"))
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Execute the function
+	err := useCase.UpdatePlayerLastActive(ctx, 999)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "find player")
+	playerRepo.AssertExpectations(t)
+}
+
+func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
+	ctx := createTestContext()
+	playerRepo, merchantRepo, eventProducer, logger := createMockDependencies(t)
+
+	// Setup mocks
+	player := createTestPlayer()
+	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
+
+	// Update fails
+	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(errors.New("update error"))
+
+	// Create the use case
+	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger)
+
+	// Execute the function
+	err := useCase.UpdatePlayerLastActive(ctx, 1)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "update player")
+	playerRepo.AssertExpectations(t)
+}
