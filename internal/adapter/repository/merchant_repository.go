@@ -8,7 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
-	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 )
@@ -24,7 +24,7 @@ func NewMerchantRepository(db *gorm.DB) repositoryport.MerchantRepository {
 }
 
 // FindByID 通過ID查找商戶
-func (r *merchantRepository) FindByID(ctx context.Context, id uint64) (*domainModel.Merchant, error) {
+func (r *merchantRepository) FindByID(ctx context.Context, id uint64) (*entity.Merchant, error) {
 	var merchant models.Merchant
 	result := r.db.WithContext(ctx).First(&merchant, id)
 	if result.Error != nil {
@@ -38,7 +38,7 @@ func (r *merchantRepository) FindByID(ctx context.Context, id uint64) (*domainMo
 }
 
 // FindByGlobalID 通過全局ID查找商戶
-func (r *merchantRepository) FindByGlobalID(ctx context.Context, globalID string) (*domainModel.Merchant, error) {
+func (r *merchantRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error) {
 	var merchant models.Merchant
 	result := r.db.WithContext(ctx).Where("global_merchant_id = ?", globalID).First(&merchant)
 	if result.Error != nil {
@@ -52,7 +52,7 @@ func (r *merchantRepository) FindByGlobalID(ctx context.Context, globalID string
 }
 
 // Create 創建商戶
-func (r *merchantRepository) Create(ctx context.Context, merchant *domainModel.Merchant) error {
+func (r *merchantRepository) Create(ctx context.Context, merchant *entity.Merchant) error {
 	merchantModel := mapToDBMerchant(merchant)
 	result := r.db.WithContext(ctx).Create(merchantModel)
 	if result.Error != nil {
@@ -66,7 +66,7 @@ func (r *merchantRepository) Create(ctx context.Context, merchant *domainModel.M
 }
 
 // Update 更新商戶
-func (r *merchantRepository) Update(ctx context.Context, merchant *domainModel.Merchant) error {
+func (r *merchantRepository) Update(ctx context.Context, merchant *entity.Merchant) error {
 	merchantModel := mapToDBMerchant(merchant)
 	result := r.db.WithContext(ctx).Save(merchantModel)
 	if result.Error != nil {
@@ -91,14 +91,14 @@ func (r *merchantRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 // 將DB模型映射到領域模型
-func mapToDomainMerchant(merchant *models.Merchant) *domainModel.Merchant {
+func mapToDomainMerchant(merchant *models.Merchant) *entity.Merchant {
 	var deletedAt *time.Time
 	if merchant.DeletedAt.Valid {
 		deletedTime := merchant.DeletedAt.Time
 		deletedAt = &deletedTime
 	}
 
-	return &domainModel.Merchant{
+	return &entity.Merchant{
 		ID:               merchant.ID,
 		GlobalMerchantID: merchant.GlobalMerchantID,
 		Name:             merchant.Name,
@@ -111,7 +111,7 @@ func mapToDomainMerchant(merchant *models.Merchant) *domainModel.Merchant {
 }
 
 // 將領域模型映射到DB模型
-func mapToDBMerchant(merchant *domainModel.Merchant) *models.Merchant {
+func mapToDBMerchant(merchant *entity.Merchant) *models.Merchant {
 	dbMerchant := &models.Merchant{
 		ID:               merchant.ID,
 		GlobalMerchantID: merchant.GlobalMerchantID,

@@ -11,8 +11,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
@@ -101,7 +101,7 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 	}
 
 	// 創建或更新玩家
-	var player model.Player
+	var player entity.Player
 	if existing == nil {
 		// 創建新玩家
 		tracing.TraceEvent(span, "Creating new player")
@@ -110,7 +110,7 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 			email = &playerEvent.Player.Email
 		}
 
-		player = model.Player{
+		player = entity.Player{
 			MerchantID:     merchant.ID,
 			GlobalPlayerID: playerEvent.Player.GlobalPlayerID,
 			APIKey:         uuid.New().String(), // 生成新的API密鑰
@@ -162,7 +162,7 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 }
 
 // publishPlayerSyncEvent 發布玩家同步事件
-func (u *PlayerUseCase) publishPlayerSyncEvent(ctx context.Context, player *model.Player, globalMerchantID string, traceParent string) error {
+func (u *PlayerUseCase) publishPlayerSyncEvent(ctx context.Context, player *entity.Player, globalMerchantID string, traceParent string) error {
 	// 獲取當前 span
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.publishPlayerSyncEvent")
 	defer span.End()
@@ -228,7 +228,7 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(ctx context.Context, player *mode
 }
 
 // GetPlayerByID 通過ID獲取玩家
-func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*model.Player, error) {
+func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.Player, error) {
 	// 創建 span 並跟踪此操作
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByID")
 	defer span.End()
@@ -255,7 +255,7 @@ func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*model.Pl
 }
 
 // GetPlayerByGlobalID 通過全局ID獲取玩家
-func (u *PlayerUseCase) GetPlayerByGlobalID(ctx context.Context, globalID string) (*model.Player, error) {
+func (u *PlayerUseCase) GetPlayerByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
 	// 創建 span 並跟踪此操作
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByGlobalID")
 	defer span.End()

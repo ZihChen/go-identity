@@ -13,8 +13,8 @@ import (
 	"go.uber.org/zap/zaptest"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 )
 
 // 資料庫模擬
@@ -22,29 +22,29 @@ type MockPlayerRepository struct {
 	mock.Mock
 }
 
-func (m *MockPlayerRepository) FindByID(ctx context.Context, id uint64) (*model.Player, error) {
+func (m *MockPlayerRepository) FindByID(ctx context.Context, id uint64) (*entity.Player, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*model.Player), args.Error(1)
+	return args.Get(0).(*entity.Player), args.Error(1)
 }
 
-func (m *MockPlayerRepository) FindByGlobalID(ctx context.Context, globalID string) (*model.Player, error) {
+func (m *MockPlayerRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*model.Player), args.Error(1)
+	return args.Get(0).(*entity.Player), args.Error(1)
 }
 
-func (m *MockPlayerRepository) Create(ctx context.Context, player *model.Player) error {
+func (m *MockPlayerRepository) Create(ctx context.Context, player *entity.Player) error {
 	args := m.Called(ctx, player)
 	player.ID = 1 // 為新創建的玩家設置 ID
 	return args.Error(0)
 }
 
-func (m *MockPlayerRepository) Update(ctx context.Context, player *model.Player) error {
+func (m *MockPlayerRepository) Update(ctx context.Context, player *entity.Player) error {
 	args := m.Called(ctx, player)
 	return args.Error(0)
 }
@@ -65,10 +65,10 @@ func TestPlayerUseCase_SyncPlayer_Create(t *testing.T) {
 	// 創建模擬資料庫
 	playerRepo := new(MockPlayerRepository)
 	playerRepo.On("FindByGlobalID", mock.Anything, globalPlayerID).Return(nil, fmt.Errorf("record not found"))
-	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*model.Player")).Return(nil)
+	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
 
 	merchantRepo := new(MockMerchantRepository)
-	merchantRepo.On("FindByGlobalID", mock.Anything, globalMerchantID).Return(&model.Merchant{
+	merchantRepo.On("FindByGlobalID", mock.Anything, globalMerchantID).Return(&entity.Merchant{
 		ID:               1,
 		GlobalMerchantID: globalMerchantID,
 		Name:             "Test Merchant",
@@ -136,7 +136,7 @@ func TestPlayerUseCase_SyncPlayer_Update(t *testing.T) {
 	oldEmail := "old@example.com"
 
 	// 準備現有玩家
-	existingPlayer := &model.Player{
+	existingPlayer := &entity.Player{
 		ID:             1,
 		MerchantID:     1,
 		GlobalPlayerID: globalPlayerID,
@@ -150,10 +150,10 @@ func TestPlayerUseCase_SyncPlayer_Update(t *testing.T) {
 	// 創建模擬資料庫
 	playerRepo := new(MockPlayerRepository)
 	playerRepo.On("FindByGlobalID", mock.Anything, globalPlayerID).Return(existingPlayer, nil)
-	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*model.Player")).Return(nil)
+	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
 
 	merchantRepo := new(MockMerchantRepository)
-	merchantRepo.On("FindByGlobalID", mock.Anything, globalMerchantID).Return(&model.Merchant{
+	merchantRepo.On("FindByGlobalID", mock.Anything, globalMerchantID).Return(&entity.Merchant{
 		ID:               1,
 		GlobalMerchantID: globalMerchantID,
 		Name:             "Test Merchant",
@@ -210,7 +210,7 @@ func TestPlayerUseCase_SyncPlayer_Update(t *testing.T) {
 	eventProducer.AssertExpectations(t)
 
 	// 驗證更新時保留了原始的 API 密鑰
-	updated := playerRepo.Calls[1].Arguments.Get(1).(*model.Player)
+	updated := playerRepo.Calls[1].Arguments.Get(1).(*entity.Player)
 	assert.Equal(t, apiKey, updated.APIKey)
 	assert.Equal(t, playerAccount, updated.Account)
 	assert.Equal(t, playerEmail, *updated.Email)
@@ -227,7 +227,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 	apiKey := "test-api-key"
 
 	// 準備現有玩家
-	existingPlayer := &model.Player{
+	existingPlayer := &entity.Player{
 		ID:             playerID,
 		MerchantID:     merchantID,
 		GlobalPlayerID: globalPlayerID,
@@ -281,7 +281,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 	apiKey := "test-api-key"
 
 	// 準備現有玩家
-	existingPlayer := &model.Player{
+	existingPlayer := &entity.Player{
 		ID:             playerID,
 		MerchantID:     merchantID,
 		GlobalPlayerID: globalPlayerID,
@@ -335,7 +335,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 	apiKey := "test-api-key"
 
 	// 準備現有玩家
-	existingPlayer := &model.Player{
+	existingPlayer := &entity.Player{
 		ID:             playerID,
 		MerchantID:     merchantID,
 		GlobalPlayerID: globalPlayerID,
@@ -350,7 +350,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 	// 創建模擬資料庫
 	playerRepo := new(MockPlayerRepository)
 	playerRepo.On("FindByID", mock.Anything, playerID).Return(existingPlayer, nil)
-	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*model.Player")).Return(nil)
+	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
 
 	// 創建模擬商戶資料庫
 	merchantRepo := new(MockMerchantRepository)
@@ -371,7 +371,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 驗證最後活躍時間被更新
-	updated := playerRepo.Calls[1].Arguments.Get(1).(*model.Player)
+	updated := playerRepo.Calls[1].Arguments.Get(1).(*entity.Player)
 	assert.NotNil(t, updated.LastActiveAt)
 
 	playerRepo.AssertExpectations(t)

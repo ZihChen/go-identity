@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -137,7 +137,7 @@ func (al *AsyncLogger) Close() {
 	al.wg.Wait()
 }
 
-func (al *AsyncLogger) DebugWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (al *AsyncLogger) DebugWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelDebug,
@@ -172,7 +172,7 @@ func (al *AsyncLogger) DebugWithContext(ctx context.Context, msg string, fields 
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) InfoWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (al *AsyncLogger) InfoWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelInfo,
@@ -207,7 +207,7 @@ func (al *AsyncLogger) InfoWithContext(ctx context.Context, msg string, fields .
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) ErrorWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (al *AsyncLogger) ErrorWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelError,
@@ -242,7 +242,7 @@ func (al *AsyncLogger) ErrorWithContext(ctx context.Context, msg string, fields 
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) WarnWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (al *AsyncLogger) WarnWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelWarn,
@@ -277,7 +277,7 @@ func (al *AsyncLogger) WarnWithContext(ctx context.Context, msg string, fields .
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) FatalWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (al *AsyncLogger) FatalWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelFatal,
@@ -312,44 +312,44 @@ func (al *AsyncLogger) FatalWithContext(ctx context.Context, msg string, fields 
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) DebugLog(msg string, fields ...*model.LoggerFiled) {}
+func (al *AsyncLogger) DebugLog(msg string, fields ...*entity.LoggerFiled) {}
 
-func (al *AsyncLogger) InfoLog(msg string, fields ...*model.LoggerFiled) {}
+func (al *AsyncLogger) InfoLog(msg string, fields ...*entity.LoggerFiled) {}
 
-func (al *AsyncLogger) ErrorLog(msg string, fields ...*model.LoggerFiled) {}
+func (al *AsyncLogger) ErrorLog(msg string, fields ...*entity.LoggerFiled) {}
 
-func (al *AsyncLogger) WarnLog(msg string, fields ...*model.LoggerFiled) {}
+func (al *AsyncLogger) WarnLog(msg string, fields ...*entity.LoggerFiled) {}
 
-func (al *AsyncLogger) FatalLog(msg string, fields ...*model.LoggerFiled) {}
+func (al *AsyncLogger) FatalLog(msg string, fields ...*entity.LoggerFiled) {}
 
-func (al *AsyncLogger) Error(key string, value error) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (al *AsyncLogger) Error(key string, value error) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (al *AsyncLogger) String(key string, value string) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (al *AsyncLogger) String(key string, value string) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (al *AsyncLogger) Int(key string, value int) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (al *AsyncLogger) Int(key string, value int) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (al *AsyncLogger) Int64(key string, value int64) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (al *AsyncLogger) Int64(key string, value int64) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (al *AsyncLogger) UInt64(key string, value uint64) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (al *AsyncLogger) UInt64(key string, value uint64) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (al *AsyncLogger) Float64(key string, value float64) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (al *AsyncLogger) Float64(key string, value float64) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (al *AsyncLogger) Bool(key string, value bool) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (al *AsyncLogger) Bool(key string, value bool) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (al *AsyncLogger) Any(key string, value interface{}) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (al *AsyncLogger) Any(key string, value interface{}) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }

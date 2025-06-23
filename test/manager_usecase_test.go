@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap/zaptest"
@@ -21,29 +21,29 @@ type MockManagerRepository struct {
 	mock.Mock
 }
 
-func (m *MockManagerRepository) FindByID(ctx context.Context, id uint64) (*model.Manager, error) {
+func (m *MockManagerRepository) FindByID(ctx context.Context, id uint64) (*entity.Manager, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*model.Manager), args.Error(1)
+	return args.Get(0).(*entity.Manager), args.Error(1)
 }
 
-func (m *MockManagerRepository) FindByGlobalID(ctx context.Context, globalID string) (*model.Manager, error) {
+func (m *MockManagerRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*model.Manager), args.Error(1)
+	return args.Get(0).(*entity.Manager), args.Error(1)
 }
 
-func (m *MockManagerRepository) Create(ctx context.Context, manager *model.Manager) error {
+func (m *MockManagerRepository) Create(ctx context.Context, manager *entity.Manager) error {
 	args := m.Called(ctx, manager)
 	manager.ID = 1 // 為新創建的管理員設置 ID
 	return args.Error(0)
 }
 
-func (m *MockManagerRepository) Update(ctx context.Context, manager *model.Manager) error {
+func (m *MockManagerRepository) Update(ctx context.Context, manager *entity.Manager) error {
 	args := m.Called(ctx, manager)
 	return args.Error(0)
 }
@@ -64,10 +64,10 @@ func TestManagerUseCase_SyncManager_Create(t *testing.T) {
 	// 創建模擬資料庫
 	managerRepo := new(MockManagerRepository)
 	managerRepo.On("FindByGlobalID", mock.Anything, globalManagerID).Return(nil, fmt.Errorf("record not found"))
-	managerRepo.On("Create", mock.Anything, mock.AnythingOfType("*model.Manager")).Return(nil)
+	managerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Manager")).Return(nil)
 
 	merchantRepo := new(MockMerchantRepository)
-	merchantRepo.On("FindByGlobalID", mock.Anything, globalMerchantID).Return(&model.Merchant{
+	merchantRepo.On("FindByGlobalID", mock.Anything, globalMerchantID).Return(&entity.Merchant{
 		ID:               1,
 		GlobalMerchantID: globalMerchantID,
 		Name:             "Test Merchant",
@@ -133,7 +133,7 @@ func TestManagerUseCase_SyncManager_Update(t *testing.T) {
 	managerEmail := "updated@example.com" // 更新的郵箱
 	oldEmail := "old@example.com"
 	// 準備現有管理員
-	existingManager := &model.Manager{
+	existingManager := &entity.Manager{
 		ID:              1,
 		MerchantID:      1,
 		GlobalManagerID: globalManagerID,
@@ -146,10 +146,10 @@ func TestManagerUseCase_SyncManager_Update(t *testing.T) {
 	// 創建模擬資料庫
 	managerRepo := new(MockManagerRepository)
 	managerRepo.On("FindByGlobalID", mock.Anything, globalManagerID).Return(existingManager, nil)
-	managerRepo.On("Update", mock.Anything, mock.AnythingOfType("*model.Manager")).Return(nil)
+	managerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Manager")).Return(nil)
 
 	merchantRepo := new(MockMerchantRepository)
-	merchantRepo.On("FindByGlobalID", mock.Anything, globalMerchantID).Return(&model.Merchant{
+	merchantRepo.On("FindByGlobalID", mock.Anything, globalMerchantID).Return(&entity.Merchant{
 		ID:               1,
 		GlobalMerchantID: globalMerchantID,
 		Name:             "Test Merchant",
@@ -206,7 +206,7 @@ func TestManagerUseCase_SyncManager_Update(t *testing.T) {
 	eventProducer.AssertExpectations(t)
 
 	// 驗證更新後的數據
-	updated := managerRepo.Calls[1].Arguments.Get(1).(*model.Manager)
+	updated := managerRepo.Calls[1].Arguments.Get(1).(*entity.Manager)
 	assert.Equal(t, managerAccount, updated.Account)
 	assert.Equal(t, managerEmail, *updated.Email)
 }
@@ -221,7 +221,7 @@ func TestManagerUseCase_GetManagerByID(t *testing.T) {
 	managerEmail := "manager@example.com"
 
 	// 準備現有管理員
-	existingManager := &model.Manager{
+	existingManager := &entity.Manager{
 		ID:              managerID,
 		MerchantID:      merchantID,
 		GlobalManagerID: globalManagerID,
@@ -272,7 +272,7 @@ func TestManagerUseCase_GetManagerByGlobalID(t *testing.T) {
 	managerEmail := "manager@example.com"
 
 	// 準備現有管理員
-	existingManager := &model.Manager{
+	existingManager := &entity.Manager{
 		ID:              managerID,
 		MerchantID:      merchantID,
 		GlobalManagerID: globalManagerID,

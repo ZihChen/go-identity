@@ -2,7 +2,7 @@
 package tests
 
 import (
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"testing"
 	"time"
 
@@ -64,7 +64,7 @@ func TestMerchantCRUD(t *testing.T) {
 	assert.Greater(t, testMerchant.ID, uint64(0), "Should assign an ID to the merchant")
 
 	// 讀取
-	var readMerchant model.Merchant
+	var readMerchant entity.Merchant
 	result = db.DB.First(&readMerchant, testMerchant.ID)
 	assert.NoError(t, result.Error, "Should read the merchant without error")
 	assert.Equal(t, testMerchant.Name, readMerchant.Name, "Merchant name should match")
@@ -76,7 +76,7 @@ func TestMerchantCRUD(t *testing.T) {
 	assert.NoError(t, result.Error, "Should update the merchant without error")
 
 	// 驗證更新
-	var updatedMerchant model.Merchant
+	var updatedMerchant entity.Merchant
 	result = db.DB.First(&updatedMerchant, testMerchant.ID)
 	assert.NoError(t, result.Error, "Should read the updated merchant without error")
 	assert.Equal(t, newName, updatedMerchant.Name, "Merchant name should be updated")
@@ -86,7 +86,7 @@ func TestMerchantCRUD(t *testing.T) {
 	assert.NoError(t, result.Error, "Should soft-delete the merchant without error")
 
 	// 驗證軟刪除
-	var deletedMerchant model.Merchant
+	var deletedMerchant entity.Merchant
 	result = db.DB.Unscoped().First(&deletedMerchant, testMerchant.ID)
 	assert.NoError(t, result.Error, "Should find the merchant with unscoped query")
 	assert.NotNil(t, deletedMerchant.DeletedAt, "DeletedAt should be set")
@@ -106,7 +106,7 @@ func TestPlayerCRUD(t *testing.T) {
 	}
 
 	// 首先創建一個商戶，作為外鍵關聯
-	merchant := &model.Merchant{
+	merchant := &entity.Merchant{
 		GlobalMerchantID: "TEST-MERCHANT-PLAYER-" + time.Now().Format("20060102150405"),
 		Name:             "Test Merchant for Player",
 		DisplayName:      "Test Merchant Display",
@@ -118,7 +118,7 @@ func TestPlayerCRUD(t *testing.T) {
 
 	// 測試資料 - 玩家
 	email := "test@example.com"
-	testPlayer := &model.Player{
+	testPlayer := &entity.Player{
 		MerchantID:     merchant.ID,
 		GlobalPlayerID: "TEST-PLAYER-" + time.Now().Format("20060102150405"),
 		APIKey:         "test-player-key-" + time.Now().Format("20060102150405"),
@@ -134,7 +134,7 @@ func TestPlayerCRUD(t *testing.T) {
 	assert.Greater(t, testPlayer.ID, uint64(0), "Should assign an ID to the player")
 
 	// 讀取
-	var readPlayer model.Player
+	var readPlayer entity.Player
 	result = db.DB.First(&readPlayer, testPlayer.ID)
 	assert.NoError(t, result.Error, "Should read the player without error")
 	assert.Equal(t, testPlayer.Account, readPlayer.Account, "Player account should match")
@@ -146,7 +146,7 @@ func TestPlayerCRUD(t *testing.T) {
 	assert.NoError(t, result.Error, "Should update the player without error")
 
 	// 驗證更新
-	var updatedPlayer model.Player
+	var updatedPlayer entity.Player
 	result = db.DB.First(&updatedPlayer, testPlayer.ID)
 	assert.NoError(t, result.Error, "Should read the updated player without error")
 	assert.Equal(t, newAccount, updatedPlayer.Account, "Player account should be updated")
@@ -172,7 +172,7 @@ func TestManagerCRUD(t *testing.T) {
 	}
 
 	// 首先創建一個商戶，作為外鍵關聯
-	merchant := &model.Merchant{
+	merchant := &entity.Merchant{
 		GlobalMerchantID: "TEST-MERCHANT-MANAGER-" + time.Now().Format("20060102150405"),
 		Name:             "Test Merchant for Manager",
 		DisplayName:      "Test Merchant Display",
@@ -184,7 +184,7 @@ func TestManagerCRUD(t *testing.T) {
 
 	// 測試資料 - 管理員
 	email := "manager@example.com"
-	testManager := &model.Manager{
+	testManager := &entity.Manager{
 		MerchantID:      merchant.ID,
 		GlobalManagerID: "TEST-MANAGER-" + time.Now().Format("20060102150405"),
 		Account:         "testmanager",
@@ -199,7 +199,7 @@ func TestManagerCRUD(t *testing.T) {
 	assert.Greater(t, testManager.ID, uint64(0), "Should assign an ID to the manager")
 
 	// 讀取
-	var readManager model.Manager
+	var readManager entity.Manager
 	result = db.DB.First(&readManager, testManager.ID)
 	assert.NoError(t, result.Error, "Should read the manager without error")
 	assert.Equal(t, testManager.Account, readManager.Account, "Manager account should match")
@@ -211,7 +211,7 @@ func TestManagerCRUD(t *testing.T) {
 	assert.NoError(t, result.Error, "Should update the manager without error")
 
 	// 驗證更新
-	var updatedManager model.Manager
+	var updatedManager entity.Manager
 	result = db.DB.First(&updatedManager, testManager.ID)
 	assert.NoError(t, result.Error, "Should read the updated manager without error")
 	assert.Equal(t, newAccount, updatedManager.Account, "Manager account should be updated")

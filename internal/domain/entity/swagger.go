@@ -1,4 +1,4 @@
-package model
+package entity
 
 // 這個文件包含 Swagger 文檔使用的模型定義和註解
 

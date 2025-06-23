@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -67,7 +67,7 @@ func createZapConfig(debug bool) zap.Config {
 	return config
 }
 
-func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg string, fields ...*entity.LoggerFiled) {
 	spanCtx := trace.SpanContextFromContext(ctx)
 	var traceID, spanID string
 	if spanCtx.IsValid() {
@@ -106,7 +106,7 @@ func (s *ServiceLogger) extractTraceInfo(ctx context.Context) (traceID, spanID s
 	return
 }
 
-func (s *ServiceLogger) createZapFields(traceID, spanID string, fields []*model.LoggerFiled) []zap.Field {
+func (s *ServiceLogger) createZapFields(traceID, spanID string, fields []*entity.LoggerFiled) []zap.Field {
 	zapFields := make([]zap.Field, 0, len(fields)+2)
 	if traceID != "" {
 		zapFields = append(zapFields, zap.String("trace_id", traceID))
@@ -120,7 +120,7 @@ func (s *ServiceLogger) createZapFields(traceID, spanID string, fields []*model.
 	return zapFields
 }
 
-func (s *ServiceLogger) outputJSONLog(level LogLevel, msg, traceID, spanID string, fields []*model.LoggerFiled) {
+func (s *ServiceLogger) outputJSONLog(level LogLevel, msg, traceID, spanID string, fields []*entity.LoggerFiled) {
 	logData := map[string]interface{}{
 		"app":       s.AppName,
 		"env":       s.Env,
@@ -147,76 +147,76 @@ func (s *ServiceLogger) outputJSONLog(level LogLevel, msg, traceID, spanID strin
 	fmt.Println(string(jsonData))
 }
 
-func (s *ServiceLogger) InfoWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) InfoWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(ctx, LevelInfo, msg, fields...)
 }
 
-func (s *ServiceLogger) DebugWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) DebugWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(ctx, LevelDebug, msg, fields...)
 }
 
-func (s *ServiceLogger) ErrorWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) ErrorWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(ctx, LevelError, msg, fields...)
 }
 
-func (s *ServiceLogger) WarnWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) WarnWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(ctx, LevelWarn, msg, fields...)
 }
 
-func (s *ServiceLogger) FatalWithContext(ctx context.Context, msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) FatalWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(ctx, LevelFatal, msg, fields...)
 }
 
-func (s *ServiceLogger) DebugLog(msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) DebugLog(msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(nil, LevelDebug, msg, fields...)
 }
 
-func (s *ServiceLogger) InfoLog(msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) InfoLog(msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(nil, LevelInfo, msg, fields...)
 }
 
-func (s *ServiceLogger) ErrorLog(msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) ErrorLog(msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(nil, LevelError, msg, fields...)
 }
 
-func (s *ServiceLogger) WarnLog(msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) WarnLog(msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(nil, LevelWarn, msg, fields...)
 }
 
-func (s *ServiceLogger) FatalLog(msg string, fields ...*model.LoggerFiled) {
+func (s *ServiceLogger) FatalLog(msg string, fields ...*entity.LoggerFiled) {
 	s.logWithLevel(nil, LevelFatal, msg, fields...)
 }
 
-func (s *ServiceLogger) Error(key string, value error) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (s *ServiceLogger) Error(key string, value error) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (s *ServiceLogger) String(key string, value string) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (s *ServiceLogger) String(key string, value string) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (s *ServiceLogger) Int(key string, value int) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (s *ServiceLogger) Int(key string, value int) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (s *ServiceLogger) Int64(key string, value int64) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (s *ServiceLogger) Int64(key string, value int64) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (s *ServiceLogger) UInt64(key string, value uint64) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (s *ServiceLogger) UInt64(key string, value uint64) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (s *ServiceLogger) Float64(key string, value float64) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (s *ServiceLogger) Float64(key string, value float64) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (s *ServiceLogger) Bool(key string, value bool) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (s *ServiceLogger) Bool(key string, value bool) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
-func (s *ServiceLogger) Any(key string, value interface{}) *model.LoggerFiled {
-	return &model.LoggerFiled{Key: key, Value: value}
+func (s *ServiceLogger) Any(key string, value interface{}) *entity.LoggerFiled {
+	return &entity.LoggerFiled{Key: key, Value: value}
 }
 
 func (s *ServiceLogger) Close() {

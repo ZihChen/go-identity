@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,8 +43,8 @@ func TestMerchantRepository_FindByID_Unit(t *testing.T) {
 		AddRow(expectedMerchant.ID, expectedMerchant.Name, expectedMerchant.DisplayName, expectedMerchant.GlobalMerchantID, expectedMerchant.APIKey, expectedMerchant.CreatedAt, expectedMerchant.UpdatedAt)
 
 	mock.ExpectQuery("SELECT"). // 寬鬆模式
-		WithArgs(merchantID, 1).
-		WillReturnRows(rows)
+					WithArgs(merchantID, 1).
+					WillReturnRows(rows)
 
 	// 執行測試
 	result, err := repo.FindByID(context.Background(), merchantID)
@@ -136,8 +136,8 @@ func TestMerchantRepository_Create_Unit(t *testing.T) {
 		UpdatedAt:        now,
 	}
 
-	// Convert to domain model for the test
-	domainMerchant := &model.Merchant{
+	// Convert to domain entity for the test
+	domainMerchant := &entity.Merchant{
 		GlobalMerchantID: merchant.GlobalMerchantID,
 		Name:             merchant.Name,
 		DisplayName:      merchant.DisplayName,
@@ -180,7 +180,7 @@ func TestMerchantRepository_Update_Unit(t *testing.T) {
 
 	now := time.Now()
 	merchantID := uint64(1)
-	merchant := &model.Merchant{
+	merchant := &entity.Merchant{
 		ID:               merchantID,
 		GlobalMerchantID: "FATCAT-MERCHANT-1",
 		Name:             "UpdatedMerchant",

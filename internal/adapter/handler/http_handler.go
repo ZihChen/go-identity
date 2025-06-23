@@ -15,7 +15,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 
-	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
+	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 )
 

@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -152,8 +152,8 @@ func TestPlayerRepository_Create_Unit(t *testing.T) {
 		UpdatedAt:      now,
 	}
 
-	// Convert to domain model for the test
-	domainPlayer := &model.Player{
+	// Convert to domain entity for the test
+	domainPlayer := &entity.Player{
 		MerchantID:     player.MerchantID,
 		GlobalPlayerID: player.GlobalPlayerID,
 		APIKey:         player.APIKey,
@@ -200,7 +200,7 @@ func TestPlayerRepository_Update_Unit(t *testing.T) {
 	playerID := uint64(1)
 	email := "updated@example.com"
 	lastActiveAt := now
-	player := &model.Player{
+	player := &entity.Player{
 		ID:             playerID,
 		MerchantID:     uint64(2),
 		GlobalPlayerID: "FATCAT-PLAYER-1",

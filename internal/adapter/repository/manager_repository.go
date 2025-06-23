@@ -8,7 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
-	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 )
@@ -24,7 +24,7 @@ func NewManagerRepository(db *gorm.DB) repositoryport.ManagerRepository {
 }
 
 // FindByID 通過ID查找管理員
-func (r *ManagerRepository) FindByID(ctx context.Context, id uint64) (*domainModel.Manager, error) {
+func (r *ManagerRepository) FindByID(ctx context.Context, id uint64) (*entity.Manager, error) {
 	var manager models.Manager
 	result := r.db.WithContext(ctx).First(&manager, id)
 	if result.Error != nil {
@@ -38,7 +38,7 @@ func (r *ManagerRepository) FindByID(ctx context.Context, id uint64) (*domainMod
 }
 
 // FindByGlobalID 通過全局ID查找管理員
-func (r *ManagerRepository) FindByGlobalID(ctx context.Context, globalID string) (*domainModel.Manager, error) {
+func (r *ManagerRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error) {
 	var manager models.Manager
 	result := r.db.WithContext(ctx).Where("global_manager_id = ?", globalID).First(&manager)
 	if result.Error != nil {
@@ -52,7 +52,7 @@ func (r *ManagerRepository) FindByGlobalID(ctx context.Context, globalID string)
 }
 
 // Create 創建管理員
-func (r *ManagerRepository) Create(ctx context.Context, manager *domainModel.Manager) error {
+func (r *ManagerRepository) Create(ctx context.Context, manager *entity.Manager) error {
 	managerModel := mapToDBManager(manager)
 	result := r.db.WithContext(ctx).Create(managerModel)
 	if result.Error != nil {
@@ -66,7 +66,7 @@ func (r *ManagerRepository) Create(ctx context.Context, manager *domainModel.Man
 }
 
 // Update 更新管理員
-func (r *ManagerRepository) Update(ctx context.Context, manager *domainModel.Manager) error {
+func (r *ManagerRepository) Update(ctx context.Context, manager *entity.Manager) error {
 	managerModel := mapToDBManager(manager)
 	result := r.db.WithContext(ctx).Save(managerModel)
 	if result.Error != nil {
@@ -91,14 +91,14 @@ func (r *ManagerRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 // 將DB模型映射到領域模型
-func mapToDomainManager(manager *models.Manager) *domainModel.Manager {
+func mapToDomainManager(manager *models.Manager) *entity.Manager {
 	var deletedAt *time.Time
 	if manager.DeletedAt.Valid {
 		deletedTime := manager.DeletedAt.Time
 		deletedAt = &deletedTime
 	}
 
-	return &domainModel.Manager{
+	return &entity.Manager{
 		ID:              manager.ID,
 		MerchantID:      manager.MerchantID,
 		GlobalManagerID: manager.GlobalManagerID,
@@ -111,7 +111,7 @@ func mapToDomainManager(manager *models.Manager) *domainModel.Manager {
 }
 
 // 將領域模型映射到DB模型
-func mapToDBManager(manager *domainModel.Manager) *models.Manager {
+func mapToDBManager(manager *entity.Manager) *models.Manager {
 	dbManager := &models.Manager{
 		ID:              manager.ID,
 		MerchantID:      manager.MerchantID,

@@ -11,8 +11,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
@@ -89,11 +89,11 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 	}
 
 	// 創建或更新商戶
-	var merchant model.Merchant
+	var merchant entity.Merchant
 	if existing == nil {
 		// 創建新商戶
 		tracing.TraceEvent(span, "Creating new merchant")
-		merchant = model.Merchant{
+		merchant = entity.Merchant{
 			GlobalMerchantID: merchantEvent.GlobalMerchantID,
 			Name:             merchantEvent.Merchant.Name,
 			DisplayName:      merchantEvent.Merchant.DisplayName,
@@ -142,7 +142,7 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 }
 
 // publishMerchantSyncEvent 發布商戶同步事件
-func (u *MerchantUseCase) publishMerchantSyncEvent(ctx context.Context, merchant *model.Merchant, traceParent string) error {
+func (u *MerchantUseCase) publishMerchantSyncEvent(ctx context.Context, merchant *entity.Merchant, traceParent string) error {
 	// 獲取當前 span
 	span := trace.SpanFromContext(ctx)
 
@@ -201,7 +201,7 @@ func (u *MerchantUseCase) publishMerchantSyncEvent(ctx context.Context, merchant
 }
 
 // GetMerchantByID 通過ID獲取商戶
-func (u *MerchantUseCase) GetMerchantByID(ctx context.Context, id uint64) (*model.Merchant, error) {
+func (u *MerchantUseCase) GetMerchantByID(ctx context.Context, id uint64) (*entity.Merchant, error) {
 	// 創建 span 並跟踪此操作
 	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.GetMerchantByID")
 	defer span.End()
@@ -224,7 +224,7 @@ func (u *MerchantUseCase) GetMerchantByID(ctx context.Context, id uint64) (*mode
 }
 
 // GetMerchantByGlobalID 通過全局ID獲取商戶
-func (u *MerchantUseCase) GetMerchantByGlobalID(ctx context.Context, globalID string) (*model.Merchant, error) {
+func (u *MerchantUseCase) GetMerchantByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error) {
 	// 創建 span 並跟踪此操作
 	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.GetMerchantByGlobalID")
 	defer span.End()
