@@ -2,12 +2,13 @@
 package tests
 
 import (
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/model"
 	"testing"
 	"time"
 
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/model"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,7 +49,7 @@ func TestMerchantCRUD(t *testing.T) {
 	}
 
 	// 測試資料 - 商戶
-	testMerchant := &model.Merchant{
+	testMerchant := &models.Merchant{
 		GlobalMerchantID: "TEST-MERCHANT-" + time.Now().Format("20060102150405"),
 		Name:             "Test Merchant",
 		DisplayName:      "Test Merchant Display",
@@ -88,7 +89,7 @@ func TestMerchantCRUD(t *testing.T) {
 	var deletedMerchant model.Merchant
 	result = db.DB.Unscoped().First(&deletedMerchant, testMerchant.ID)
 	assert.NoError(t, result.Error, "Should find the merchant with unscoped query")
-	assert.NotNil(t, deletedMerchant.DeletedAt.Time, "DeletedAt should be set")
+	assert.NotNil(t, deletedMerchant.DeletedAt, "DeletedAt should be set")
 }
 
 func TestPlayerCRUD(t *testing.T) {
