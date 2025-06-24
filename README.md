@@ -1,94 +1,236 @@
-# fat_identity_cat
+# 📌 Fat Identity Cat
 
+Fat Identity Cat 是一個用於管理商戶、玩家和管理員身份的微服務，具有通過 Kinesis Data Streams (KDS) 進行同步的功能。
 
+## 🚀 功能亮點 / 特色
+  - Web 服務：提供 HTTP API
+  - Consumer 服務：從 KDS 消費事件並將其排入隊列
+  - Worker 服務：處理隊列中的任務
 
-## Getting started
+## 📦 安裝步驟
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### 前置條件
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- Go 1.18 或更高版本
+- Docker 和 Docker Compose（用於本地開發）
+- AWS 帳戶（用於 Kinesis Data Streams 和 DynamoDB）
+- Redis 服務
 
-## Add your files
+### 使用 Docker Compose 安裝
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+1. Clone Repo：
+
+```bash
+git clone https://gitlab.jvdtech.dev/fatcat/fat_identity_cat.git
+cd fat_identity_cat
+```
+
+2. 創建 `.env` 文件並配置環境變量（參見下面的配置部分）
+
+3. 使用 Docker Compose 啟動服務：
+
+```bash
+docker-compose up -d
+```
+
+### 手動安裝
+
+1. Clone Repo：
+
+```bash
+git clone https://gitlab.jvdtech.dev/fatcat/fat_identity_cat.git
+cd fat_identity_cat
+```
+
+2. 安裝依賴：
+
+```bash
+go mod download
+```
+
+3. 創建 `.env` 文件並配置環境變量
+
+4. 運行數據庫遷移：
+
+```bash
+./migrate.sh
+```
+
+## ▶️ 使用方法
+
+Fat Identity Cat 服務有三種運行模式：
+
+### Web 服務
+
+啟動 Web 服務以處理 HTTP API 請求：
+
+```bash
+docker-compose up -d fat_identity_web
+```
+
+### Consumer 服務
+
+啟動 Consumer 服務以從 KDS 消費事件：
+
+```bash
+docker-compose up -d fat-identity-consumer
+```
+
+### Worker 服務
+
+啟動 Worker 服務以處理隊列中的任務：
+
+```bash
+docker-compose up -d fat-identity-worker
+```
+
+## 🔧 設定與環境變數
+
+服務使用 `.env` 文件或環境變量進行配置。以下是主要的配置選項：
+
+### 應用配置
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.jvdtech.dev/fatcat/fat_identity_cat.git
-git branch -M main
-git push -uf origin main
+APP_NAME=fat-identity-cat
+APP_ENV=development
+APP_PORT=8080
+APP_DEBUG=true
 ```
 
-## Integrate with your tools
+### 數據庫配置
 
-- [ ] [Set up project integrations](https://gitlab.jvdtech.dev/fatcat/fat_identity_cat/-/settings/integrations)
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=identity_cat
+DB_OPTIONS=
+DB_MAX_IDLE=10
+DB_MAX_OPEN=100
+DB_TIMEOUT=5s
+```
 
-## Collaborate with your team
+### Redis 配置
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+```
+REDIS_DOMAIN=localhost
+REDIS_PORT=6379
+REDIS_PWD=
+REDIS_DB=0
+```
 
-## Test and Deploy
+### AWS 配置
 
-Use the built-in continuous integration in GitLab.
+```
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=ap-southeast-1
+KINESIS_STREAM_ARN=arn:aws:kinesis:ap-southeast-1:123456789012:stream/identity-cat-stream
+DYNAMODB_TABLE=identity-cat-checkpoints
+DYNAMODB_PARTITION_KEY=shard_id
+DYNAMODB_SORT_KEY=sequence_number
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### 追踪和日誌配置
 
-***
+```
+OPENOBSERVE_TRACE_API_ENDPOINT=https://api.openobserve.ai/api/v1/traces
+OPENOBSERVE_TRACE_API_KEY=your_api_key
+OPENOBSERVE_TRACE_STREAM_NAME=identity-cat-traces
+OPENOBSERVE_LOGS_API_ENDPOINT=https://api.openobserve.ai/api/v1/logs
+OPENOBSERVE_LOGS_USERNAME=your_username
+OPENOBSERVE_LOGS_PASSWORD=your_password
+```
 
-# Editing this README
+### 事件配置
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```
+EVENT_MERCHANT_SYNC=merchant.sync
+EVENT_PLAYER_SYNC=player.sync
+EVENT_MANAGER_SYNC=manager.sync
+EVENT_IDENTITY_MERCHANT_SYNC=identity.merchant.sync
+EVENT_IDENTITY_PLAYER_SYNC=identity.player.sync
+EVENT_IDENTITY_MANAGER_SYNC=identity.manager.sync
+```
 
-## Suggestions for a good README
+## 🧪 測試方法
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### 運行所有測試
 
-## Name
-Choose a self-explaining name for your project.
+```bash
+go test ./...
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### 運行特定測試
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+go test ./test/database_test.go
+go test ./test/redis_test.go
+go test ./test/kds_connection_test.go
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### 測試覆蓋率
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+```bash
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## 📁 專案結構說明
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+```
+fat_identity_cat/
+├── cmd/                    # 命令行入口點
+│   ├── consumer/           # KDS 消費者服務
+│   ├── web/                # Web API 服務
+│   └── worker/             # 任務處理服務
+├── docs/                   # Swagger 文檔
+├── internal/               # 內部包
+│   ├── adapter/            # 適配器層
+│   │   ├── handler/        # HTTP 和 Worker 處理器
+│   │   ├── middleware/     # HTTP 中間件
+│   │   ├── repository/     # 數據庫存儲庫
+│   │   ├── service/        # 服務實現
+│   │   └── usecase/        # 用例實現
+│   ├── di/                 # 依賴注入
+│   ├── domain/             # 領域層
+│   │   ├── entity/         # 領域實體
+│   │   ├── event/          # 事件定義
+│   │   ├── infraport/      # 基礎設施接口
+│   │   ├── repositoryport/ # 存儲庫接口
+│   │   ├── serviceport/    # 服務接口
+│   │   └── usecaseport/    # 用例接口
+│   └── infrastructure/     # 基礎設施層
+│       ├── config/         # 配置
+│       ├── database/       # 數據庫連接
+│       ├── deduplication/  # 事件去重
+│       ├── kds/            # Kinesis Data Streams
+│       ├── logger/         # 日誌
+│       ├── models/         # 數據庫模型
+│       ├── queue/          # 任務隊列
+│       ├── redis/          # Redis 連接
+│       └── tracing/        # 分布式追踪
+├── migrations/             # 數據庫遷移
+├── scripts/                # 腳本
+├── test/                   # 集成測試
+├── .env                    # 環境變量
+├── docker-compose.yml      # Docker Compose 配置
+├── Dockerfile              # Web 服務 Dockerfile
+└── README.md               # 項目文檔
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### 主要組件
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+- **Web 服務**：提供 HTTP API 用於管理身份
+- **Consumer 服務**：從 KDS 消費事件並將其排入 Redis 隊列
+- **Worker 服務**：處理 Redis 隊列中的任務並更新數據庫
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### 架構設計
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+該項目遵循清晰的架構分層：
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
- 
+- **領域層**：包含業務邏輯和實體
+- **用例層**：實現業務用例
+- **適配器層**：連接用例和基礎設施
+- **基礎設施層**：提供技術實現
