@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"math/rand"
 	"os"
@@ -55,8 +56,18 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	defer tracer.Shutdown(rootCtx)
 	sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] Successfully initialized tracer!")
 
+	// 初始化Redis連線
+	redisManager := redis.NewRedisManager(cfg)
+	defer func() {
+		_ = redisManager.Close()
+		sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] Redis connection closed successfully")
+	}()
+	if err = redisManager.Connect(rootCtx); err != nil {
+		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
+	}
+
 	// 使用Wire初始化KDS服務
-	kdsService, err := di.InitializeConsumer(cfg, logger, sLogger)
+	kdsService, err := di.InitializeConsumer(cfg, logger, sLogger, redisManager)
 	if err != nil {
 		sLogger.FatalWithContext(rootCtx, "[Fatal][Consumer][runConsumer] Failed to initialize KDS service", sLogger.Error("error", err))
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ type PlayerUseCase struct {
 	merchantRepo  repositoryport.MerchantRepository
 	eventProducer serviceport.EventProducer
 	logger        *zap.Logger
+	redis         *redis.Client
 }
 
 // NewPlayerUseCase 創建玩家用例
@@ -33,12 +35,14 @@ func NewPlayerUseCase(
 	merchantRepo repositoryport.MerchantRepository,
 	eventProducer serviceport.EventProducer,
 	logger *zap.Logger,
+	redis *redis.Client,
 ) usecaseport.PlayerUseCase {
 	return &PlayerUseCase{
 		playerRepo:    playerRepo,
 		merchantRepo:  merchantRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
+		redis:         redis,
 	}
 }
 

@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"os"
 	"os/signal"
@@ -49,8 +50,18 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	defer tracer.Shutdown(context.Background())
 	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Successfully initialized tracer!")
 
+	// 初始化Redis連線
+	redisManager := redis.NewRedisManager(cfg)
+	defer func() {
+		_ = redisManager.Close()
+		sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Redis connection closed successfully")
+	}()
+	if err = redisManager.Connect(rootCtx); err != nil {
+		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
+	}
+
 	// 使用Wire初始化Worker組件
-	components, err := di.InitializeWorkerComponents(cfg, logger, sLogger)
+	components, err := di.InitializeWorkerComponents(cfg, logger, sLogger, redisManager)
 	if err != nil {
 		sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWorker] Failed to initialize worker components", sLogger.Error("error", err))
 		return

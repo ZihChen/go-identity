@@ -3,10 +3,10 @@ package handler
 import (
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
-	redis2 "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/redis"
 	"net/http"
 	"strconv"
 
@@ -419,9 +419,14 @@ func (h *HTTPHandler) DebuggerForDev(c *gin.Context) {
 	logger := cmd.GetLogger()
 	sLogger := sLog.NewServiceLogger(cfg)
 	queueService, _ := queue.NewQueueService(cfg, logger)
-	client, _ := redis2.NewRedis(cfg)
+	redisManager := redis.NewRedisManager(cfg)
+	defer redisManager.Close()
+	if err := redisManager.Connect(c.Request.Context()); err != nil {
+		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
+	}
+	client, _ := redisManager.GetClient()
 	ks, _ := kds.NewKDSService(cfg, queueService, client, logger, sLogger)
-	ks.ConsumeAllEvents(c.Request.Context())
+	_ = ks.ConsumeAllEvents(c.Request.Context())
 }
 
 func (h *HTTPHandler) DebuggerForPublish(c *gin.Context) {

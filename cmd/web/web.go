@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/spf13/viper"
 	"net/http"
@@ -50,6 +51,9 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	logger := cmd.GetLogger()
 	// 獲取ServiceLogger實例
 	sLogger := sLog.NewServiceLogger(cfg)
+	// 主程序的Context
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	defer rootCancel()
 
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
@@ -59,11 +63,21 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	defer tracer.Shutdown(context.Background())
 	sLogger.InfoLog("Successfully initialized web tracer!")
 
-	ctx, rootSpan := tracing.StartSpan(context.Background(), "WebService")
+	ctx, rootSpan := tracing.StartSpan(rootCtx, "WebService")
 	defer rootSpan.End()
 
+	// 初始化Redis連線
+	redisManager := redis.NewRedisManager(cfg)
+	defer func() {
+		_ = redisManager.Close()
+		sLogger.InfoWithContext(rootCtx, "[Info][Web][runWebServer] Redis connection closed successfully")
+	}()
+	if err = redisManager.Connect(rootCtx); err != nil {
+		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
+	}
+
 	// 使用Wire初始化HTTP處理器
-	httpHandler, err := di.InitializeWebServer(cfg, logger, sLogger) // 使用di包中的函數
+	httpHandler, err := di.InitializeWebServer(cfg, logger, sLogger, redisManager)
 	if err != nil {
 		sLogger.FatalLog("Failed to initialize web server",
 			sLogger.Error("err", err),
@@ -71,12 +85,11 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 			sLogger.String("DB_USER", viper.GetString("DB_USER")),
 			sLogger.String("DB_PASSWORD", viper.GetString("DB_PASSWORD")))
 	}
-	// 使用命令行指定的端口或配置中的端口
-	if port == 0 {
-		port = cfg.App.Port
-	}
+
 	if port == 0 {
 		port = 8080 // 默認端口
+	} else {
+		port = cfg.App.Port
 	}
 
 	// 設置 Gin 模式

@@ -11,12 +11,12 @@ import (
 	adapterUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/deduplication"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
-	redisInfra "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/redis"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -64,7 +64,7 @@ func provideEventProducer(kdsService *kds.KDSService, logger *zap.Logger) servic
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*handler.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redisCache.Manager) (*handler.HTTPHandler, error) {
 	wire.Build(
 		baseSet,
 		kds.NewKDSService,
@@ -74,7 +74,7 @@ func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infr
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*handler.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redisCache.Manager) (*handler.WorkerHandler, error) {
 	wire.Build(
 		baseSet,
 		kds.NewKDSService,
@@ -84,7 +84,7 @@ func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger, serviceLog i
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*WorkerComponents, error) {
+func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redisCache.Manager) (*WorkerComponents, error) {
 	wire.Build(
 		wire.Struct(new(WorkerComponents), "*"),
 		baseSet,
@@ -101,7 +101,7 @@ func provideWorkerServer(cfg *config.Config, logger *zap.Logger) (*asynq.Server,
 }
 
 // InitializeConsumer 初始化 Consumer 服務的 KDS 服務
-func InitializeConsumer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger) (*kds.KDSService, error) {
+func InitializeConsumer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redisCache.Manager) (*kds.KDSService, error) {
 	wire.Build(
 		queue.NewQueueService,
 		provideRedisClient,
@@ -111,8 +111,12 @@ func InitializeConsumer(cfg *config.Config, logger *zap.Logger, serviceLog infra
 }
 
 // 提供 Redis 客戶端
-func provideRedisClient(cfg *config.Config) (*redis.Client, error) {
-	return redisInfra.NewRedis(cfg)
+func provideRedisClient(manager *redisCache.Manager) (*redis.Client, error) {
+	redisInstance, err := manager.GetClient()
+	if err != nil {
+		return nil, err
+	}
+	return redisInstance, nil
 }
 
 // 提供事件去重服務
