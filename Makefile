@@ -22,4 +22,7 @@ push:
 	docker push ${ECR_REPO}/fatidentitycat:latest
 
 rollout:
-	kubectl rollout restart deployment/fatidentitycat -n bonuscat
+	kubectl rollout restart deployment/fatidentitycat-web -n bonuscat
+	kubectl rollout restart deployment/fatidentitycat-consumer -n bonuscat
+	kubectl rollout restart deployment/fatidentitycat-worker -n bonuscat
+
