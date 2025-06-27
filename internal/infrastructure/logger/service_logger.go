@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
+	"runtime"
 	"time"
 )
 
@@ -74,6 +75,12 @@ func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg st
 		traceID = spanCtx.TraceID().String()
 		spanID = spanCtx.SpanID().String()
 	}
+
+	fileName := getCallerInfo(3)
+	fields = append(fields,
+		s.String("file_path", fileName),
+	)
+
 	zapFields := s.createZapFields(traceID, spanID, fields)
 
 	switch level {
@@ -89,7 +96,6 @@ func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg st
 		s.logger.Fatal(msg, zapFields...)
 	}
 
-	// 创建并输出JSON格式日志
 	s.outputJSONLog(level, msg, traceID, spanID, fields)
 }
 
@@ -145,6 +151,15 @@ func (s *ServiceLogger) outputJSONLog(level LogLevel, msg, traceID, spanID strin
 		return
 	}
 	fmt.Println(string(jsonData))
+}
+
+// 獲取調用者信息
+func getCallerInfo(skip int) (fileName string) {
+	_, path, line, ok := runtime.Caller(skip)
+	if !ok {
+		return "unknown"
+	}
+	return fmt.Sprintf("%s:%v", path, line)
 }
 
 func (s *ServiceLogger) InfoWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
