@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/spf13/viper"
 	"net/http"
@@ -66,18 +67,40 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	ctx, rootSpan := tracing.StartSpan(rootCtx, "WebService")
 	defer rootSpan.End()
 
+	// 初始化DB連線
+	db, err := mysql.NewDatabase(cfg)
+	if err != nil {
+		sLogger.FatalWithContext(rootCtx, "[Fatal][Web][runWebServer] Failed to initialize database", sLogger.Error("err", err))
+	}
+	defer func() {
+		err = db.Close() // 主程序結束後關閉DB連線
+		if err != nil {
+			sLogger.ErrorLog("Failed to close database connection", sLogger.Error("err", err))
+		}
+		sLogger.InfoWithContext(rootCtx, "[Info][Web][runWebServer] Database connection closed successfully")
+	}()
+	sLogger.InfoLog("Successfully initialized DB connection!")
+
+	if err = db.Ping(); err != nil {
+		sLogger.FatalLog("Failed to ping database", sLogger.Error("err", err))
+	}
+
 	// 初始化Redis連線
 	redisManager := redis.NewRedisManager(cfg)
 	defer func() {
-		_ = redisManager.Close()
+		err = redisManager.Close() // 主程序結束後關閉Redis連線
+		if err != nil {
+			sLogger.ErrorLog("Failed to close Redis connection", sLogger.Error("err", err))
+		}
 		sLogger.InfoWithContext(rootCtx, "[Info][Web][runWebServer] Redis connection closed successfully")
 	}()
 	if err = redisManager.Connect(rootCtx); err != nil {
 		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
 	}
+	sLogger.InfoLog("Successfully initialized Redis connection!")
 
 	// 使用Wire初始化HTTP處理器
-	httpHandler, err := di.InitializeWebServer(cfg, logger, sLogger, redisManager)
+	httpHandler, err := di.InitializeWebServer(cfg, logger, sLogger, redisManager, db.GetDBConnection())
 	if err != nil {
 		sLogger.FatalLog("Failed to initialize web server",
 			sLogger.Error("err", err),

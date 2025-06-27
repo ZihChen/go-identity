@@ -16,7 +16,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/deduplication"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
@@ -28,11 +27,7 @@ import (
 // Injectors from wire.go:
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redis.Manager) (*handler.HTTPHandler, error) {
-	db, err := provideDatabaseConnection(cfg)
-	if err != nil {
-		return nil, err
-	}
+func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redis.Manager, db *gorm.DB) (*handler.HTTPHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	queueService, err := queue.NewQueueService(cfg, logger)
 	if err != nil {
@@ -57,11 +52,7 @@ func InitializeWebServer(cfg *config.Config, logger *zap.Logger, serviceLog infr
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redis.Manager) (*handler.WorkerHandler, error) {
-	db, err := provideDatabaseConnection(cfg)
-	if err != nil {
-		return nil, err
-	}
+func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redis.Manager, db *gorm.DB) (*handler.WorkerHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	queueService, err := queue.NewQueueService(cfg, logger)
 	if err != nil {
@@ -86,11 +77,7 @@ func InitializeWorkerServer(cfg *config.Config, logger *zap.Logger, serviceLog i
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redis.Manager) (*WorkerComponents, error) {
-	db, err := provideDatabaseConnection(cfg)
-	if err != nil {
-		return nil, err
-	}
+func InitializeWorkerComponents(cfg *config.Config, logger *zap.Logger, serviceLog infraport.Logger, redisManager *redis.Manager, db *gorm.DB) (*WorkerComponents, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	queueService, err := queue.NewQueueService(cfg, logger)
 	if err != nil {
@@ -147,20 +134,9 @@ type WorkerComponents struct {
 	Server  *asynq.Server
 }
 
-var baseSet = wire.NewSet(
-
-	provideDatabaseConnection, queue.NewQueueService, provideRedisClient,
+var baseSet = wire.NewSet(queue.NewQueueService, provideRedisClient,
 	provideDeduplicationService, repository.NewMerchantRepository, repository.NewPlayerRepository, repository.NewManagerRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase.NewPlayerUseCase, usecase.NewManagerUseCase,
 )
-
-// 資料庫連接提供者
-func provideDatabaseConnection(cfg *config.Config) (*gorm.DB, error) {
-	db, err := database.NewDatabase(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return db.DB, nil
-}
 
 // 事件生產者提供者
 func provideEventProducer(kdsService *kds.KDSService, logger *zap.Logger) serviceport.EventProducer {

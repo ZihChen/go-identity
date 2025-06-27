@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
 	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"os"
 	"os/signal"
@@ -50,10 +51,26 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	defer tracer.Shutdown(context.Background())
 	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Successfully initialized tracer!")
 
+	// 初始化DB連線
+	db, err := mysql.NewDatabase(cfg)
+	if err != nil {
+		sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWebServer] Failed to initialize database", sLogger.Error("err", err))
+	}
+	defer func() {
+		err = db.Close() // 主程序結束後關閉DB連線
+		if err != nil {
+			sLogger.ErrorLog("Failed to close database connection", sLogger.Error("err", err))
+		}
+		sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWebServer] Database connection closed successfully")
+	}()
+
 	// 初始化Redis連線
 	redisManager := redis.NewRedisManager(cfg)
 	defer func() {
-		_ = redisManager.Close()
+		err = redisManager.Close() // 主程序結束後關閉Redis連線
+		if err != nil {
+			sLogger.ErrorLog("Failed to close Redis connection", sLogger.Error("err", err))
+		}
 		sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Redis connection closed successfully")
 	}()
 	if err = redisManager.Connect(rootCtx); err != nil {
@@ -61,7 +78,7 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	}
 
 	// 使用Wire初始化Worker組件
-	components, err := di.InitializeWorkerComponents(cfg, logger, sLogger, redisManager)
+	components, err := di.InitializeWorkerComponents(cfg, logger, sLogger, redisManager, db.GetDBConnection())
 	if err != nil {
 		sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWorker] Failed to initialize worker components", sLogger.Error("error", err))
 		return
