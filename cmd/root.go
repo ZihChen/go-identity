@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 )
 
 var (

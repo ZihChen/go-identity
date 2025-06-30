@@ -3,10 +3,10 @@ package config
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/spf13/viper"
 )

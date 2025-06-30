@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"runtime/debug"
+	"sync"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dynamodbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -12,20 +17,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	cfg "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
-	"net"
-	"runtime/debug"
-	"sync"
-	"time"
-
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
-	cfg "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 )
 
 const (
@@ -372,12 +372,12 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 
 						// 根據事件類型選擇合適的處理函數
 						var enqueueErr error
-						switch {
-						case eventType == k.config.Events.IdentityMerchantSync:
+						switch eventType {
+						case k.config.Events.IdentityMerchantSync:
 							enqueueErr = k.queueService.EnqueueMerchantSync(msgCtxWithID, record.Data)
-						case eventType == k.config.Events.IdentityPlayerSync:
+						case k.config.Events.IdentityPlayerSync:
 							enqueueErr = k.queueService.EnqueuePlayerSync(msgCtxWithID, record.Data)
-						case eventType == k.config.Events.IdentityManagerSync:
+						case k.config.Events.IdentityManagerSync:
 							enqueueErr = k.queueService.EnqueueManagerSync(msgCtxWithID, record.Data)
 						default:
 							k.sLogger.WarnWithContext(eventCtx, "[Warn][KDS][ConsumeAllEvents] Unknown event type, skipping",

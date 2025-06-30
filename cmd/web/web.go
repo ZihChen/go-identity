@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
-	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
-	"github.com/spf13/viper"
 	"net/http"
 	_ "net/http/pprof" // 自動註冊 pprof 處理器
 	"os"
@@ -20,8 +16,12 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/middleware"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
+	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (

@@ -6,17 +6,18 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"sync"
+	"time"
+
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"log"
-	"net/http"
-	"os"
-	"sync"
-	"time"
 )
 
 // TODO:Log改由Fluent-bit蒐集(棄用)

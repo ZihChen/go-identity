@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"go.uber.org/zap"
-
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
+	"go.uber.org/zap"
 )
 
 // EventService 事件服務實現

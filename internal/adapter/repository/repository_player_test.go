@@ -2,6 +2,9 @@ package repository
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
@@ -9,8 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 func TestPlayerRepository_FindByID_Unit(t *testing.T) {

@@ -6,12 +6,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
-	"go.opentelemetry.io/otel/attribute"
-	"go.uber.org/zap"
-
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.uber.org/zap"
 )
 
 func getTaskID(task *asynq.Task) string {

@@ -3,9 +3,6 @@ package worker
 import (
 	"context"
 	"errors"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
-	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,6 +11,9 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
+	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/spf13/cobra"
 )

@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 )
 
 // Database 資料庫連接封裝

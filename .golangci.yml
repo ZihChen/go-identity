@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  # govet:檢查常見的代碼錯誤
+  # errcheck:檢查錯誤處理
+  # staticcheck:進行靜態分析
+  # ineffassign:檢查無效賦值
+  # unused:檢查未使用的代碼
+  default: standard
+formatters:
+  enable:
+    - gofmt
+    - gci

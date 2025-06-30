@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
+	"gorm.io/gorm"
 )
 
 // MerchantRepository GORM 實現的商戶資料庫

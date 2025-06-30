@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"

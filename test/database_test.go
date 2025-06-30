@@ -2,10 +2,10 @@
 package tests
 
 import (
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"testing"
 	"time"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"

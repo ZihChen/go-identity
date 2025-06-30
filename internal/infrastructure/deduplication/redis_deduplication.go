@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 )
 
 const (

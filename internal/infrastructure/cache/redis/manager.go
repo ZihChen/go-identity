@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/redis/go-redis/v9"
 )
 
 type Manager struct {

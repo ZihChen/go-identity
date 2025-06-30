@@ -1,22 +1,21 @@
 package handler
 
 import (
-	"github.com/jvdiamondtech/ms-identity-cat/cmd"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
-	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jvdiamondtech/ms-identity-cat/cmd"
+	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
+	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
-
-	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 )
 
 // 為 Swagger 提供的類型別名

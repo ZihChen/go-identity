@@ -11,12 +11,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/google/uuid"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 )
 
 func TestKDSToRedisManagerSync(t *testing.T) {

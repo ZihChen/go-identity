@@ -12,17 +12,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
+	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/model"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 )
 
 type resultWriterCtxKey struct{}
@@ -58,13 +59,21 @@ func setupWorkerComponents(t *testing.T) (*di.WorkerComponents, *config.Config, 
 	// 建立 Logger
 	logger, _ := zap.NewDevelopment()
 
-	// 初始化 Worker 組件
-	workerComponents, err := di.InitializeWorkerComponents(cfg, logger)
-	require.NoError(t, err, "Should initialize worker components without error")
+	// 建立 ServiceLogger
+	serviceLog := sLog.NewServiceLogger(cfg)
+
+	// 建立 Redis Manager
+	redisManager := redis.NewRedisManager(cfg)
+	err = redisManager.Connect(context.Background())
+	require.NoError(t, err, "Should connect to Redis without error")
 
 	// 初始化資料庫連接
 	db, err := database.NewDatabase(cfg)
 	require.NoError(t, err, "Should connect to database without error")
+
+	// 初始化 Worker 組件
+	workerComponents, err := di.InitializeWorkerComponents(cfg, logger, serviceLog, redisManager, db.DB)
+	require.NoError(t, err, "Should initialize worker components without error")
 
 	// 清理函數
 	cleanup := func() {
@@ -73,6 +82,8 @@ func setupWorkerComponents(t *testing.T) (*di.WorkerComponents, *config.Config, 
 		if sqlDB != nil {
 			sqlDB.Close()
 		}
+		// 關閉 Redis 連接
+		redisManager.Close()
 	}
 
 	return workerComponents, cfg, logger, cleanup
@@ -209,7 +220,7 @@ func TestMerchantRedisToWorker(t *testing.T) {
 	// 驗證資料庫中有商戶記錄
 	db, err := database.NewDatabase(cfg)
 	require.NoError(t, err, "Should connect to database without error")
-	var merchant model.Merchant
+	var merchant models.Merchant
 	result := db.DB.Where("global_merchant_id = ?", globalMerchantID).First(&merchant)
 	assert.NoError(t, result.Error, "Should find merchant in database")
 	assert.Equal(t, globalMerchantID, merchant.GlobalMerchantID, "Global merchant ID should match")
@@ -311,7 +322,7 @@ func TestPlayerRedisToWorker(t *testing.T) {
 	testID := time.Now().Format("20060102150405")
 	globalMerchantID := "TEST-MERCHANT-PLAYER-" + testID
 	merchantName := "Test Merchant " + testID
-	merchant := &model.Merchant{
+	merchant := &models.Merchant{
 		GlobalMerchantID: globalMerchantID,
 		Name:             merchantName,
 		DisplayName:      "Test Display",
@@ -372,7 +383,7 @@ func TestPlayerRedisToWorker(t *testing.T) {
 	t.Logf("Processed player sync task directly")
 
 	// 驗證資料庫中有玩家記錄
-	var player model.Player
+	var player models.Player
 	result = db.DB.Where("global_player_id = ?", globalPlayerID).First(&player)
 	assert.NoError(t, result.Error, "Should find player in database")
 	assert.Equal(t, globalPlayerID, player.GlobalPlayerID, "Global player ID should match")
@@ -476,7 +487,7 @@ func TestManagerRedisToWorker(t *testing.T) {
 	testID := time.Now().Format("20060102150405")
 	globalMerchantID := "TEST-MERCHANT-MANAGER-" + testID
 	merchantName := "Test Merchant " + testID
-	merchant := &model.Merchant{
+	merchant := &models.Merchant{
 		GlobalMerchantID: globalMerchantID,
 		Name:             merchantName,
 		DisplayName:      "Test Display",
@@ -537,7 +548,7 @@ func TestManagerRedisToWorker(t *testing.T) {
 	t.Logf("Processed manager sync task directly")
 
 	// 驗證資料庫中有管理員記錄
-	var manager model.Manager
+	var manager models.Manager
 	result = db.DB.Where("global_manager_id = ?", globalManagerID).First(&manager)
 	assert.NoError(t, result.Error, "Should find manager in database")
 	assert.Equal(t, globalManagerID, manager.GlobalManagerID, "Global manager ID should match")
