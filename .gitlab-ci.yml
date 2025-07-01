@@ -27,8 +27,7 @@ build:
     - docker:dind
   before_script:
     # 安裝 AWS CLI
-    - apk add --no-cache python3 py3-pip
-    - pip3 install --no-cache-dir awscli
+    - apk add --no-cache aws-cli
     # 設置 Docker Buildx
     - docker buildx create --use
     # 登入 AWS ECR
@@ -52,15 +51,14 @@ push:
   services:
     - docker:dind
   before_script:
-    - apk add --no-cache python3 py3-pip
-    - pip3 install --no-cache-dir awscli
+    - apk add --no-cache aws-cli
     - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
   script:
     - docker push ${ECR_REPO}/fatidentitycat:${CI_COMMIT_SHA}
     - docker push ${ECR_REPO}/fatidentitycat:latest
   only:
     - main
-    - develop
+    - dev
 
 
 
