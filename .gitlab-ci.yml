@@ -13,7 +13,7 @@ lint:
   stage: lint
   image: golangci/golangci-lint:latest
   script:
-    - golangci-lint run --timeout 5m
+    - golangci-lint run
   only:
     - main
     - dev
