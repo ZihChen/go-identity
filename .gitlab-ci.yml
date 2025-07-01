@@ -1,0 +1,67 @@
+stages:
+  - lint
+  - build
+  - push
+
+variables:
+  ECR_REPO: "REDACTED_AWS_ACCOUNT_DEMO.dkr.ecr.ap-northeast-1.amazonaws.com/quantumcat"
+  PLATFORM: "linux/amd64"
+  AWS_DEFAULT_REGION: "ap-northeast-1"
+
+# Golang-lint 檢查
+lint:
+  stage: lint
+  image: golangci/golangci-lint:latest
+  script:
+    - golangci-lint run --timeout 5m
+  only:
+    - main
+    - dev
+    - merge_requests
+
+# 建構 Docker 映像
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    # 安裝 AWS CLI
+    - apk add --no-cache python3 py3-pip
+    - pip3 install --no-cache-dir awscli
+    # 設置 Docker Buildx
+    - docker buildx create --use
+    # 登入 AWS ECR
+    - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+  script:
+    - docker buildx build
+      --platform ${PLATFORM}
+      --ssh default
+      --build-arg CI_COMMIT_SHA=${CI_COMMIT_SHA}
+      -t ${ECR_REPO}/fatidentitycat:${CI_COMMIT_SHA}
+      -t ${ECR_REPO}/fatidentitycat:latest
+      .
+  only:
+    - main
+    - dev
+
+# 推送到 ECR
+push:
+  stage: push
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install --no-cache-dir awscli
+    - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+  script:
+    - docker push ${ECR_REPO}/fatidentitycat:${CI_COMMIT_SHA}
+    - docker push ${ECR_REPO}/fatidentitycat:latest
+  only:
+    - main
+    - develop
+
+
+
+
