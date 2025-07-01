@@ -30,7 +30,8 @@ func TestKDSToRedisManagerSync(t *testing.T) {
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
 	require.NoError(t, err, "Should load AWS config without error")
 
-	identityOutput, err := sts.NewFromConfig(awsConfig).GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
+	identityOutput, err := sts.NewFromConfig(awsConfig).
+		GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
 	require.NoError(t, err, "Should get caller identity")
 	t.Logf("Caller identity ARN: %s", *identityOutput.Arn)
 
@@ -72,19 +73,25 @@ func TestKDSToRedisManagerSync(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// 從寫入分片讀取消息
-	shardIteratorOutput, err := kinesisClient.GetShardIterator(context.Background(), &kinesis.GetShardIteratorInput{
-		StreamName:             aws.String(streamName),
-		ShardId:                putOutput.ShardId,
-		ShardIteratorType:      types.ShardIteratorTypeAtSequenceNumber,
-		StartingSequenceNumber: putOutput.SequenceNumber,
-	})
+	shardIteratorOutput, err := kinesisClient.GetShardIterator(
+		context.Background(),
+		&kinesis.GetShardIteratorInput{
+			StreamName:             aws.String(streamName),
+			ShardId:                putOutput.ShardId,
+			ShardIteratorType:      types.ShardIteratorTypeAtSequenceNumber,
+			StartingSequenceNumber: putOutput.SequenceNumber,
+		},
+	)
 	require.NoError(t, err, "Should get shard iterator without error")
 
 	// 讀取記錄
-	getRecordsOutput, err := kinesisClient.GetRecords(context.Background(), &kinesis.GetRecordsInput{
-		ShardIterator: shardIteratorOutput.ShardIterator,
-		Limit:         aws.Int32(10),
-	})
+	getRecordsOutput, err := kinesisClient.GetRecords(
+		context.Background(),
+		&kinesis.GetRecordsInput{
+			ShardIterator: shardIteratorOutput.ShardIterator,
+			Limit:         aws.Int32(10),
+		},
+	)
 	require.NoError(t, err, "Should get records without error")
 
 	// 驗證是否能找到我們發送的消息並轉發到Redis
@@ -104,7 +111,10 @@ func TestKDSToRedisManagerSync(t *testing.T) {
 			err = queueService.EnqueueManagerSync(context.Background(), record.Data)
 			require.NoError(t, err, "Should enqueue manager sync event to Redis without error")
 
-			t.Logf("Successfully forwarded manager sync event to Redis, event ID: %s", managerEvent.ID)
+			t.Logf(
+				"Successfully forwarded manager sync event to Redis, event ID: %s",
+				managerEvent.ID,
+			)
 			break
 		}
 	}
@@ -162,19 +172,25 @@ func TestKDSToRedisPlayerSync(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// 從寫入分片讀取消息
-	shardIteratorOutput, err := kinesisClient.GetShardIterator(context.Background(), &kinesis.GetShardIteratorInput{
-		StreamName:             aws.String(streamName),
-		ShardId:                putOutput.ShardId,
-		ShardIteratorType:      types.ShardIteratorTypeAtSequenceNumber,
-		StartingSequenceNumber: putOutput.SequenceNumber,
-	})
+	shardIteratorOutput, err := kinesisClient.GetShardIterator(
+		context.Background(),
+		&kinesis.GetShardIteratorInput{
+			StreamName:             aws.String(streamName),
+			ShardId:                putOutput.ShardId,
+			ShardIteratorType:      types.ShardIteratorTypeAtSequenceNumber,
+			StartingSequenceNumber: putOutput.SequenceNumber,
+		},
+	)
 	require.NoError(t, err, "Should get shard iterator without error")
 
 	// 讀取記錄
-	getRecordsOutput, err := kinesisClient.GetRecords(context.Background(), &kinesis.GetRecordsInput{
-		ShardIterator: shardIteratorOutput.ShardIterator,
-		Limit:         aws.Int32(10),
-	})
+	getRecordsOutput, err := kinesisClient.GetRecords(
+		context.Background(),
+		&kinesis.GetRecordsInput{
+			ShardIterator: shardIteratorOutput.ShardIterator,
+			Limit:         aws.Int32(10),
+		},
+	)
 	require.NoError(t, err, "Should get records without error")
 
 	// 驗證是否能找到我們發送的消息並轉發到Redis
@@ -194,7 +210,10 @@ func TestKDSToRedisPlayerSync(t *testing.T) {
 			err = queueService.EnqueuePlayerSync(context.Background(), record.Data)
 			require.NoError(t, err, "Should enqueue player sync event to Redis without error")
 
-			t.Logf("Successfully forwarded player sync event to Redis, event ID: %s", playerEvent.ID)
+			t.Logf(
+				"Successfully forwarded player sync event to Redis, event ID: %s",
+				playerEvent.ID,
+			)
 			break
 		}
 	}
@@ -252,19 +271,25 @@ func TestKDSToRedisMerchantSync(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// 從寫入分片讀取消息
-	shardIteratorOutput, err := kinesisClient.GetShardIterator(context.Background(), &kinesis.GetShardIteratorInput{
-		StreamName:             aws.String(streamName),
-		ShardId:                putOutput.ShardId,
-		ShardIteratorType:      types.ShardIteratorTypeAtSequenceNumber,
-		StartingSequenceNumber: putOutput.SequenceNumber,
-	})
+	shardIteratorOutput, err := kinesisClient.GetShardIterator(
+		context.Background(),
+		&kinesis.GetShardIteratorInput{
+			StreamName:             aws.String(streamName),
+			ShardId:                putOutput.ShardId,
+			ShardIteratorType:      types.ShardIteratorTypeAtSequenceNumber,
+			StartingSequenceNumber: putOutput.SequenceNumber,
+		},
+	)
 	require.NoError(t, err, "Should get shard iterator without error")
 
 	// 讀取記錄
-	getRecordsOutput, err := kinesisClient.GetRecords(context.Background(), &kinesis.GetRecordsInput{
-		ShardIterator: shardIteratorOutput.ShardIterator,
-		Limit:         aws.Int32(10),
-	})
+	getRecordsOutput, err := kinesisClient.GetRecords(
+		context.Background(),
+		&kinesis.GetRecordsInput{
+			ShardIterator: shardIteratorOutput.ShardIterator,
+			Limit:         aws.Int32(10),
+		},
+	)
 	require.NoError(t, err, "Should get records without error")
 
 	// 驗證是否能找到我們發送的消息並轉發到Redis
@@ -284,7 +309,10 @@ func TestKDSToRedisMerchantSync(t *testing.T) {
 			err = queueService.EnqueueMerchantSync(context.Background(), record.Data)
 			require.NoError(t, err, "Should enqueue merchant sync event to Redis without error")
 
-			t.Logf("Successfully forwarded merchant sync event to Redis, event ID: %s", merchantEvent.ID)
+			t.Logf(
+				"Successfully forwarded merchant sync event to Redis, event ID: %s",
+				merchantEvent.ID,
+			)
 			break
 		}
 	}

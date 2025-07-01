@@ -46,22 +46,39 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
-		sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWorker] Failed to initialize tracer", sLogger.Error("error", err))
+		sLogger.FatalWithContext(
+			rootCtx,
+			"Failed to initialize tracer",
+			sLogger.Error("error", err),
+		)
 	}
-	defer tracer.Shutdown(context.Background())
-	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Successfully initialized tracer!")
+	defer func() {
+		err = tracer.Shutdown(context.Background())
+		if err != nil {
+			sLogger.ErrorWithContext(
+				rootCtx,
+				"Failed to shutdown tracer",
+				sLogger.Error("error", err),
+			)
+		}
+	}()
+	sLogger.InfoWithContext(rootCtx, "Successfully initialized tracer!")
 
 	// 初始化DB連線
 	db, err := mysql.NewDatabase(cfg)
 	if err != nil {
-		sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWebServer] Failed to initialize database", sLogger.Error("err", err))
+		sLogger.FatalWithContext(
+			rootCtx,
+			"Failed to initialize database",
+			sLogger.Error("err", err),
+		)
 	}
 	defer func() {
 		err = db.Close() // 主程序結束後關閉DB連線
 		if err != nil {
 			sLogger.ErrorLog("Failed to close database connection", sLogger.Error("err", err))
 		}
-		sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWebServer] Database connection closed successfully")
+		sLogger.InfoWithContext(rootCtx, "Database connection closed successfully")
 	}()
 
 	// 初始化Redis連線
@@ -71,34 +88,48 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 		if err != nil {
 			sLogger.ErrorLog("Failed to close Redis connection", sLogger.Error("err", err))
 		}
-		sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Redis connection closed successfully")
+		sLogger.InfoWithContext(rootCtx, "Redis connection closed successfully")
 	}()
 	if err = redisManager.Connect(rootCtx); err != nil {
 		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
 	}
 
 	// 使用Wire初始化Worker組件
-	components, err := di.InitializeWorkerComponents(cfg, logger, sLogger, redisManager, db.GetDBConnection())
+	components, err := di.InitializeWorkerComponents(
+		cfg,
+		logger,
+		sLogger,
+		redisManager,
+		db.GetDBConnection(),
+	)
 	if err != nil {
-		sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWorker] Failed to initialize worker components", sLogger.Error("error", err))
+		sLogger.FatalWithContext(
+			rootCtx,
+			"Failed to initialize worker components",
+			sLogger.Error("error", err),
+		)
 		return
 	}
-	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Successfully initialized worker components!")
+	sLogger.InfoWithContext(rootCtx, "Successfully initialized worker components!")
 
 	mux := asynq.NewServeMux()
 
 	// 記錄Worker啟動
-	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Starting worker...",
+	sLogger.InfoWithContext(rootCtx, "[Starting worker...",
 		sLogger.String("redisDomain", cfg.Redis.Domain),
 		sLogger.Int("redisPort", cfg.Redis.Port))
 
 	components.Handler.RegisterHandlers(mux)
-	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Task handlers registered")
+	sLogger.InfoWithContext(rootCtx, "Task handlers registered")
 
 	go func() {
 		if err := components.Server.Start(mux); err != nil {
 			if !errors.Is(err, asynq.ErrServerClosed) {
-				sLogger.FatalWithContext(rootCtx, "[Fatal][Worker][runWorker] Failed to start worker server", sLogger.Error("error", err))
+				sLogger.FatalWithContext(
+					rootCtx,
+					"Failed to start worker server",
+					sLogger.Error("error", err),
+				)
 			}
 		}
 	}()
@@ -108,7 +139,7 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Shutting down worker...")
+	sLogger.InfoWithContext(rootCtx, "Shutting down worker...")
 
 	shutdownCtx, cancel := context.WithTimeout(rootCtx, 10*time.Second)
 	defer cancel()
@@ -122,12 +153,12 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 
 	select {
 	case <-done:
-		sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Worker service exited gracefully")
+		sLogger.InfoWithContext(rootCtx, "Worker service exited gracefully")
 	case <-shutdownCtx.Done():
-		sLogger.WarnWithContext(rootCtx, "[Warn][Worker][runWorker] Worker service forced to shutdown after 10 seconds",
+		sLogger.WarnWithContext(rootCtx, "Worker service forced to shutdown after 10 seconds",
 			sLogger.Error("error", shutdownCtx.Err()))
 	}
 
 	// 記錄成功關閉
-	sLogger.InfoWithContext(rootCtx, "[Info][Worker][runWorker] Worker exited")
+	sLogger.InfoWithContext(rootCtx, "Worker exited")
 }

@@ -69,7 +69,12 @@ func createZapConfig(debug bool) zap.Config {
 	return config
 }
 
-func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg string, fields ...*entity.LoggerFiled) {
+func (s *ServiceLogger) logWithLevel(
+	ctx context.Context,
+	level LogLevel,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	spanCtx := trace.SpanContextFromContext(ctx)
 	var traceID, spanID string
 	if spanCtx.IsValid() {
@@ -100,20 +105,10 @@ func (s *ServiceLogger) logWithLevel(ctx context.Context, level LogLevel, msg st
 	s.outputJSONLog(level, msg, traceID, spanID, fields)
 }
 
-func (s *ServiceLogger) extractTraceInfo(ctx context.Context) (traceID, spanID string) {
-	if ctx == nil {
-		return "", ""
-	}
-	if v, ok := ctx.Value("trace_id").(string); ok {
-		traceID = v
-	}
-	if v, ok := ctx.Value("span_id").(string); ok {
-		spanID = v
-	}
-	return
-}
-
-func (s *ServiceLogger) createZapFields(traceID, spanID string, fields []*entity.LoggerFiled) []zap.Field {
+func (s *ServiceLogger) createZapFields(
+	traceID, spanID string,
+	fields []*entity.LoggerFiled,
+) []zap.Field {
 	zapFields := make([]zap.Field, 0, len(fields)+2)
 	if traceID != "" {
 		zapFields = append(zapFields, zap.String("trace_id", traceID))
@@ -127,7 +122,11 @@ func (s *ServiceLogger) createZapFields(traceID, spanID string, fields []*entity
 	return zapFields
 }
 
-func (s *ServiceLogger) outputJSONLog(level LogLevel, msg, traceID, spanID string, fields []*entity.LoggerFiled) {
+func (s *ServiceLogger) outputJSONLog(
+	level LogLevel,
+	msg, traceID, spanID string,
+	fields []*entity.LoggerFiled,
+) {
 	logData := map[string]interface{}{
 		"app":       s.AppName,
 		"env":       s.Env,
@@ -163,44 +162,64 @@ func getCallerInfo(skip int) (fileName string) {
 	return fmt.Sprintf("%s:%v", path, line)
 }
 
-func (s *ServiceLogger) InfoWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (s *ServiceLogger) InfoWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	s.logWithLevel(ctx, LevelInfo, msg, fields...)
 }
 
-func (s *ServiceLogger) DebugWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (s *ServiceLogger) DebugWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	s.logWithLevel(ctx, LevelDebug, msg, fields...)
 }
 
-func (s *ServiceLogger) ErrorWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (s *ServiceLogger) ErrorWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	s.logWithLevel(ctx, LevelError, msg, fields...)
 }
 
-func (s *ServiceLogger) WarnWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (s *ServiceLogger) WarnWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	s.logWithLevel(ctx, LevelWarn, msg, fields...)
 }
 
-func (s *ServiceLogger) FatalWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (s *ServiceLogger) FatalWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	s.logWithLevel(ctx, LevelFatal, msg, fields...)
 }
 
 func (s *ServiceLogger) DebugLog(msg string, fields ...*entity.LoggerFiled) {
-	s.logWithLevel(nil, LevelDebug, msg, fields...)
+	s.logWithLevel(context.TODO(), LevelDebug, msg, fields...)
 }
 
 func (s *ServiceLogger) InfoLog(msg string, fields ...*entity.LoggerFiled) {
-	s.logWithLevel(nil, LevelInfo, msg, fields...)
+	s.logWithLevel(context.TODO(), LevelInfo, msg, fields...)
 }
 
 func (s *ServiceLogger) ErrorLog(msg string, fields ...*entity.LoggerFiled) {
-	s.logWithLevel(nil, LevelError, msg, fields...)
+	s.logWithLevel(context.TODO(), LevelError, msg, fields...)
 }
 
 func (s *ServiceLogger) WarnLog(msg string, fields ...*entity.LoggerFiled) {
-	s.logWithLevel(nil, LevelWarn, msg, fields...)
+	s.logWithLevel(context.TODO(), LevelWarn, msg, fields...)
 }
 
 func (s *ServiceLogger) FatalLog(msg string, fields ...*entity.LoggerFiled) {
-	s.logWithLevel(nil, LevelFatal, msg, fields...)
+	s.logWithLevel(context.TODO(), LevelFatal, msg, fields...)
 }
 
 func (s *ServiceLogger) Error(key string, value error) *entity.LoggerFiled {

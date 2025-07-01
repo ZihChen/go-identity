@@ -25,7 +25,8 @@ func setupMiniRedis(t *testing.T) (*miniredis.Miniredis, *redis.Client, func()) 
 
 	// 返回清理函数
 	cleanup := func() {
-		client.Close()
+		err = client.Close()
+		require.NoError(t, err, "Failed to close Redis client")
 		mr.Close()
 	}
 

@@ -27,7 +27,10 @@ func TestRedisDirectManagerSync(t *testing.T) {
 
 	// 創建Redis客戶端
 	client := asynq.NewClient(redisOpt)
-	defer client.Close()
+	defer func() {
+		err = client.Close()
+		require.NoError(t, err, "Should close Redis client without error")
+	}()
 
 	// 創建管理員同步事件
 	managerEvent := createManagerSyncEvent()
@@ -78,7 +81,10 @@ func TestRedisDirectPlayerSync(t *testing.T) {
 
 	// 創建Redis客戶端
 	client := asynq.NewClient(redisOpt)
-	defer client.Close()
+	defer func() {
+		err = client.Close()
+		require.NoError(t, err, "Should close Redis client without error")
+	}()
 
 	// 創建玩家同步事件
 	playerEvent := createPlayerSyncEvent()
@@ -129,7 +135,10 @@ func TestRedisDirectMerchantSync(t *testing.T) {
 
 	// 創建Redis客戶端
 	client := asynq.NewClient(redisOpt)
-	defer client.Close()
+	defer func() {
+		err = client.Close()
+		require.NoError(t, err, "Should close Redis client without error")
+	}()
 
 	// 創建商戶同步事件
 	merchantEvent := createMerchantSyncEvent()

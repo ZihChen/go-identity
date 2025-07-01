@@ -25,7 +25,8 @@ func TestKDSPlayerSyncEvent(t *testing.T) {
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
 	require.NoError(t, err, "Should load AWS config without error")
 
-	identityOutput, err := sts.NewFromConfig(awsConfig).GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
+	identityOutput, err := sts.NewFromConfig(awsConfig).
+		GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
 	require.NoError(t, err, "Should get caller identity")
 	t.Logf("Caller identity ARN: %s", *identityOutput.Arn)
 	// 創建Kinesis客戶端
@@ -52,8 +53,10 @@ func TestKDSPlayerSyncEvent(t *testing.T) {
 	t.Logf("Sending player sync event to KDS: %s", playerEvent.ID)
 	t.Logf("Global merchant ID: %s",
 		playerEvent.Data.(map[string]interface{})["global_merchant_id"])
-	t.Logf("Global player ID: %s",
-		playerEvent.Data.(map[string]interface{})["player"].(map[string]interface{})["global_player_id"])
+	t.Logf(
+		"Global player ID: %s",
+		playerEvent.Data.(map[string]interface{})["player"].(map[string]interface{})["global_player_id"],
+	)
 
 	// 發送事件到KDS
 	partitionKey := uuid.New().String()

@@ -25,7 +25,8 @@ func TestKDSConnection(t *testing.T) {
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
 	require.NoError(t, err, "Should load AWS config without error")
 
-	identityOutput, err := sts.NewFromConfig(awsConfig).GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
+	identityOutput, err := sts.NewFromConfig(awsConfig).
+		GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
 	require.NoError(t, err, "Should get caller identity")
 	t.Logf("Caller identity ARN: %s", *identityOutput.Arn)
 	// 創建Kinesis客戶端
@@ -49,7 +50,12 @@ func TestKDSConnection(t *testing.T) {
 	})
 
 	require.NoError(t, err, "Should describe KDS stream without error")
-	assert.Equal(t, streamName, *describeOutput.StreamDescription.StreamName, "Stream name should match")
+	assert.Equal(
+		t,
+		streamName,
+		*describeOutput.StreamDescription.StreamName,
+		"Stream name should match",
+	)
 	assert.NotEmpty(t, describeOutput.StreamDescription.Shards, "Stream should have shards")
 
 	t.Logf("Successfully connected to KDS stream: %s", streamName)
@@ -86,12 +92,15 @@ func TestKDSConnection(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// 從寫入分片讀取消息
-	shardIteratorOutput, err := client.GetShardIterator(context.Background(), &kinesis.GetShardIteratorInput{
-		StreamName:             aws.String(streamName),
-		ShardId:                putOutput.ShardId,
-		ShardIteratorType:      "AT_SEQUENCE_NUMBER",
-		StartingSequenceNumber: putOutput.SequenceNumber,
-	})
+	shardIteratorOutput, err := client.GetShardIterator(
+		context.Background(),
+		&kinesis.GetShardIteratorInput{
+			StreamName:             aws.String(streamName),
+			ShardId:                putOutput.ShardId,
+			ShardIteratorType:      "AT_SEQUENCE_NUMBER",
+			StartingSequenceNumber: putOutput.SequenceNumber,
+		},
+	)
 
 	require.NoError(t, err, "Should get shard iterator without error")
 	assert.NotEmpty(t, shardIteratorOutput.ShardIterator, "Should receive a valid shard iterator")

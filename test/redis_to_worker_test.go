@@ -34,7 +34,12 @@ func (f *fakeResultWriter) WriteResult([]byte) error { return nil }
 func (f *fakeResultWriter) FailResult([]byte) error  { return nil }
 func (f *fakeResultWriter) TaskID() string           { return "test-task-id" }
 
-func processTaskDirectly(t *testing.T, handler *handler.WorkerHandler, taskType string, payload []byte) error {
+func processTaskDirectly(
+	t *testing.T,
+	handler *handler.WorkerHandler,
+	taskType string,
+	payload []byte,
+) error {
 	task := asynq.NewTask(taskType, payload)
 
 	ctx := context.WithValue(context.Background(), resultWriterCtxKey{}, &fakeResultWriter{})
@@ -51,7 +56,9 @@ func processTaskDirectly(t *testing.T, handler *handler.WorkerHandler, taskType 
 	}
 }
 
-func setupWorkerComponents(t *testing.T) (*di.WorkerComponents, *config.Config, *zap.Logger, func()) {
+func setupWorkerComponents(
+	t *testing.T,
+) (*di.WorkerComponents, *config.Config, *zap.Logger, func()) {
 	// 讀取配置
 	cfg, err := config.LoadConfig()
 	require.NoError(t, err, "Should load config without error")
@@ -72,7 +79,13 @@ func setupWorkerComponents(t *testing.T) (*di.WorkerComponents, *config.Config, 
 	require.NoError(t, err, "Should connect to database without error")
 
 	// 初始化 Worker 組件
-	workerComponents, err := di.InitializeWorkerComponents(cfg, logger, serviceLog, redisManager, db.DB)
+	workerComponents, err := di.InitializeWorkerComponents(
+		cfg,
+		logger,
+		serviceLog,
+		redisManager,
+		db.DB,
+	)
 	require.NoError(t, err, "Should initialize worker components without error")
 
 	// 清理函數
@@ -80,10 +93,12 @@ func setupWorkerComponents(t *testing.T) (*di.WorkerComponents, *config.Config, 
 		// 關閉資料庫連接
 		sqlDB, _ := db.DB.DB()
 		if sqlDB != nil {
-			sqlDB.Close()
+			err = sqlDB.Close()
+			require.NoError(t, err)
 		}
 		// 關閉 Redis 連接
-		redisManager.Close()
+		err = redisManager.Close()
+		require.NoError(t, err)
 	}
 
 	return workerComponents, cfg, logger, cleanup
@@ -112,7 +127,8 @@ func setupRedisClient(t *testing.T) (*asynq.Client, *config.Config, func()) {
 
 	// 清理函數
 	cleanup := func() {
-		client.Close()
+		err = client.Close()
+		require.NoError(t, err)
 	}
 
 	return client, cfg, cleanup
@@ -240,12 +256,15 @@ func TestMerchantRedisToWorker(t *testing.T) {
 	var foundEvent bool
 	for _, shard := range shardsOutput.Shards {
 		if shard.ShardId != nil {
-			shardIteratorOutput, err := kinesisClient.GetShardIterator(context.Background(), &kinesis.GetShardIteratorInput{
-				StreamName:        aws.String(streamName),
-				ShardId:           shard.ShardId,
-				ShardIteratorType: types.ShardIteratorTypeAtTimestamp,
-				Timestamp:         aws.Time(time.Now().Add(-40 * time.Second)), // 往前一些保險
-			})
+			shardIteratorOutput, err := kinesisClient.GetShardIterator(
+				context.Background(),
+				&kinesis.GetShardIteratorInput{
+					StreamName:        aws.String(streamName),
+					ShardId:           shard.ShardId,
+					ShardIteratorType: types.ShardIteratorTypeAtTimestamp,
+					Timestamp:         aws.Time(time.Now().Add(-40 * time.Second)), // 往前一些保險
+				},
+			)
 
 			if err != nil {
 				t.Logf("Error getting shard iterator: %v", err)
@@ -256,10 +275,13 @@ func TestMerchantRedisToWorker(t *testing.T) {
 			time.Sleep(2 * time.Second)
 
 			// 嘗試讀取記錄
-			getRecordsOutput, err := kinesisClient.GetRecords(context.Background(), &kinesis.GetRecordsInput{
-				ShardIterator: shardIteratorOutput.ShardIterator,
-				Limit:         aws.Int32(100),
-			})
+			getRecordsOutput, err := kinesisClient.GetRecords(
+				context.Background(),
+				&kinesis.GetRecordsInput{
+					ShardIterator: shardIteratorOutput.ShardIterator,
+					Limit:         aws.Int32(100),
+				},
+			)
 			if err != nil {
 				t.Logf("Error getting records: %v", err)
 				continue
@@ -273,11 +295,16 @@ func TestMerchantRedisToWorker(t *testing.T) {
 				}
 
 				// 檢查是否是我們的商戶同步事件
-				if typeStr, ok := recordEvent["type"].(string); ok && typeStr == cfg.Events.IdentityMerchantSync {
+				if typeStr, ok := recordEvent["type"].(string); ok &&
+					typeStr == cfg.Events.IdentityMerchantSync {
 					if dataObj, ok := recordEvent["data"].(map[string]interface{}); ok {
-						if gmid, ok := dataObj["global_merchant_id"].(string); ok && gmid == globalMerchantID {
+						if gmid, ok := dataObj["global_merchant_id"].(string); ok &&
+							gmid == globalMerchantID {
 							foundEvent = true
-							t.Logf("Found merchant sync event in KDS for global_merchant_id: %s", globalMerchantID)
+							t.Logf(
+								"Found merchant sync event in KDS for global_merchant_id: %s",
+								globalMerchantID,
+							)
 							break
 						}
 					}
@@ -403,12 +430,15 @@ func TestPlayerRedisToWorker(t *testing.T) {
 	var foundEvent bool
 	for _, shard := range shardsOutput.Shards {
 		if shard.ShardId != nil {
-			shardIteratorOutput, err := kinesisClient.GetShardIterator(context.Background(), &kinesis.GetShardIteratorInput{
-				StreamName:        aws.String(streamName),
-				ShardId:           shard.ShardId,
-				ShardIteratorType: types.ShardIteratorTypeAtTimestamp,
-				Timestamp:         aws.Time(time.Now().Add(-40 * time.Second)), // 往前一些保險
-			})
+			shardIteratorOutput, err := kinesisClient.GetShardIterator(
+				context.Background(),
+				&kinesis.GetShardIteratorInput{
+					StreamName:        aws.String(streamName),
+					ShardId:           shard.ShardId,
+					ShardIteratorType: types.ShardIteratorTypeAtTimestamp,
+					Timestamp:         aws.Time(time.Now().Add(-40 * time.Second)), // 往前一些保險
+				},
+			)
 
 			if err != nil {
 				t.Logf("Error getting shard iterator: %v", err)
@@ -419,10 +449,13 @@ func TestPlayerRedisToWorker(t *testing.T) {
 			time.Sleep(2 * time.Second)
 
 			// 嘗試讀取記錄
-			getRecordsOutput, err := kinesisClient.GetRecords(context.Background(), &kinesis.GetRecordsInput{
-				ShardIterator: shardIteratorOutput.ShardIterator,
-				Limit:         aws.Int32(100),
-			})
+			getRecordsOutput, err := kinesisClient.GetRecords(
+				context.Background(),
+				&kinesis.GetRecordsInput{
+					ShardIterator: shardIteratorOutput.ShardIterator,
+					Limit:         aws.Int32(100),
+				},
+			)
 			if err != nil {
 				t.Logf("Error getting records: %v", err)
 				continue
@@ -436,11 +469,16 @@ func TestPlayerRedisToWorker(t *testing.T) {
 				}
 
 				// 檢查是否是我們的玩家同步事件
-				if typeStr, ok := recordEvent["type"].(string); ok && typeStr == cfg.Events.IdentityPlayerSync {
+				if typeStr, ok := recordEvent["type"].(string); ok &&
+					typeStr == cfg.Events.IdentityPlayerSync {
 					if dataObj, ok := recordEvent["data"].(map[string]interface{}); ok {
-						if gpid, ok := dataObj["global_player_id"].(string); ok && gpid == globalPlayerID {
+						if gpid, ok := dataObj["global_player_id"].(string); ok &&
+							gpid == globalPlayerID {
 							foundEvent = true
-							t.Logf("Found player sync event in KDS for global_player_id: %s", globalPlayerID)
+							t.Logf(
+								"Found player sync event in KDS for global_player_id: %s",
+								globalPlayerID,
+							)
 							break
 						}
 					}
@@ -569,12 +607,15 @@ func TestManagerRedisToWorker(t *testing.T) {
 	var foundEvent bool
 	for _, shard := range shardsOutput.Shards {
 		if shard.ShardId != nil {
-			shardIteratorOutput, err := kinesisClient.GetShardIterator(context.Background(), &kinesis.GetShardIteratorInput{
-				StreamName:        aws.String(streamName),
-				ShardId:           shard.ShardId,
-				ShardIteratorType: types.ShardIteratorTypeAtTimestamp,
-				Timestamp:         aws.Time(time.Now().Add(-40 * time.Second)), // 往前一些保險
-			})
+			shardIteratorOutput, err := kinesisClient.GetShardIterator(
+				context.Background(),
+				&kinesis.GetShardIteratorInput{
+					StreamName:        aws.String(streamName),
+					ShardId:           shard.ShardId,
+					ShardIteratorType: types.ShardIteratorTypeAtTimestamp,
+					Timestamp:         aws.Time(time.Now().Add(-40 * time.Second)), // 往前一些保險
+				},
+			)
 
 			if err != nil {
 				t.Logf("Error getting shard iterator: %v", err)
@@ -585,10 +626,13 @@ func TestManagerRedisToWorker(t *testing.T) {
 			time.Sleep(2 * time.Second)
 
 			// 嘗試讀取記錄
-			getRecordsOutput, err := kinesisClient.GetRecords(context.Background(), &kinesis.GetRecordsInput{
-				ShardIterator: shardIteratorOutput.ShardIterator,
-				Limit:         aws.Int32(100),
-			})
+			getRecordsOutput, err := kinesisClient.GetRecords(
+				context.Background(),
+				&kinesis.GetRecordsInput{
+					ShardIterator: shardIteratorOutput.ShardIterator,
+					Limit:         aws.Int32(100),
+				},
+			)
 			if err != nil {
 				t.Logf("Error getting records: %v", err)
 				continue
@@ -602,11 +646,16 @@ func TestManagerRedisToWorker(t *testing.T) {
 				}
 
 				// 檢查是否是我們的管理員同步事件
-				if typeStr, ok := recordEvent["type"].(string); ok && typeStr == cfg.Events.IdentityManagerSync {
+				if typeStr, ok := recordEvent["type"].(string); ok &&
+					typeStr == cfg.Events.IdentityManagerSync {
 					if dataObj, ok := recordEvent["data"].(map[string]interface{}); ok {
-						if gmid, ok := dataObj["global_manager_id"].(string); ok && gmid == globalManagerID {
+						if gmid, ok := dataObj["global_manager_id"].(string); ok &&
+							gmid == globalManagerID {
 							foundEvent = true
-							t.Logf("Found manager sync event in KDS for global_manager_id: %s", globalManagerID)
+							t.Logf(
+								"Found manager sync event in KDS for global_manager_id: %s",
+								globalManagerID,
+							)
 							break
 						}
 					}

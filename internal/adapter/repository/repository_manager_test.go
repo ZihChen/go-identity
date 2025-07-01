@@ -17,7 +17,11 @@ import (
 func TestManagerRepository_FindByID_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,
@@ -67,7 +71,11 @@ func TestManagerRepository_FindByID_Unit(t *testing.T) {
 func TestManagerRepository_FindByGlobalID_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,
@@ -118,7 +126,11 @@ func TestManagerRepository_FindByGlobalID_Unit(t *testing.T) {
 func TestManagerRepository_Create_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,
@@ -171,7 +183,11 @@ func TestManagerRepository_Create_Unit(t *testing.T) {
 func TestManagerRepository_Update_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,
@@ -215,7 +231,11 @@ func TestManagerRepository_Update_Unit(t *testing.T) {
 func TestManagerRepository_Delete_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,

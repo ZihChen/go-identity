@@ -153,7 +153,12 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 }
 
 // publishManagerSyncEvent 發布管理員同步事件
-func (u *ManagerUseCase) publishManagerSyncEvent(ctx context.Context, manager *entity.Manager, globalMerchantID string, traceParent string) error {
+func (u *ManagerUseCase) publishManagerSyncEvent(
+	ctx context.Context,
+	manager *entity.Manager,
+	globalMerchantID string,
+	traceParent string,
+) error {
 	// 獲取當前 span
 	span := trace.SpanFromContext(ctx)
 
@@ -236,7 +241,10 @@ func (u *ManagerUseCase) GetManagerByID(ctx context.Context, id uint64) (*entity
 }
 
 // GetManagerByGlobalID 通過全局ID獲取管理員
-func (u *ManagerUseCase) GetManagerByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error) {
+func (u *ManagerUseCase) GetManagerByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Manager, error) {
 	// 創建 span 並跟踪此操作
 	ctx, span := tracing.StartSpan(ctx, "ManagerUseCase.GetManagerByGlobalID")
 	defer span.End()

@@ -165,7 +165,7 @@ func WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
 		ctxWithTrace := tracing.ExtractTraceContext(ctx, data)
 
 		// 創建處理任務的 span
-		taskID := "unknown"
+		var taskID string
 		if w := task.ResultWriter(); w != nil {
 			taskID = w.TaskID()
 		} else {
@@ -259,7 +259,7 @@ func NewWorkerServer(cfg *config.Config, zapLogger *zap.Logger) (*asynq.Server, 
 			Logger:      asynqLogger,
 			RetryDelayFunc: func(n int, err error, task *asynq.Task) time.Duration {
 				// 增加指標記錄重試
-				taskID := "unknown"
+				var taskID string
 				if w := task.ResultWriter(); w != nil {
 					taskID = w.TaskID()
 				} else {

@@ -11,3 +11,4 @@ formatters:
   enable:
     - gofmt
     - gci
+    - golines

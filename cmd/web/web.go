@@ -61,7 +61,12 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	if err != nil {
 		sLogger.FatalLog("Failed to initialize web tracer", sLogger.Error("err", err))
 	}
-	defer tracer.Shutdown(context.Background())
+	defer func() {
+		err = tracer.Shutdown(context.Background())
+		if err != nil {
+			sLogger.ErrorLog("Failed to shutdown web tracer", sLogger.Error("err", err))
+		}
+	}()
 	sLogger.InfoLog("Successfully initialized web tracer!")
 
 	ctx, rootSpan := tracing.StartSpan(rootCtx, "WebService")
@@ -70,14 +75,21 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	// 初始化DB連線
 	db, err := mysql.NewDatabase(cfg)
 	if err != nil {
-		sLogger.FatalWithContext(rootCtx, "[Fatal][Web][runWebServer] Failed to initialize database", sLogger.Error("err", err))
+		sLogger.FatalWithContext(
+			rootCtx,
+			"[Fatal][Web][runWebServer] Failed to initialize database",
+			sLogger.Error("err", err),
+		)
 	}
 	defer func() {
 		err = db.Close() // 主程序結束後關閉DB連線
 		if err != nil {
 			sLogger.ErrorLog("Failed to close database connection", sLogger.Error("err", err))
 		}
-		sLogger.InfoWithContext(rootCtx, "[Info][Web][runWebServer] Database connection closed successfully")
+		sLogger.InfoWithContext(
+			rootCtx,
+			"[Info][Web][runWebServer] Database connection closed successfully",
+		)
 	}()
 	sLogger.InfoLog("Successfully initialized DB connection!")
 
@@ -92,7 +104,10 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 		if err != nil {
 			sLogger.ErrorLog("Failed to close Redis connection", sLogger.Error("err", err))
 		}
-		sLogger.InfoWithContext(rootCtx, "[Info][Web][runWebServer] Redis connection closed successfully")
+		sLogger.InfoWithContext(
+			rootCtx,
+			"[Info][Web][runWebServer] Redis connection closed successfully",
+		)
 	}()
 	if err = redisManager.Connect(rootCtx); err != nil {
 		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
@@ -100,7 +115,13 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	sLogger.InfoLog("Successfully initialized Redis connection!")
 
 	// 使用Wire初始化HTTP處理器
-	httpHandler, err := di.InitializeWebServer(cfg, logger, sLogger, redisManager, db.GetDBConnection())
+	httpHandler, err := di.InitializeWebServer(
+		cfg,
+		logger,
+		sLogger,
+		redisManager,
+		db.GetDBConnection(),
+	)
 	if err != nil {
 		sLogger.FatalLog("Failed to initialize web server",
 			sLogger.Error("err", err),
@@ -140,12 +161,6 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 		// 創建調試服務器的路由
 		debugMux := http.NewServeMux()
 
-		// 添加一個簡單的健康檢查端點
-		debugMux.HandleFunc("/debug/health", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
-		})
-
 		// 添加一個顯示運行時信息的端點
 		debugMux.HandleFunc("/debug/info", func(w http.ResponseWriter, r *http.Request) {
 			info := map[string]interface{}{
@@ -154,7 +169,7 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 				"cpus":       runtime.NumCPU(),
 				"time":       time.Now().Format(time.RFC3339),
 			}
-			json.NewEncoder(w).Encode(info)
+			_ = json.NewEncoder(w).Encode(info)
 		})
 
 		serverDebug := &http.Server{
@@ -185,7 +200,7 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	tracing.TraceEvent(rootSpan, "Shutting down web server")
 
 	// 創建上下文用於通知服務器關閉
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {

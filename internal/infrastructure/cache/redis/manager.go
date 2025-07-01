@@ -54,7 +54,11 @@ func (m *Manager) Connect(ctx context.Context) error {
 
 			// 連接成功
 			m.client, m.isClosed = client, false
-			log.Printf("Successfully connected to Redis at %s:%d", m.config.Redis.Domain, m.config.Redis.Port)
+			log.Printf(
+				"Successfully connected to Redis at %s:%d",
+				m.config.Redis.Domain,
+				m.config.Redis.Port,
+			)
 			return nil
 		}
 	}

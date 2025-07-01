@@ -49,9 +49,18 @@ func NewWorkerHandler(
 
 func (h *WorkerHandler) RegisterHandlers(mux *asynq.ServeMux) {
 	// 使用追蹤包裝器
-	mux.Handle(queue.TypeMerchantSync, queue.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleMerchantSync)))
-	mux.Handle(queue.TypePlayerSync, queue.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandlePlayerSync)))
-	mux.Handle(queue.TypeManagerSync, queue.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleManagerSync)))
+	mux.Handle(
+		queue.TypeMerchantSync,
+		queue.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleMerchantSync)),
+	)
+	mux.Handle(
+		queue.TypePlayerSync,
+		queue.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandlePlayerSync)),
+	)
+	mux.Handle(
+		queue.TypeManagerSync,
+		queue.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleManagerSync)),
+	)
 
 	h.logger.Info("Registered worker handlers",
 		zap.String("handler.merchant_sync", queue.TypeMerchantSync),

@@ -32,7 +32,10 @@ func (m *MockPlayerRepository) FindByID(ctx context.Context, id uint64) (*entity
 	return args.Get(0).(*entity.Player), args.Error(1)
 }
 
-func (m *MockPlayerRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
+func (m *MockPlayerRepository) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Player, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -63,7 +66,10 @@ type MockMerchantRepository struct {
 	mock.Mock
 }
 
-func (m *MockMerchantRepository) FindByID(ctx context.Context, id uint64) (*entity.Merchant, error) {
+func (m *MockMerchantRepository) FindByID(
+	ctx context.Context,
+	id uint64,
+) (*entity.Merchant, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -71,7 +77,10 @@ func (m *MockMerchantRepository) FindByID(ctx context.Context, id uint64) (*enti
 	return args.Get(0).(*entity.Merchant), args.Error(1)
 }
 
-func (m *MockMerchantRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error) {
+func (m *MockMerchantRepository) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Merchant, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -98,7 +107,10 @@ type MockEventProducer struct {
 	mock.Mock
 }
 
-func (m *MockEventProducer) PublishMerchantSync(ctx context.Context, event *event.CloudEvent) error {
+func (m *MockEventProducer) PublishMerchantSync(
+	ctx context.Context,
+	event *event.CloudEvent,
+) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
@@ -118,7 +130,9 @@ func createTestContext() context.Context {
 	return context.Background()
 }
 
-func createMockDependencies(t *testing.T) (*MockPlayerRepository, *MockMerchantRepository, *MockEventProducer, *zap.Logger, *redis.Client) {
+func createMockDependencies(
+	t *testing.T,
+) (*MockPlayerRepository, *MockMerchantRepository, *MockEventProducer, *zap.Logger, *redis.Client) {
 	playerRepo := new(MockPlayerRepository)
 	merchantRepo := new(MockMerchantRepository)
 	eventProducer := new(MockEventProducer)
@@ -202,13 +216,15 @@ func TestPlayerUseCase_SyncPlayer_CreateNew(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Player doesn't exist yet
-	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(nil, errors.New("record not found"))
+	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").
+		Return(nil, errors.New("record not found"))
 
 	// Expect Create to be called
 	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
 
 	// Expect PublishPlayerSync to be called
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(nil)
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -243,7 +259,8 @@ func TestPlayerUseCase_SyncPlayer_UpdateExisting(t *testing.T) {
 	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
 
 	// Expect PublishPlayerSync to be called
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(nil)
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -267,7 +284,8 @@ func TestPlayerUseCase_SyncPlayer_MerchantNotFound(t *testing.T) {
 	playerRepo, merchantRepo, eventProducer, logger, redisClient := createMockDependencies(t)
 
 	// Setup mocks - merchant not found
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(nil, errors.New("record not found"))
+	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
+		Return(nil, errors.New("record not found"))
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -294,10 +312,12 @@ func TestPlayerUseCase_SyncPlayer_CreateError(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Player doesn't exist yet
-	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(nil, errors.New("record not found"))
+	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").
+		Return(nil, errors.New("record not found"))
 
 	// Create fails
-	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(errors.New("create error"))
+	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Player")).
+		Return(errors.New("create error"))
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -325,7 +345,8 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// Expect PublishPlayerSync to be called
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(nil)
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -345,7 +366,8 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 	playerRepo, merchantRepo, eventProducer, logger, redisClient := createMockDependencies(t)
 
 	// Setup mocks - player not found
-	playerRepo.On("FindByID", mock.Anything, uint64(999)).Return(nil, errors.New("player not found"))
+	playerRepo.On("FindByID", mock.Anything, uint64(999)).
+		Return(nil, errors.New("player not found"))
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -369,7 +391,8 @@ func TestPlayerUseCase_GetPlayerByID_PublishError(t *testing.T) {
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// PublishPlayerSync fails
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(errors.New("publish error"))
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(errors.New("publish error"))
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -409,7 +432,8 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 	playerRepo, merchantRepo, eventProducer, logger, redisClient := createMockDependencies(t)
 
 	// Setup mocks - player not found
-	playerRepo.On("FindByGlobalID", mock.Anything, "NONEXISTENT").Return(nil, errors.New("player not found"))
+	playerRepo.On("FindByGlobalID", mock.Anything, "NONEXISTENT").
+		Return(nil, errors.New("player not found"))
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -449,7 +473,8 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 	playerRepo, merchantRepo, eventProducer, logger, redisClient := createMockDependencies(t)
 
 	// Setup mocks - player not found
-	playerRepo.On("FindByID", mock.Anything, uint64(999)).Return(nil, errors.New("player not found"))
+	playerRepo.On("FindByID", mock.Anything, uint64(999)).
+		Return(nil, errors.New("player not found"))
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
@@ -472,7 +497,8 @@ func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// Update fails
-	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(errors.New("update error"))
+	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).
+		Return(errors.New("update error"))
 
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)

@@ -165,7 +165,12 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 }
 
 // publishPlayerSyncEvent 發布玩家同步事件
-func (u *PlayerUseCase) publishPlayerSyncEvent(ctx context.Context, player *entity.Player, globalMerchantID string, traceParent string) error {
+func (u *PlayerUseCase) publishPlayerSyncEvent(
+	ctx context.Context,
+	player *entity.Player,
+	globalMerchantID string,
+	traceParent string,
+) error {
 	// 獲取當前 span
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.publishPlayerSyncEvent")
 	defer span.End()
@@ -258,7 +263,10 @@ func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.P
 }
 
 // GetPlayerByGlobalID 通過全局ID獲取玩家
-func (u *PlayerUseCase) GetPlayerByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
+func (u *PlayerUseCase) GetPlayerByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Player, error) {
 	// 創建 span 並跟踪此操作
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByGlobalID")
 	defer span.End()

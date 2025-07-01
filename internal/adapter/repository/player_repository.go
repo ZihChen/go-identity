@@ -37,7 +37,10 @@ func (r *PlayerRepository) FindByID(ctx context.Context, id uint64) (*entity.Pla
 }
 
 // FindByGlobalID 通過全局ID查找玩家
-func (r *PlayerRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
+func (r *PlayerRepository) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Player, error) {
 	var player models.Player
 	result := r.db.WithContext(ctx).Where("global_player_id = ?", globalID).First(&player)
 	if result.Error != nil {

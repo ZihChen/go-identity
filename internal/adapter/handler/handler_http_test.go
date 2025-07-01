@@ -21,7 +21,10 @@ type MockMerchantUseCase struct {
 	mock.Mock
 }
 
-func (m *MockMerchantUseCase) GetMerchantByID(ctx context.Context, id uint64) (*entity.Merchant, error) {
+func (m *MockMerchantUseCase) GetMerchantByID(
+	ctx context.Context,
+	id uint64,
+) (*entity.Merchant, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -29,7 +32,10 @@ func (m *MockMerchantUseCase) GetMerchantByID(ctx context.Context, id uint64) (*
 	return args.Get(0).(*entity.Merchant), args.Error(1)
 }
 
-func (m *MockMerchantUseCase) GetMerchantByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error) {
+func (m *MockMerchantUseCase) GetMerchantByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Merchant, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -54,7 +60,10 @@ func (m *MockPlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*enti
 	return args.Get(0).(*entity.Player), args.Error(1)
 }
 
-func (m *MockPlayerUseCase) GetPlayerByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
+func (m *MockPlayerUseCase) GetPlayerByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Player, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -76,7 +85,10 @@ type MockManagerUseCase struct {
 	mock.Mock
 }
 
-func (m *MockManagerUseCase) GetManagerByID(ctx context.Context, id uint64) (*entity.Manager, error) {
+func (m *MockManagerUseCase) GetManagerByID(
+	ctx context.Context,
+	id uint64,
+) (*entity.Manager, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -84,7 +96,10 @@ func (m *MockManagerUseCase) GetManagerByID(ctx context.Context, id uint64) (*en
 	return args.Get(0).(*entity.Manager), args.Error(1)
 }
 
-func (m *MockManagerUseCase) GetManagerByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error) {
+func (m *MockManagerUseCase) GetManagerByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Manager, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -101,23 +116,43 @@ type MockLogger struct {
 	mock.Mock
 }
 
-func (m *MockLogger) DebugWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (m *MockLogger) DebugWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	m.Called(ctx, msg, fields)
 }
 
-func (m *MockLogger) InfoWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (m *MockLogger) InfoWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	m.Called(ctx, msg, fields)
 }
 
-func (m *MockLogger) ErrorWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (m *MockLogger) ErrorWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	m.Called(ctx, msg, fields)
 }
 
-func (m *MockLogger) WarnWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (m *MockLogger) WarnWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	m.Called(ctx, msg, fields)
 }
 
-func (m *MockLogger) FatalWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (m *MockLogger) FatalWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	m.Called(ctx, msg, fields)
 }
 
@@ -186,7 +221,9 @@ func (m *MockLogger) Close() {
 }
 
 // Helper functions
-func setupTest(t *testing.T) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
+func setupTest(
+	t *testing.T,
+) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 
 	merchantUseCase := new(MockMerchantUseCase)
@@ -296,7 +333,8 @@ func TestHTTPHandler_GetMerchantByID_NotFound(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "999"}}
 
 	// Setup mock to return not found error
-	merchantUseCase.On("GetMerchantByID", mock.Anything, uint64(999)).Return(nil, errors.New("record not found"))
+	merchantUseCase.On("GetMerchantByID", mock.Anything, uint64(999)).
+		Return(nil, errors.New("record not found"))
 
 	// Execute
 	handler.GetMerchantByID(c)
@@ -321,7 +359,8 @@ func TestHTTPHandler_GetMerchantByID_InternalError(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock to return internal error
-	merchantUseCase.On("GetMerchantByID", mock.Anything, uint64(1)).Return(nil, errors.New("database error"))
+	merchantUseCase.On("GetMerchantByID", mock.Anything, uint64(1)).
+		Return(nil, errors.New("database error"))
 
 	// Execute
 	handler.GetMerchantByID(c)
@@ -348,7 +387,8 @@ func TestHTTPHandler_GetMerchantByGlobalID(t *testing.T) {
 
 	// Setup mock
 	merchant := createTestMerchant()
-	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
+	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
+		Return(merchant, nil)
 
 	// Execute
 	handler.GetMerchantByGlobalID(c)
@@ -395,7 +435,8 @@ func TestHTTPHandler_GetMerchantByGlobalID_NotFound(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "NONEXISTENT"}}
 
 	// Setup mock to return not found error
-	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "NONEXISTENT").Return(nil, errors.New("record not found"))
+	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "NONEXISTENT").
+		Return(nil, errors.New("record not found"))
 
 	// Execute
 	handler.GetMerchantByGlobalID(c)
@@ -420,7 +461,8 @@ func TestHTTPHandler_GetMerchantByGlobalID_InternalError(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-MERCHANT-1"}}
 
 	// Setup mock to return internal error
-	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(nil, errors.New("database error"))
+	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
+		Return(nil, errors.New("database error"))
 
 	// Execute
 	handler.GetMerchantByGlobalID(c)
@@ -494,7 +536,8 @@ func TestHTTPHandler_GetPlayerByID_NotFound(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "999"}}
 
 	// Setup mock to return not found error
-	playerUseCase.On("GetPlayerByID", mock.Anything, uint64(999)).Return(nil, errors.New("record not found"))
+	playerUseCase.On("GetPlayerByID", mock.Anything, uint64(999)).
+		Return(nil, errors.New("record not found"))
 
 	// Execute
 	handler.GetPlayerByID(c)
@@ -519,7 +562,8 @@ func TestHTTPHandler_GetPlayerByID_InternalError(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock to return internal error
-	playerUseCase.On("GetPlayerByID", mock.Anything, uint64(1)).Return(nil, errors.New("database error"))
+	playerUseCase.On("GetPlayerByID", mock.Anything, uint64(1)).
+		Return(nil, errors.New("database error"))
 
 	// Execute
 	handler.GetPlayerByID(c)
@@ -593,7 +637,8 @@ func TestHTTPHandler_GetPlayerByGlobalID_NotFound(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "NONEXISTENT"}}
 
 	// Setup mock to return not found error
-	playerUseCase.On("GetPlayerByGlobalID", mock.Anything, "NONEXISTENT").Return(nil, errors.New("record not found"))
+	playerUseCase.On("GetPlayerByGlobalID", mock.Anything, "NONEXISTENT").
+		Return(nil, errors.New("record not found"))
 
 	// Execute
 	handler.GetPlayerByGlobalID(c)
@@ -618,7 +663,8 @@ func TestHTTPHandler_GetPlayerByGlobalID_InternalError(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-PLAYER-1"}}
 
 	// Setup mock to return internal error
-	playerUseCase.On("GetPlayerByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(nil, errors.New("database error"))
+	playerUseCase.On("GetPlayerByGlobalID", mock.Anything, "FATCAT-PLAYER-1").
+		Return(nil, errors.New("database error"))
 
 	// Execute
 	handler.GetPlayerByGlobalID(c)
@@ -688,7 +734,8 @@ func TestHTTPHandler_UpdatePlayerLastActive_NotFound(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "999"}}
 
 	// Setup mock to return not found error
-	playerUseCase.On("UpdatePlayerLastActive", mock.Anything, uint64(999)).Return(errors.New("record not found"))
+	playerUseCase.On("UpdatePlayerLastActive", mock.Anything, uint64(999)).
+		Return(errors.New("record not found"))
 
 	// Execute
 	handler.UpdatePlayerLastActive(c)
@@ -713,7 +760,8 @@ func TestHTTPHandler_UpdatePlayerLastActive_InternalError(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock to return internal error
-	playerUseCase.On("UpdatePlayerLastActive", mock.Anything, uint64(1)).Return(errors.New("database error"))
+	playerUseCase.On("UpdatePlayerLastActive", mock.Anything, uint64(1)).
+		Return(errors.New("database error"))
 
 	// Execute
 	handler.UpdatePlayerLastActive(c)
@@ -787,7 +835,8 @@ func TestHTTPHandler_GetManagerByID_NotFound(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "999"}}
 
 	// Setup mock to return not found error
-	managerUseCase.On("GetManagerByID", mock.Anything, uint64(999)).Return(nil, errors.New("record not found"))
+	managerUseCase.On("GetManagerByID", mock.Anything, uint64(999)).
+		Return(nil, errors.New("record not found"))
 
 	// Execute
 	handler.GetManagerByID(c)
@@ -812,7 +861,8 @@ func TestHTTPHandler_GetManagerByID_InternalError(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock to return internal error
-	managerUseCase.On("GetManagerByID", mock.Anything, uint64(1)).Return(nil, errors.New("database error"))
+	managerUseCase.On("GetManagerByID", mock.Anything, uint64(1)).
+		Return(nil, errors.New("database error"))
 
 	// Execute
 	handler.GetManagerByID(c)
@@ -839,7 +889,8 @@ func TestHTTPHandler_GetManagerByGlobalID(t *testing.T) {
 
 	// Setup mock
 	manager := createTestManager()
-	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(manager, nil)
+	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
+		Return(manager, nil)
 
 	// Execute
 	handler.GetManagerByGlobalID(c)
@@ -886,7 +937,8 @@ func TestHTTPHandler_GetManagerByGlobalID_NotFound(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "NONEXISTENT"}}
 
 	// Setup mock to return not found error
-	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "NONEXISTENT").Return(nil, errors.New("record not found"))
+	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "NONEXISTENT").
+		Return(nil, errors.New("record not found"))
 
 	// Execute
 	handler.GetManagerByGlobalID(c)
@@ -911,7 +963,8 @@ func TestHTTPHandler_GetManagerByGlobalID_InternalError(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-MANAGER-1"}}
 
 	// Setup mock to return internal error
-	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(nil, errors.New("database error"))
+	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
+		Return(nil, errors.New("database error"))
 
 	// Execute
 	handler.GetManagerByGlobalID(c)

@@ -17,7 +17,11 @@ import (
 func TestMerchantRepository_FindByID_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,
@@ -66,7 +70,11 @@ func TestMerchantRepository_FindByID_Unit(t *testing.T) {
 func TestMerchantRepository_FindByGlobalID_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,
@@ -116,7 +124,11 @@ func TestMerchantRepository_FindByGlobalID_Unit(t *testing.T) {
 func TestMerchantRepository_Create_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,
@@ -168,7 +180,11 @@ func TestMerchantRepository_Create_Unit(t *testing.T) {
 func TestMerchantRepository_Update_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,
@@ -211,7 +227,11 @@ func TestMerchantRepository_Update_Unit(t *testing.T) {
 func TestMerchantRepository_Delete_Unit(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer sqlDB.Close()
+
+	defer func() {
+		err = sqlDB.Close()
+		require.NoError(t, err)
+	}()
 
 	decorator := mysql.New(mysql.Config{
 		Conn:                      sqlDB,

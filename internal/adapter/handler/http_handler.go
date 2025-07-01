@@ -419,7 +419,9 @@ func (h *HTTPHandler) DebuggerForDev(c *gin.Context) {
 	sLogger := sLog.NewServiceLogger(cfg)
 	queueService, _ := queue.NewQueueService(cfg, logger)
 	redisManager := redis.NewRedisManager(cfg)
-	defer redisManager.Close()
+	defer func() {
+		_ = redisManager.Close()
+	}()
 	if err := redisManager.Connect(c.Request.Context()); err != nil {
 		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
 	}

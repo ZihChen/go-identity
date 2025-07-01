@@ -31,7 +31,10 @@ func (m *MockManagerRepository) FindByID(ctx context.Context, id uint64) (*entit
 	return args.Get(0).(*entity.Manager), args.Error(1)
 }
 
-func (m *MockManagerRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error) {
+func (m *MockManagerRepository) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Manager, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -59,7 +62,9 @@ func (m *MockManagerRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 // Helper functions
-func createManagerMockDependencies(t *testing.T) (*MockManagerRepository, *MockMerchantRepository, *MockEventProducer, *zap.Logger) {
+func createManagerMockDependencies(
+	t *testing.T,
+) (*MockManagerRepository, *MockMerchantRepository, *MockEventProducer, *zap.Logger) {
 	// Explicitly use imports to avoid "unused import" errors
 	var _ context.Context
 	var _ entity.Manager
@@ -131,13 +136,15 @@ func TestManagerUseCase_SyncManager_CreateNew(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Manager doesn't exist yet
-	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(nil, errors.New("record not found"))
+	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
+		Return(nil, errors.New("record not found"))
 
 	// Expect Create to be called
 	managerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Manager")).Return(nil)
 
 	// Expect PublishManagerSync to be called
-	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(nil)
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -172,7 +179,8 @@ func TestManagerUseCase_SyncManager_UpdateExisting(t *testing.T) {
 	managerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Manager")).Return(nil)
 
 	// Expect PublishManagerSync to be called
-	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(nil)
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -214,7 +222,8 @@ func TestManagerUseCase_SyncManager_MerchantNotFound(t *testing.T) {
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks - merchant not found
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(nil, errors.New("merchant not found"))
+	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
+		Return(nil, errors.New("merchant not found"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -241,7 +250,8 @@ func TestManagerUseCase_SyncManager_FindManagerError(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// FindByGlobalID returns an error other than "record not found"
-	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(nil, errors.New("database error"))
+	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
+		Return(nil, errors.New("database error"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -269,10 +279,12 @@ func TestManagerUseCase_SyncManager_CreateError(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Manager doesn't exist yet
-	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(nil, errors.New("record not found"))
+	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
+		Return(nil, errors.New("record not found"))
 
 	// Create fails
-	managerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Manager")).Return(errors.New("create error"))
+	managerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Manager")).
+		Return(errors.New("create error"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -304,7 +316,8 @@ func TestManagerUseCase_SyncManager_UpdateError(t *testing.T) {
 	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(manager, nil)
 
 	// Update fails
-	managerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Manager")).Return(errors.New("update error"))
+	managerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Manager")).
+		Return(errors.New("update error"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -332,13 +345,15 @@ func TestManagerUseCase_SyncManager_PublishError(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Manager doesn't exist yet
-	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(nil, errors.New("record not found"))
+	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
+		Return(nil, errors.New("record not found"))
 
 	// Expect Create to be called
 	managerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Manager")).Return(nil)
 
 	// PublishManagerSync fails
-	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(errors.New("publish error"))
+	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(errors.New("publish error"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -383,7 +398,8 @@ func TestManagerUseCase_GetManagerByID_NotFound(t *testing.T) {
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks - manager not found
-	managerRepo.On("FindByID", mock.Anything, uint64(999)).Return(nil, errors.New("manager not found"))
+	managerRepo.On("FindByID", mock.Anything, uint64(999)).
+		Return(nil, errors.New("manager not found"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -423,7 +439,8 @@ func TestManagerUseCase_GetManagerByGlobalID_NotFound(t *testing.T) {
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks - manager not found
-	managerRepo.On("FindByGlobalID", mock.Anything, "NONEXISTENT").Return(nil, errors.New("manager not found"))
+	managerRepo.On("FindByGlobalID", mock.Anything, "NONEXISTENT").
+		Return(nil, errors.New("manager not found"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
@@ -446,13 +463,19 @@ func TestManagerUseCase_publishManagerSyncEvent(t *testing.T) {
 	manager := createTestManager()
 
 	// Expect PublishManagerSync to be called
-	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(nil)
+	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(nil)
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Execute the private function through a test-only wrapper
-	err := useCase.(*ManagerUseCase).publishManagerSyncEvent(ctx, manager, "FATCAT-MERCHANT-1", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+	err := useCase.(*ManagerUseCase).publishManagerSyncEvent(
+		ctx,
+		manager,
+		"FATCAT-MERCHANT-1",
+		"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+	)
 
 	// Verify results
 	assert.NoError(t, err)
@@ -467,13 +490,19 @@ func TestManagerUseCase_publishManagerSyncEvent_Error(t *testing.T) {
 	manager := createTestManager()
 
 	// PublishManagerSync fails
-	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(errors.New("publish error"))
+	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(errors.New("publish error"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Execute the private function through a test-only wrapper
-	err := useCase.(*ManagerUseCase).publishManagerSyncEvent(ctx, manager, "FATCAT-MERCHANT-1", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+	err := useCase.(*ManagerUseCase).publishManagerSyncEvent(
+		ctx,
+		manager,
+		"FATCAT-MERCHANT-1",
+		"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+	)
 
 	// Verify results
 	assert.Error(t, err)
@@ -517,7 +546,8 @@ func TestManagerUseCase_SyncManager_MarshalError(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Manager doesn't exist yet
-	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(nil, errors.New("record not found"))
+	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
+		Return(nil, errors.New("record not found"))
 
 	// Expect Create to be called
 	managerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Manager")).Return(nil)
@@ -525,7 +555,8 @@ func TestManagerUseCase_SyncManager_MarshalError(t *testing.T) {
 	// Mock json.Marshal to return an error
 	// We can't directly mock json.Marshal, but we can make the PublishManagerSync method
 	// return an error that looks like it came from a marshal operation
-	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).Return(errors.New("json: unsupported type"))
+	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(errors.New("json: unsupported type"))
 
 	// Create the use case
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)

@@ -63,7 +63,9 @@ func NewAsyncLogger(cfg *config.Config, workerCount int) infraport.Logger {
 		os.Exit(1)
 	}
 
-	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(cfg.Logs.Username+":"+cfg.Logs.Password))
+	auth := "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte(cfg.Logs.Username+":"+cfg.Logs.Password),
+	)
 
 	al := &AsyncLogger{
 		Logger:     logger,
@@ -127,7 +129,9 @@ func (al *AsyncLogger) flush(logs []LogEntry) {
 		log.Println("[flush error] sending logs:", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	if resp.StatusCode >= 300 {
 		log.Println("[flush error] status:", resp.Status)
 	}
@@ -138,7 +142,11 @@ func (al *AsyncLogger) Close() {
 	al.wg.Wait()
 }
 
-func (al *AsyncLogger) DebugWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (al *AsyncLogger) DebugWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelDebug,
@@ -173,7 +181,11 @@ func (al *AsyncLogger) DebugWithContext(ctx context.Context, msg string, fields 
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) InfoWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (al *AsyncLogger) InfoWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelInfo,
@@ -208,7 +220,11 @@ func (al *AsyncLogger) InfoWithContext(ctx context.Context, msg string, fields .
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) ErrorWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (al *AsyncLogger) ErrorWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelError,
@@ -243,7 +259,11 @@ func (al *AsyncLogger) ErrorWithContext(ctx context.Context, msg string, fields 
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) WarnWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (al *AsyncLogger) WarnWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelWarn,
@@ -278,7 +298,11 @@ func (al *AsyncLogger) WarnWithContext(ctx context.Context, msg string, fields .
 	al.LogChannel <- entry
 }
 
-func (al *AsyncLogger) FatalWithContext(ctx context.Context, msg string, fields ...*entity.LoggerFiled) {
+func (al *AsyncLogger) FatalWithContext(
+	ctx context.Context,
+	msg string,
+	fields ...*entity.LoggerFiled,
+) {
 	entry := LogEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     LevelFatal,

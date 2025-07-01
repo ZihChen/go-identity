@@ -13,7 +13,9 @@ import (
 )
 
 // Setup function for tests
-func setupWorkerTest(t *testing.T) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *WorkerHandler) {
+func setupWorkerTest(
+	t *testing.T,
+) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *WorkerHandler) {
 	merchantUseCase := new(MockMerchantUseCase)
 	playerUseCase := new(MockPlayerUseCase)
 	managerUseCase := new(MockManagerUseCase)

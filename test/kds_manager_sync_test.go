@@ -48,8 +48,10 @@ func TestKDSManagerSyncEvent(t *testing.T) {
 	t.Logf("Sending manager sync event to KDS: %s", managerEvent.ID)
 	t.Logf("Global merchant ID: %s",
 		managerEvent.Data.(map[string]interface{})["global_merchant_id"])
-	t.Logf("Global manager ID: %s",
-		managerEvent.Data.(map[string]interface{})["manager"].(map[string]interface{})["global_manager_id"])
+	t.Logf(
+		"Global manager ID: %s",
+		managerEvent.Data.(map[string]interface{})["manager"].(map[string]interface{})["global_manager_id"],
+	)
 
 	// 發送事件到KDS
 	partitionKey := uuid.New().String()

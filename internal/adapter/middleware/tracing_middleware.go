@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -44,6 +45,6 @@ func TracingMiddleware() gin.HandlerFunc {
 }
 
 func withTraceContext(ctx context.Context) context.Context {
-	c := context.WithValue(ctx, "trace_id", tracing.GetTraceID(ctx))
-	return context.WithValue(c, "span_id", tracing.GetSpanID(c))
+	c := context.WithValue(ctx, consts.TraceIDKey, tracing.GetTraceID(ctx))
+	return context.WithValue(c, consts.SpanIDKey, tracing.GetSpanID(c))
 }
