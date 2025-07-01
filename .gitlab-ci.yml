@@ -27,7 +27,16 @@ build:
     - docker:dind
   before_script:
     # 安裝 AWS CLI
-    - apk add --no-cache aws-cli
+    - apk add --no-cache aws-cli openssh-client
+
+    # 設置 SSH
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+
     # 設置 Docker Buildx
     - docker buildx create --use
     # 登入 AWS ECR
