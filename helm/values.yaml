@@ -1,0 +1,19 @@
+# Global settings
+global:
+  environment: production
+
+# Application settings
+app:
+  name: fatidentitycat
+  appName: fatidentitycat
+  image:
+    repository: REDACTED_AWS_ACCOUNT_DEMO.dkr.ecr.ap-northeast-1.amazonaws.com/quantumcat/fatidentitycat
+    tag: latest
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 64Mi
