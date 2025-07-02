@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fatidentitycat.fullname" . }}
+  labels:
+    {{- include "fatidentitycat.labels" . | nindent 4 }}
+data:
+  # 應用程序設置
+  APP_NAME: fat-identity-cat
+  APP_ENV: development
+  APP_PORT: "8080"
+  APP_DEBUG: "true"
+
+  # 資料庫設置
+  DB_HOST: REDACTED_DB_HOST
+  DB_PORT: "3306"
+  DB_USER: REDACTED_DB_USER_PROD
+  # DB_PASSWORD: <secret>
+  DB_NAME: ms_fatidentitycat
+  DB_MAX_IDLE: "10"
+  DB_MAX_OPEN: "50"
+  DB_TIMEOUT: 5s
+
+  # Redis設置
+  REDIS_DOMAIN: qcat-bonuscat-dev.zlvgen.0001.apne1.cache.amazonaws.com
+  REDIS_PORT: "6379"
+  REDIS_DB: "9"
+
+  # AWS KDS設置
+  AWS_REGION: ap-northeast-1
+
+  # Producer 發送事件用
+  KINESIS_STREAM_NAME: qcat-bonuscat-dev-kds-stream
+  KINESIS_STREAM_ARN: arn:aws:kinesis:ap-northeast-1:REDACTED_AWS_ACCOUNT_DEMO:stream/qcat-bonuscat-dev-kds-stream
+  DYNAMODB_TABLE: fat-identity-cat
+  DYNAMODB_PARTITION_KEY: partition_key
+
+  # OpenObserve設置
+  OPENOBSERVE_TRACE_API_ENDPOINT: REDACTED_OO_HOST
+  # OPENOBSERVE_TRACE_API_KEY: <secret>
+  OPENOBSERVE_TRACE_STREAM_NAME: fat_identity_cat
+
+  # OpenObserve logs設置
+  OPENOBSERVE_LOGS_API_ENDPOINT: https://REDACTED_OO_HOST/api/jvd-dev/default/_json
+  OPENOBSERVE_LOGS_USERNAME: REDACTED_OO_USERNAME
+  # OPENOBSERVE_LOGS_PASSWORD: <secret>
+
+  # KDS Events
+  EVENT_MERCHANT_SYNC: tw.jvd.fatcat.merchant.sync.v1
+  EVENT_PLAYER_SYNC: tw.jvd.fatcat.player.sync.v1
+  EVENT_MANAGER_SYNC: tw.jvd.fatcat.manager.sync.v1
+  EVENT_IDENTITY_MERCHANT_SYNC: tw.jvd.fatidentitycat.merchant.sync.v1
+  EVENT_IDENTITY_PLAYER_SYNC: tw.jvd.fatidentitycat.player.sync.v1
+  EVENT_IDENTITY_MANAGER_SYNC: tw.jvd.fatidentitycat.manager.sync.v1
