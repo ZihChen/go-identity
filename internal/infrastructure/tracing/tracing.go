@@ -70,11 +70,12 @@ func (t *Tracer) Shutdown(ctx context.Context) error {
 
 // 創建OTLP導出器
 func createExporter(ctx context.Context, cfg *config.Config) (*otlptrace.Exporter, error) {
+	otlptracehttp.WithEndpointURL(cfg.Tracing.Endpoint)
 	opts := []otlptracehttp.Option{
-		otlptracehttp.WithEndpoint(cfg.Tracing.Endpoint),
-		otlptracehttp.WithURLPath("/api/jvd-dev/traces"),
+		otlptracehttp.WithEndpointURL(cfg.Tracing.Endpoint),
 		otlptracehttp.WithHeaders(map[string]string{
 			"Authorization": cfg.Tracing.APIKey,
+			"stream-name":   cfg.Tracing.StreamName,
 		}),
 		otlptracehttp.WithTimeout(30 * time.Second), // 增加超時時間
 		otlptracehttp.WithRetry(otlptracehttp.RetryConfig{
