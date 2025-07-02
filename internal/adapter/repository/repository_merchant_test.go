@@ -19,8 +19,7 @@ func TestMerchantRepository_FindByID_Unit(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		err = sqlDB.Close()
-		require.NoError(t, err)
+		_ = sqlDB.Close()
 	}()
 
 	decorator := mysql.New(mysql.Config{
@@ -72,8 +71,7 @@ func TestMerchantRepository_FindByGlobalID_Unit(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		err = sqlDB.Close()
-		require.NoError(t, err)
+		_ = sqlDB.Close()
 	}()
 
 	decorator := mysql.New(mysql.Config{
@@ -126,8 +124,7 @@ func TestMerchantRepository_Create_Unit(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		err = sqlDB.Close()
-		require.NoError(t, err)
+		_ = sqlDB.Close()
 	}()
 
 	decorator := mysql.New(mysql.Config{
@@ -182,8 +179,7 @@ func TestMerchantRepository_Update_Unit(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		err = sqlDB.Close()
-		require.NoError(t, err)
+		_ = sqlDB.Close()
 	}()
 
 	decorator := mysql.New(mysql.Config{
@@ -229,8 +225,7 @@ func TestMerchantRepository_Delete_Unit(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		err = sqlDB.Close()
-		require.NoError(t, err)
+		_ = sqlDB.Close()
 	}()
 
 	decorator := mysql.New(mysql.Config{

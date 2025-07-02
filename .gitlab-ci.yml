@@ -1,7 +1,6 @@
 stages:
   - lint
   - build
-  - push
 
 variables:
   ECR_REPO: "851725380821.dkr.ecr.ap-northeast-1.amazonaws.com/quantumcat"
