@@ -30,7 +30,7 @@ build:
     - aws ecr get-authorization-token  # 檢查認證權限
     - docker buildx create --use       # 設置 Docker Buildx
     # 登入 AWS ECR
-    - ecr_credentials --region-id ap-northeast-1 --assule-role-arn arn:aws:iam::REDACTED_AWS_ACCOUNT_DEMO:role/FatcatInternalRunnerAssumeRole | docker login --username AWS --password-stdin ${ECR_REPO}
+    - ecr_credentials --region-id ${AWS_REGION} --assule-role-arn arn:aws:iam::REDACTED_AWS_ACCOUNT_DEMO:role/FatcatInternalRunnerAssumeRole | docker login --username AWS --password-stdin ${ECR_REPO}
   script:
     - docker buildx build
       --push
