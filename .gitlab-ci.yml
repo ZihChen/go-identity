@@ -1,5 +1,6 @@
 stages:
   - lint
+  - test
   - build
 
 variables:
@@ -16,7 +17,20 @@ lint:
     - main
     - dev
     - merge_requests
-
+# 單元測試
+unit-tests:
+  stage: test
+  image: golang:1.24
+  script:
+    - go test -v ./internal/... || exit 1
+    - go test -coverprofile=coverage.out ./internal/...
+      - |
+      coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+      echo "總覆蓋率：$coverage%"
+  only:
+    - main
+    - dev
+    - merge_requests
 # 建構 Docker 映像
 build:
   stage: build
