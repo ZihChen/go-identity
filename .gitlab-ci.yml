@@ -26,9 +26,9 @@ build:
   before_script:
     - apk add --no-cache aws-cli       # 安裝 AWS CLI
     - aws sts get-caller-identity      # 檢查當前身份
-    - aws ecr describe-repositories    # 檢查倉庫訪問權限
-    - aws ecr get-authorization-token  # 檢查認證權限
-    - docker buildx create --use       # 設置 Docker Buildx
+    # - aws ecr describe-repositories    # 檢查倉庫訪問權限
+    # - aws ecr get-authorization-token  # 檢查認證權限
+    # - docker buildx create --use       # 設置 Docker Buildx
     # 登入 AWS ECR
     - ecr_credentials --region-id ${AWS_REGION} --assule-role-arn arn:aws:iam::REDACTED_AWS_ACCOUNT_DEMO:role/FatcatInternalRunnerAssumeRole | docker login --username AWS --password-stdin ${ECR_REPO}
   script:
