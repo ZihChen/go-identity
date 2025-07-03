@@ -27,12 +27,22 @@ lint:
 unit-tests:
   stage: test
   image: golang:1.24
+  before_script:
+    - df -h
+    - go clean -cache               # 清理 Go 構建緩存
+    - go clean -testcache           # 清理測試緩存
+    - rm -rf /root/.cache/go-build  # 清理 Go 構建緩存目錄
+    - df -h
   script:
     - go test -v ./internal/... || exit 1
-#    - go test -coverprofile=coverage.out ./internal/...
-#      - |
-#      coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-#      echo "總覆蓋率：$coverage%"
+    - go test -coverprofile=coverage.out ./internal/...
+      - |
+      coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+      echo "test coverage：$coverage%"
+  after_script:
+    - go clean -cache
+    - go clean -testcache
+    - rm -rf /root/.cache/go-build
   only:
     - main
     - dev
