@@ -3,6 +3,16 @@ stages:
   - test
   - build
 
+# 定義一個通用的清理腳本
+.cleanup_script: &cleanup_script |
+  docker system prune -af
+  rm -rf /tmp/* || true
+  rm -rf /var/lib/apt/lists/*
+  rm -rf /root/.cache
+  rm -rf $(go env GOCACHE) || true
+  go clean -cache || true
+  go clean -testcache || true
+
 variables:
   AWS_REGION: "ap-northeast-1"
   ECR_REGISTRY: "REDACTED_AWS_ACCOUNT_DEMO.dkr.ecr.${AWS_REGION}.amazonaws.com"
@@ -15,7 +25,7 @@ lint:
     - df -h
     - apt-get update
     - apt-get install -y docker.io
-    - docker system prune -af
+    - *cleanup_script
     - df -h
   script:
     - golangci-lint run
@@ -29,20 +39,16 @@ unit-tests:
   image: golang:1.24
   before_script:
     - df -h
-    - go clean -cache               # 清理 Go 構建緩存
-    - go clean -testcache           # 清理測試緩存
-    - rm -rf /root/.cache/go-build  # 清理 Go 構建緩存目錄
+    - apt-get update
+    - apt-get install -y docker.io
+    - *cleanup_script
     - df -h
   script:
     - go test -v ./internal/... || exit 1
-    - go test -coverprofile=coverage.out ./internal/...
-      - |
-      coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-      echo "test coverage：$coverage%"
-  after_script:
-    - go clean -cache
-    - go clean -testcache
-    - rm -rf /root/.cache/go-build
+#    - go test -coverprofile=coverage.out ./internal/...
+#      - |
+#      coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+#      echo "test coverage：$coverage%"
   only:
     - main
     - dev
@@ -83,7 +89,6 @@ build:
   only:
     - main
     - dev
-
 
 
 
