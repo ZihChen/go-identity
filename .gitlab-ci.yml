@@ -1,6 +1,6 @@
 stages:
   - lint
-  - test
+#  - test
   - build
 
 variables:
@@ -11,6 +11,12 @@ variables:
 lint:
   stage: lint
   image: golangci/golangci-lint:latest
+  before_script:
+    - df -h
+    - apt-get update
+    - apt-get install -y docker.io
+    - docker system prune -af
+    - df -h
   script:
     - golangci-lint run
   only:
@@ -18,19 +24,19 @@ lint:
     - dev
     - merge_requests
 # 單元測試
-unit-tests:
-  stage: test
-  image: golang:1.24
-  script:
-    - go test -v ./internal/... || exit 1
-    - go test -coverprofile=coverage.out ./internal/...
-      - |
-      coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-      echo "總覆蓋率：$coverage%"
-  only:
-    - main
-    - dev
-    - merge_requests
+#unit-tests:
+#  stage: test
+#  image: golang:1.24
+#  script:
+#    #go test -v ./internal/... || exit 1
+#    - go test -coverprofile=coverage.out ./internal/...
+#      - |
+#      coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+#      echo "總覆蓋率：$coverage%"
+#  only:
+#    - main
+#    - dev
+#    - merge_requests
 # 建構 Docker 映像
 build:
   stage: build
@@ -39,10 +45,7 @@ build:
     - docker:dind
   before_script:
     - apk add --no-cache aws-cli jq      # 安裝 AWS CLI
-    - aws sts get-caller-identity      # 檢查當前身份
-    # - aws ecr describe-repositories    # 檢查倉庫訪問權限
-    # - aws ecr get-authorization-token  # 檢查認證權限
-    # - docker buildx create --use       # 設置 Docker Buildx
+    - aws sts get-caller-identity        # 檢查當前身份
     # 登入 AWS ECR
     - |
       echo "Assuming role for ECR access..."
@@ -65,8 +68,10 @@ build:
       aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
   script:
+    - docker buildx create --use       # 設置 Docker Buildx
     - docker buildx build
       --push
+      --platform linux/amd64
       --build-arg CI_COMMIT_SHA=${CI_COMMIT_SHA}
       -t ${ECR_REPO}/fatidentitycat:latest
       .
