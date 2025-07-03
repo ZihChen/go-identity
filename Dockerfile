@@ -1,4 +1,9 @@
-FROM golang:1.23-alpine AS builder
+FROM --platform=${BUILDPLATFORM} golang:1.23-alpine AS builder
+
+# 添加構建參數
+ARG TARGETOS
+ARG TARGETARCH
+
 
 WORKDIR /app
 
@@ -13,13 +18,16 @@ COPY . .
 
 # 構建應用程序
 ARG CI_COMMIT_SHA
-RUN CGO_ENABLED=0 GOOS=linux go build -gcflags="all=-N -l" -ldflags "-X main.Version=$CI_COMMIT_SHA" -o fat-identity-cat
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -gcflags="all=-N -l"  \
+    -ldflags "-X main.Version=$CI_COMMIT_SHA"  \
+    -o fat-identity-cat
 
 # Install Delve debugger 並指定安裝位置
 RUN GOBIN=/usr/local/bin go install github.com/go-delve/delve/cmd/dlv@latest
 
 # 創建最終運行時映像
-FROM alpine:latest
+FROM --platform=${TARGETPLATFORM} alpine:latest
 
 # 安裝必要的運行時依賴
 RUN apk add --no-cache \
