@@ -1,5 +1,5 @@
 stages:
-#  - lint
+  - lint
 #  - test
   - build
 
@@ -8,21 +8,21 @@ variables:
   ECR_REGISTRY: "REDACTED_AWS_ACCOUNT_DEMO.dkr.ecr.${AWS_REGION}.amazonaws.com"
   ECR_REPO: "${ECR_REGISTRY}/quantumcat"
 # Golang-lint 檢查
-#lint:
-#  stage: lint
-#  image: golangci/golangci-lint:latest
-#  before_script:
-#    - df -h
-#    - apt-get update
-#    - apt-get install -y docker.io
-#    - docker system prune -af
-#    - df -h
-#  script:
-#    - golangci-lint run
-#  only:
-#    - main
-#    - dev
-#    - merge_requests
+lint:
+  stage: lint
+  image: golangci/golangci-lint:latest
+  before_script:
+    - df -h
+    - apt-get update
+    - apt-get install -y docker.io
+    - docker system prune -af
+    - df -h
+  script:
+    - golangci-lint run
+  only:
+    - main
+    - dev
+    - merge_requests
 # 單元測試
 #unit-tests:
 #  stage: test

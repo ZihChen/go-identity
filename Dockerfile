@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 RUN GOBIN=/usr/local/bin go install github.com/go-delve/delve/cmd/dlv@latest
 
 # 創建最終運行時映像
-FROM --platform=${TARGETPLATFORM} alpine:latest
+FROM alpine:latest
 
 # 安裝必要的運行時依賴
 RUN apk add --no-cache \
