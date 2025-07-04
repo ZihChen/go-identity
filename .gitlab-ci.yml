@@ -109,6 +109,7 @@ build:
       echo "Git tag from command: ${GIT_TAG}"
 
       
+      
       # 構建基本標籤列表
       TAGS="-t ${ECR_REPO}/fatidentitycat:latest -t ${ECR_REPO}/fatidentitycat:${CI_COMMIT_SHA}"
 
