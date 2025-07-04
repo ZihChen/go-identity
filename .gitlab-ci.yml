@@ -96,11 +96,30 @@ build:
       aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
   script:
-    - docker buildx create --use       # 設置 Docker Buildx
-    - docker buildx build --push --platform linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 --build-arg CI_COMMIT_SHA=${CI_COMMIT_SHA} -t ${ECR_REPO}/fatidentitycat:latest .
+    - |
+      # 設置 Docker Buildx
+      docker buildx create --use
+
+      # 構建基本標籤列表
+      TAGS="-t ${ECR_REPO}/fatidentitycat:latest -t ${ECR_REPO}/fatidentitycat:${CI_COMMIT_SHA}"
+
+      # 如果存在 CI_COMMIT_TAG，添加版本標籤
+      if [ -n "${CI_COMMIT_TAG}" ]; then
+        echo "檢測到 Git tag: ${CI_COMMIT_TAG}"
+        TAGS="$TAGS -t ${ECR_REPO}/fatidentitycat:${CI_COMMIT_TAG}"
+      fi
+
+      # 執行構建和推送
+      docker buildx build --push \
+        --platform linux/amd64 \
+        --build-arg TARGETOS=linux \
+        --build-arg TARGETARCH=amd64 \
+        --build-arg CI_COMMIT_SHA=${CI_COMMIT_SHA} \
+        ${TAGS} \
+        .
+
   only:
-    - main
-    - dev
+    - ci/winston_ci_build
 
 
 
