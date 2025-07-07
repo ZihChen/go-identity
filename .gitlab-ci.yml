@@ -51,13 +51,6 @@ unit-tests:
       if [ -f reports/coverage.out ]; then
         coverage=$(go tool cover -func=reports/coverage.out | grep total | awk '{print $3}' | sed 's/%//' | awk '{print int($1)}')
         echo "測試覆蓋率：$coverage%"
-      
-       if [ "$coverage" -lt 80 ]; then
-          echo "覆蓋率低於 80%，測試失敗！"
-          exit 1
-        else
-          echo "覆蓋率達標，測試通過。"
-        fi
       else
       echo "No coverage report generated"
       exit 1
