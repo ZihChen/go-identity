@@ -30,7 +30,6 @@ lint:
   script:
     - golangci-lint run
   only:
-    - main
     - dev
     - merge_requests
 # 單元測試
@@ -64,7 +63,7 @@ unit-tests:
       exit 1
       fi
   only:
-    - ci/winston_test_2
+    - dev
 # 建構 Docker 映像
 build:
   stage: build
@@ -96,10 +95,42 @@ build:
       aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
   script:
-    - docker buildx create --use       # 設置 Docker Buildx
-    - docker buildx build --push --platform linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 --build-arg CI_COMMIT_SHA=${CI_COMMIT_SHA} -t ${ECR_REPO}/fatidentitycat:latest .
+    - |
+      # 設置 Docker Buildx
+      docker buildx create --use
+
+      # 輸出當前的 Git 信息，用於調試
+      echo "Current commit SHA: ${CI_COMMIT_SHA}"
+      echo "Current tag: ${CI_COMMIT_TAG}"
+      
+      # 檢查是否有 tag（使用 git 命令作為備選方案）
+      GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+      echo "Git tag from command: ${GIT_TAG}"
+
+      
+      
+      # 構建基本標籤列表
+      TAGS="-t ${ECR_REPO}/fatidentitycat:latest -t ${ECR_REPO}/fatidentitycat:${CI_COMMIT_SHA}"
+
+      # 優先使用 CI_COMMIT_TAG，如果沒有則使用 git command 獲取的 tag
+      if [ -n "${CI_COMMIT_TAG}" ]; then
+        echo "使用 CI_COMMIT_TAG: ${CI_COMMIT_TAG}"
+        TAGS="$TAGS -t ${ECR_REPO}/fatidentitycat:${CI_COMMIT_TAG}"
+      elif [ -n "${GIT_TAG}" ]; then
+        echo "使用 Git command tag: ${GIT_TAG}"
+        TAGS="$TAGS -t ${ECR_REPO}/fatidentitycat:${GIT_TAG}"
+      fi
+
+
+      # 執行構建和推送
+      docker buildx build --push \
+        --platform linux/amd64 \
+        --build-arg TARGETOS=linux \
+        --build-arg TARGETARCH=amd64 \
+        --build-arg CI_COMMIT_SHA=${CI_COMMIT_SHA} \
+        ${TAGS} \
+        .
   only:
-    - main
     - dev
 
 
