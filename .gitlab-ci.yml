@@ -44,12 +44,10 @@ unit-tests:
     - df -h
   script:
     - go test -v ./internal/... || exit 1
-    - mkdir -p reports
-    - go test -v ./internal/... || exit 1
-    - go test -coverprofile=reports/coverage.out ./internal/...
+    - go test -coverprofile=coverage.out ./internal/...
     - |
-      if [ -f reports/coverage.out ]; then
-        coverage=$(go tool cover -func=reports/coverage.out | grep total | awk '{print $3}' | sed 's/%//' | awk '{print int($1)}')
+      if [ -f coverage.out ]; then
+        coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//' | awk '{print int($1)}')
         echo "測試覆蓋率：$coverage%"
       else
       echo "No coverage report generated"

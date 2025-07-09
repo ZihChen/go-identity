@@ -215,8 +215,11 @@ fat_identity_cat/
 ├── scripts/                # 腳本
 ├── test/                   # 集成測試
 ├── .env                    # 環境變量
+├── .gitlab-ci.yml          # Gitlab CI 配置
+├── .golangci.yml           # golangci:程式碼規範工具配置
+├── atlas.hcl               # Altas:Migration 工具配置
 ├── docker-compose.yml      # Docker Compose 配置
-├── Dockerfile              # Web 服務 Dockerfile
+├── Dockerfile
 └── README.md               # 項目文檔
 ```
 
@@ -230,7 +233,7 @@ fat_identity_cat/
 
 該項目遵循清晰的架構分層：
 
-- **領域層**：包含業務邏輯和實體
-- **用例層**：實現業務用例
-- **適配器層**：連接用例和基礎設施
-- **基礎設施層**：提供技術實現
+- **領域層(Domain)**：包含業務邏輯和實體
+- **用例層(Usecase)**：實現業務用例
+- **適配器層(Adaptor)**：連接用例和基礎設施
+- **基礎設施層(Infra)**：提供技術實現

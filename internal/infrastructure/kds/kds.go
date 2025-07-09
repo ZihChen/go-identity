@@ -421,6 +421,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 								record.Data,
 							)
 						default:
+							// TODO 新增checkpoint marked
 							k.sLogger.WarnWithContext(
 								eventCtx,
 								"[Warn][KDS][ConsumeAllEvents] Unknown event type, skipping",
