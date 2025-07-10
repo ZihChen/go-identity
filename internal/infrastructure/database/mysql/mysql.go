@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -14,11 +15,28 @@ import (
 
 type Database struct {
 	dbInstance *gorm.DB
+	cfg        *config.Config
+	logger     infraport.Logger
+	isClose    chan struct{}
 }
 
-func NewDatabase(cfg *config.Config) (*Database, error) {
+func NewDatabase(cfg *config.Config, logger infraport.Logger) (*Database, error) {
+	db := &Database{
+		cfg:    cfg,
+		logger: logger,
+	}
+	if err := db.connect(); err != nil {
+		return nil, err
+	}
+
+	go db.startHealthChecker()
+
+	return db, nil
+}
+
+func (d *Database) connect() error {
 	logLevel := logger.Silent
-	if cfg.App.Debug {
+	if d.cfg.App.Debug {
 		logLevel = logger.Info
 	}
 
@@ -28,24 +46,32 @@ func NewDatabase(cfg *config.Config) (*Database, error) {
 		Logger:                 logger.Default.LogMode(logLevel),
 	}
 
-	db, err := gorm.Open(mysql.Open(buildDSN(cfg)), gormCfg)
+	dsn := buildDSN(d.cfg)
+	d.logger.InfoLog(fmt.Sprintf("Connecting to database DSN:%s", dsn))
+
+	db, err := gorm.Open(mysql.Open(dsn), gormCfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
+
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database connection pool: %w", err)
+		return fmt.Errorf("failed to get database connection pool: %w", err)
 	}
 
-	// 連線池設定
-	sqlDB.SetMaxIdleConns(100)                 // 限制最大開啟的連線數
-	sqlDB.SetMaxOpenConns(500)                 // 限制最大閒置連線數
-	sqlDB.SetConnMaxLifetime(30 * time.Second) // 空閒連線 timeout 時間
+	sqlDB.SetMaxIdleConns(50)           // 限制最大開啟的連線數
+	sqlDB.SetMaxOpenConns(500)          // 限制最大閒置連線數
+	sqlDB.SetConnMaxLifetime(time.Hour) // 連接最大生命週期
+	sqlDB.SetConnMaxIdleTime(time.Hour) // 空閒連接最大生命週期
+	d.dbInstance = db
+	return nil
 
-	return &Database{dbInstance: db}, nil
 }
 
 func (d *Database) Close() error {
+	// 關閉Health Checker
+	close(d.isClose)
+
 	if d.dbInstance != nil {
 		sqlDB, err := d.dbInstance.DB()
 		if err != nil {
@@ -84,4 +110,29 @@ func buildDSN(cfg *config.Config) string {
 		cfg.Database.Port,
 		cfg.Database.DBName,
 	)
+}
+
+func (d *Database) startHealthChecker() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := d.Ping(); err != nil {
+				d.logger.ErrorLog(
+					"Failed to ping database, retrying to reconnect...",
+					d.logger.Error("err", err),
+				)
+				// 嘗試重新連線
+				if err = d.connect(); err != nil {
+					d.logger.ErrorLog("Failed to reconnect to database", d.logger.Error("err", err))
+				}
+			} else {
+				d.logger.InfoLog("Database connection is up!")
+			}
+		case d.isClose <- struct{}{}:
+			return
+		}
+	}
 }

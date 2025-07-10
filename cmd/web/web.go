@@ -73,7 +73,7 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	defer rootSpan.End()
 
 	// 初始化DB連線
-	db, err := mysql.NewDatabase(cfg)
+	db, err := mysql.NewDatabase(cfg, sLogger)
 	if err != nil {
 		sLogger.FatalWithContext(
 			rootCtx,

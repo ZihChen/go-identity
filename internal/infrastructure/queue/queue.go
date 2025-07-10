@@ -167,7 +167,11 @@ func WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
 		ctxWithTrace := tracing.ExtractTraceContext(ctx, data)
 
 		// 創建處理任務的 span
-		ctxWithTrace, span := tracing.TraceRedisToWorker(ctxWithTrace, task.Type(), task.ResultWriter().TaskID())
+		ctxWithTrace, span := tracing.TraceRedisToWorker(
+			ctxWithTrace,
+			task.Type(),
+			task.ResultWriter().TaskID(),
+		)
 		defer span.End()
 
 		// 記錄任務開始處理
@@ -283,11 +287,13 @@ func NewWorkerServer(cfg *config.Config, zapLogger *zap.Logger) (*asynq.Server, 
 				}
 				return delay
 			},
-			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, task *asynq.Task, err error) {
-				zapLogger.Error("Task processing error",
-					zap.String("type", task.Type()),
-					zap.Error(err))
-			}),
+			ErrorHandler: asynq.ErrorHandlerFunc(
+				func(ctx context.Context, task *asynq.Task, err error) {
+					zapLogger.Error("Task processing error",
+						zap.String("type", task.Type()),
+						zap.Error(err))
+				},
+			),
 		},
 	)
 
