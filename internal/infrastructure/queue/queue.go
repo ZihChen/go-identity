@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
@@ -160,18 +159,15 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 // WrapHandlerWithTracing 包裝處理器以添加追蹤功能
 func WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
 	return asynq.HandlerFunc(func(ctx context.Context, task *asynq.Task) error {
+		if task == nil || len(task.Payload()) == 0 || task.Type() == "" {
+			return asynq.SkipRetry
+		}
 		// 從任務中提取 traceparent
 		data := task.Payload()
 		ctxWithTrace := tracing.ExtractTraceContext(ctx, data)
 
 		// 創建處理任務的 span
-		var taskID string
-		if w := task.ResultWriter(); w != nil {
-			taskID = w.TaskID()
-		} else {
-			taskID = fmt.Sprintf("no-writer-%s", uuid.New().String()) // 保證唯一性
-		}
-		ctxWithTrace, span := tracing.TraceRedisToWorker(ctxWithTrace, task.Type(), taskID)
+		ctxWithTrace, span := tracing.TraceRedisToWorker(ctxWithTrace, task.Type(), task.ResultWriter().TaskID())
 		defer span.End()
 
 		// 記錄任務開始處理
@@ -258,20 +254,40 @@ func NewWorkerServer(cfg *config.Config, zapLogger *zap.Logger) (*asynq.Server, 
 			Queues:      queues,
 			Logger:      asynqLogger,
 			RetryDelayFunc: func(n int, err error, task *asynq.Task) time.Duration {
-				// 增加指標記錄重試
-				var taskID string
-				if w := task.ResultWriter(); w != nil {
-					taskID = w.TaskID()
-				} else {
-					taskID = fmt.Sprintf("no-writer-%s", uuid.New().String()) // 保證唯一性
-				}
-				zapLogger.Info("Task retry scheduled",
-					zap.String("task_id", taskID),
-					zap.String("task_type", task.Type()),
+				defer func() {
+					if r := recover(); r != nil {
+						zapLogger.Error("Panic in RetryDelayFunc",
+							zap.Any("recover", r),
+							zap.Int("retry_count", n))
+					}
+				}()
+
+				logFields := []zap.Field{
 					zap.Int("retry_count", n),
-					zap.Error(err))
-				return time.Duration(n*n) * time.Second // 指數退避策略
+					zap.Error(err),
+				}
+
+				if task != nil {
+					logFields = append(logFields,
+						zap.String("task_type", task.Type()),
+						zap.String("payload", string(task.Payload())))
+				}
+
+				zapLogger.Info("Task retry scheduled", logFields...)
+
+				// 使用指數退避策略，但設置上限
+				delay := time.Duration(n*n) * time.Second
+				maxDelay := 5 * time.Minute
+				if delay > maxDelay {
+					delay = maxDelay
+				}
+				return delay
 			},
+			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, task *asynq.Task, err error) {
+				zapLogger.Error("Task processing error",
+					zap.String("type", task.Type()),
+					zap.Error(err))
+			}),
 		},
 	)
 

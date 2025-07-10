@@ -70,9 +70,6 @@ func (h *WorkerHandler) RegisterHandlers(mux *asynq.ServeMux) {
 
 // HandleMerchantSync 處理商戶同步任務
 func (h *WorkerHandler) HandleMerchantSync(ctx context.Context, task *asynq.Task) error {
-	if task == nil {
-		return fmt.Errorf("[HandleMerchantSync]Task is empty")
-	}
 	taskID := getTaskID(task)
 
 	// 創建處理任務的追蹤
@@ -116,9 +113,6 @@ func (h *WorkerHandler) HandleMerchantSync(ctx context.Context, task *asynq.Task
 
 // HandlePlayerSync 處理玩家同步任務
 func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) error {
-	if task == nil {
-		return fmt.Errorf("[HandlePlayerSync]Task is empty")
-	}
 	taskID := getTaskID(task)
 
 	// 創建處理任務的追蹤
@@ -162,9 +156,6 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 
 // HandleManagerSync 處理管理員同步任務
 func (h *WorkerHandler) HandleManagerSync(ctx context.Context, task *asynq.Task) error {
-	if task == nil {
-		return fmt.Errorf("[HandleManagerSync]Task is empty")
-	}
 	taskID := getTaskID(task)
 
 	// 創建處理任務的追蹤
