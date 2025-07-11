@@ -15,15 +15,14 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
-	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 type resultWriterCtxKey struct{}
@@ -58,16 +57,13 @@ func processTaskDirectly(
 
 func setupWorkerComponents(
 	t *testing.T,
-) (*di.WorkerComponents, *config.Config, *zap.Logger, func()) {
+) (*di.WorkerComponents, *config.Config, infraport.Logger, func()) {
 	// 讀取配置
 	cfg, err := config.LoadConfig()
 	require.NoError(t, err, "Should load config without error")
 
-	// 建立 Logger
-	logger, _ := zap.NewDevelopment()
-
 	// 建立 ServiceLogger
-	serviceLog := sLog.NewServiceLogger(cfg)
+	logger := new(MockLogger)
 
 	// 建立 Redis Manager
 	redisManager := redis.NewRedisManager(cfg)
@@ -82,7 +78,6 @@ func setupWorkerComponents(
 	workerComponents, err := di.InitializeWorkerComponents(
 		cfg,
 		logger,
-		serviceLog,
 		redisManager,
 		db.DB,
 	)

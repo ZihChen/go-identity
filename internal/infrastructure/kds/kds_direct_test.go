@@ -10,7 +10,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zaptest"
 )
 
 // TestKDSServicePublishMethods tests the publish methods
@@ -43,8 +42,7 @@ func TestKDSServicePublishMethods(t *testing.T) {
 					ManagerSync:  "manager.sync",
 				},
 			},
-			logger:  zaptest.NewLogger(t),
-			sLogger: new(MockLogger),
+			logger: new(MockLogger),
 		},
 	}
 
@@ -140,7 +138,7 @@ func TestKDSServicePublishMethods(t *testing.T) {
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.sLogger.(*MockLogger)
+	mockLogger := testService.logger.(*MockLogger)
 
 	// Test cases
 	tests := []struct {
@@ -207,13 +205,12 @@ func TestKDSServiceSendMethod(t *testing.T) {
 	testService := &TestKDSService{
 		KDSService: KDSService{
 			streamName: "test-stream",
-			logger:     zaptest.NewLogger(t),
-			sLogger:    new(MockLogger),
+			logger:     new(MockLogger),
 		},
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.sLogger.(*MockLogger)
+	mockLogger := testService.logger.(*MockLogger)
 
 	// Create test data
 	ctx := context.Background()
@@ -255,13 +252,12 @@ func TestKDSServiceEventProcessing(t *testing.T) {
 	// Create a test service
 	testService := &TestKDSService{
 		KDSService: KDSService{
-			logger:  zaptest.NewLogger(t),
-			sLogger: new(MockLogger),
+			logger: new(MockLogger),
 		},
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.sLogger.(*MockLogger)
+	mockLogger := testService.logger.(*MockLogger)
 
 	// Create test data
 	ctx := context.Background()

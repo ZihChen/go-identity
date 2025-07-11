@@ -10,7 +10,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
-	"go.uber.org/zap"
 )
 
 func TestOpenObserveLogging(t *testing.T) {
@@ -29,15 +28,15 @@ func TestOpenObserveLogging(t *testing.T) {
 	logger := cmd.GetLogger()
 	if logger == nil {
 		// 如果 cmd.GetLogger() 返回 nil，則手動初始化
-		logger, _ = zap.NewProduction()
+		logger = new(MockLogger)
 	}
 
 	// 測試日誌輸出
 	testID := time.Now().Format("20060102150405")
-	logger.Info("Test log to OpenObserve",
-		zap.String("test_id", testID),
-		zap.String("component", "test"),
-		zap.String("message", "This is a test log entry for OpenObserve"),
+	logger.InfoLog("Test log to OpenObserve",
+		logger.String("test_id", testID),
+		logger.String("component", "test"),
+		logger.String("message", "This is a test log entry for OpenObserve"),
 	)
 
 	// 給日誌一些時間發送到 OpenObserve

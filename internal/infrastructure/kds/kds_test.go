@@ -14,7 +14,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.uber.org/zap/zaptest"
 )
 
 // TestKDSServiceImplementsInterfaces tests that KDSService implements the required interfaces
@@ -262,11 +261,8 @@ func TestNewKDSService(t *testing.T) {
 	mockLogger.On("InfoWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 	mockLogger.On("ErrorWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 
-	// Create a test logger
-	logger := zaptest.NewLogger(t)
-
 	// Call the function being tested
-	service, err := NewKDSService(cfg, mockQueueService, mockRedisClient, logger, mockLogger)
+	service, err := NewKDSService(cfg, mockQueueService, mockRedisClient, mockLogger)
 
 	// Check the results
 	assert.NoError(t, err)
@@ -448,12 +444,11 @@ func TestConsumeAllEvents(t *testing.T) {
 			},
 		},
 		queueService: new(MockQueueService),
-		logger:       zaptest.NewLogger(t),
-		sLogger:      new(MockLogger),
+		logger:       new(MockLogger),
 	}
 
 	// Setup mock expectations for the logger
-	mockLogger := service.sLogger.(*MockLogger)
+	mockLogger := service.logger.(*MockLogger)
 	mockLogger.On("InfoWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 	mockLogger.On("ErrorWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 	mockLogger.On("DebugWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
@@ -490,8 +485,7 @@ func TestHelperMethods(t *testing.T) {
 			},
 		},
 		queueService: new(MockQueueService),
-		logger:       zaptest.NewLogger(t),
-		sLogger:      new(MockLogger),
+		logger:       new(MockLogger),
 	}
 
 	// Test composeDynamoDBKey

@@ -9,27 +9,27 @@ import (
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 // MerchantUseCase 商戶用例
 type MerchantUseCase struct {
 	merchantRepo  repositoryport.MerchantRepository
 	eventProducer serviceport.EventProducer
-	logger        *zap.Logger
+	logger        infraport.Logger
 }
 
 // NewMerchantUseCase 創建商戶用例
 func NewMerchantUseCase(
 	merchantRepo repositoryport.MerchantRepository,
 	eventProducer serviceport.EventProducer,
-	logger *zap.Logger,
+	logger infraport.Logger,
 ) usecaseport.MerchantUseCase {
 	return &MerchantUseCase{
 		merchantRepo:  merchantRepo,
@@ -104,9 +104,9 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 			span.RecordError(err)
 			return fmt.Errorf("create merchant: %w", err)
 		}
-		u.logger.Info("Merchant created",
-			zap.String("global_id", merchant.GlobalMerchantID),
-			zap.String("name", merchant.Name))
+		u.logger.InfoLog("Merchant created",
+			u.logger.String("global_id", merchant.GlobalMerchantID),
+			u.logger.String("name", merchant.Name))
 	} else {
 		// 更新現有商戶
 		tracing.TraceEvent(span, "Updating existing merchant")
@@ -119,9 +119,9 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 			span.RecordError(err)
 			return fmt.Errorf("update merchant: %w", err)
 		}
-		u.logger.Info("Merchant updated",
-			zap.String("global_id", merchant.GlobalMerchantID),
-			zap.String("name", merchant.Name))
+		u.logger.InfoLog("Merchant updated",
+			u.logger.String("global_id", merchant.GlobalMerchantID),
+			u.logger.String("name", merchant.Name))
 	}
 
 	// 記錄資料庫操作完成
@@ -196,9 +196,9 @@ func (u *MerchantUseCase) publishMerchantSyncEvent(
 	// 記錄事件發布成功
 	tracing.TraceEvent(span, "Merchant sync event published successfully")
 
-	u.logger.Info("Merchant sync event published",
-		zap.String("global_id", merchant.GlobalMerchantID),
-		zap.String("event_id", cloudEvent.ID))
+	u.logger.InfoLog("Merchant sync event published",
+		u.logger.String("global_id", merchant.GlobalMerchantID),
+		u.logger.String("event_id", cloudEvent.ID))
 
 	return nil
 }

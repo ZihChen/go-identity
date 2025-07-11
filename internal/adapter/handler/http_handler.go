@@ -11,11 +11,9 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
-	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	"go.uber.org/zap"
 )
 
 // 為 Swagger 提供的類型別名
@@ -38,8 +36,7 @@ type HTTPHandler struct {
 	merchantUseCase usecaseport.MerchantUseCase
 	playerUseCase   usecaseport.PlayerUseCase
 	managerUseCase  usecaseport.ManagerUseCase
-	logger          *zap.Logger
-	serviceLog      infraport.Logger
+	logger          infraport.Logger
 }
 
 // NewHTTPHandler 創建HTTP處理器
@@ -47,15 +44,13 @@ func NewHTTPHandler(
 	merchantUseCase usecaseport.MerchantUseCase,
 	playerUseCase usecaseport.PlayerUseCase,
 	managerUseCase usecaseport.ManagerUseCase,
-	logger *zap.Logger,
-	serviceLog infraport.Logger,
+	logger infraport.Logger,
 ) *HTTPHandler {
 	return &HTTPHandler{
 		merchantUseCase: merchantUseCase,
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
 		logger:          logger,
-		serviceLog:      serviceLog,
 	}
 }
 
@@ -142,9 +137,9 @@ func (h *HTTPHandler) GetMerchantByID(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Failed to get merchant by ID",
-			zap.Uint64("id", id),
-			zap.Error(err))
+		h.logger.ErrorLog("Failed to get merchant by ID",
+			h.logger.UInt64("id", id),
+			h.logger.Error("err", err))
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get merchant",
@@ -185,9 +180,9 @@ func (h *HTTPHandler) GetMerchantByGlobalID(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Failed to get merchant by global ID",
-			zap.String("global_id", globalID),
-			zap.Error(err))
+		h.logger.ErrorLog("Failed to get merchant by global ID",
+			h.logger.String("global_id", globalID),
+			h.logger.Error("err", err))
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get merchant",
@@ -228,9 +223,9 @@ func (h *HTTPHandler) GetPlayerByID(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Failed to get player by ID",
-			zap.Uint64("id", id),
-			zap.Error(err))
+		h.logger.ErrorLog("Failed to get player by ID",
+			h.logger.UInt64("id", id),
+			h.logger.Error("err", err))
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get player",
@@ -271,9 +266,9 @@ func (h *HTTPHandler) GetPlayerByGlobalID(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Failed to get player by global ID",
-			zap.String("global_id", globalID),
-			zap.Error(err))
+		h.logger.ErrorLog("Failed to get player by global ID",
+			h.logger.String("global_id", globalID),
+			h.logger.Error("err", err))
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get player",
@@ -312,9 +307,9 @@ func (h *HTTPHandler) UpdatePlayerLastActive(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Failed to update player last active time",
-			zap.Uint64("id", id),
-			zap.Error(err))
+		h.logger.ErrorLog("Failed to update player last active time",
+			h.logger.UInt64("id", id),
+			h.logger.Error("err", err))
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to update player",
@@ -357,9 +352,9 @@ func (h *HTTPHandler) GetManagerByID(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Failed to get manager by ID",
-			zap.Uint64("id", id),
-			zap.Error(err))
+		h.logger.ErrorLog("Failed to get manager by ID",
+			h.logger.UInt64("id", id),
+			h.logger.Error("err", err))
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get manager",
@@ -400,9 +395,9 @@ func (h *HTTPHandler) GetManagerByGlobalID(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Failed to get manager by global ID",
-			zap.String("global_id", globalID),
-			zap.Error(err))
+		h.logger.ErrorLog("Failed to get manager by global ID",
+			h.logger.String("global_id", globalID),
+			h.logger.Error("err", err))
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get manager",
@@ -416,17 +411,16 @@ func (h *HTTPHandler) GetManagerByGlobalID(c *gin.Context) {
 func (h *HTTPHandler) DebuggerForDev(c *gin.Context) {
 	cfg := cmd.GetConfig()
 	logger := cmd.GetLogger()
-	sLogger := sLog.NewServiceLogger(cfg)
 	queueService, _ := queue.NewQueueService(cfg, logger)
 	redisManager := redis.NewRedisManager(cfg)
 	defer func() {
 		_ = redisManager.Close()
 	}()
 	if err := redisManager.Connect(c.Request.Context()); err != nil {
-		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
+		logger.FatalLog("Failed to connect to Redis after retry", logger.Error("err", err))
 	}
 	client, _ := redisManager.GetClient()
-	ks, _ := kds.NewKDSService(cfg, queueService, client, logger, sLogger)
+	ks, _ := kds.NewKDSService(cfg, queueService, client, logger)
 	_ = ks.ConsumeAllEvents(c.Request.Context())
 }
 
@@ -440,8 +434,8 @@ func (h *HTTPHandler) DebuggerForPublish(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Failed to get player by ID",
-			zap.Error(err))
+		h.logger.ErrorLog("Failed to get player by ID",
+			h.logger.Error("err", err))
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get player",

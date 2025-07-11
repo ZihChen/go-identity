@@ -7,9 +7,9 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.uber.org/zap/zaptest"
 )
 
 // Setup function for tests
@@ -19,7 +19,7 @@ func setupWorkerTest(
 	merchantUseCase := new(MockMerchantUseCase)
 	playerUseCase := new(MockPlayerUseCase)
 	managerUseCase := new(MockManagerUseCase)
-	logger := zaptest.NewLogger(t)
+	logger := helper.SetupLoggerMock(t)
 
 	handler := NewWorkerHandler(
 		merchantUseCase,
@@ -66,7 +66,7 @@ func TestWorkerHandler_HandleMerchantSync_NilTask(t *testing.T) {
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Task is empty")
+	assert.Contains(t, err.Error(), "task is empty")
 }
 
 func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
@@ -128,7 +128,7 @@ func TestWorkerHandler_HandlePlayerSync_NilTask(t *testing.T) {
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Task is empty")
+	assert.Contains(t, err.Error(), "task is empty")
 }
 
 func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
@@ -190,7 +190,7 @@ func TestWorkerHandler_HandleManagerSync_NilTask(t *testing.T) {
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Task is empty")
+	assert.Contains(t, err.Error(), "task is empty")
 }
 
 func TestWorkerHandler_HandleManagerSync_Error(t *testing.T) {

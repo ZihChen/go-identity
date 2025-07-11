@@ -10,10 +10,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 )
 
 // Mock implementations of the use cases
@@ -223,22 +223,19 @@ func (m *MockLogger) Close() {
 // Helper functions
 func setupTest(
 	t *testing.T,
-) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
+) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *helper.MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 
 	merchantUseCase := new(MockMerchantUseCase)
 	playerUseCase := new(MockPlayerUseCase)
 	managerUseCase := new(MockManagerUseCase)
-	mockLogger := new(MockLogger)
-
-	logger := zaptest.NewLogger(t)
+	mockLogger := helper.SetupLoggerMock(t)
 
 	handler := &HTTPHandler{
 		merchantUseCase: merchantUseCase,
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
-		logger:          logger,
-		serviceLog:      mockLogger,
+		logger:          mockLogger,
 	}
 
 	w := httptest.NewRecorder()

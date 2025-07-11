@@ -11,12 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zaptest"
 )
 
 // Mock implementations
@@ -132,11 +131,11 @@ func createTestContext() context.Context {
 
 func createMockDependencies(
 	t *testing.T,
-) (*MockPlayerRepository, *MockMerchantRepository, *MockEventProducer, *zap.Logger, *redis.Client) {
+) (*MockPlayerRepository, *MockMerchantRepository, *MockEventProducer, *helper.MockLogger, *redis.Client) {
 	playerRepo := new(MockPlayerRepository)
 	merchantRepo := new(MockMerchantRepository)
 	eventProducer := new(MockEventProducer)
-	logger := zaptest.NewLogger(t)
+	logger := helper.SetupLoggerMock(t)
 	redisClient, _ := redismock.NewClientMock()
 	return playerRepo, merchantRepo, eventProducer, logger, redisClient
 }

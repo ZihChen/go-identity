@@ -11,17 +11,16 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zaptest"
 )
 
 // Helper function specific to merchant tests
 func createMerchantMockDependencies(
 	t *testing.T,
-) (*MockMerchantRepository, *MockEventProducer, *zap.Logger) {
+) (*MockMerchantRepository, *MockEventProducer, *helper.MockLogger) {
 	// Explicitly use imports to avoid "unused import" errors
 	var _ context.Context
 	var _ entity.Merchant
@@ -29,7 +28,7 @@ func createMerchantMockDependencies(
 
 	merchantRepo := new(MockMerchantRepository)
 	eventProducer := new(MockEventProducer)
-	logger := zaptest.NewLogger(t)
+	logger := helper.SetupLoggerMock(t)
 	return merchantRepo, eventProducer, logger
 }
 

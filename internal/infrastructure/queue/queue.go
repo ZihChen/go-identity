@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 // 任務類型常量
@@ -28,16 +28,19 @@ const (
 // QueueService 佇列服務實現
 type QueueService struct {
 	client *asynq.Client
-	logger *zap.Logger
+	logger infraport.Logger
 }
 
 // NewQueueService 創建佇列服務
-func NewQueueService(cfg *config.Config, logger *zap.Logger) (serviceport.QueueService, error) {
+func NewQueueService(
+	cfg *config.Config,
+	logger infraport.Logger,
+) (serviceport.QueueService, error) {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Domain, cfg.Redis.Port)
 
-	logger.Info("Connecting to Redis",
-		zap.String("redis_addr", redisAddr),
-		zap.Int("redis_db", cfg.Redis.DB))
+	logger.InfoLog("Connecting to Redis",
+		logger.String("redis_addr", redisAddr),
+		logger.Int("redis_db", cfg.Redis.DB))
 
 	redisOpt := asynq.RedisClientOpt{
 		Addr:     redisAddr,
@@ -54,7 +57,7 @@ func NewQueueService(cfg *config.Config, logger *zap.Logger) (serviceport.QueueS
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	logger.Info("Successfully connected to Redis queue")
+	logger.InfoLog("Successfully connected to Redis queue")
 
 	return &QueueService{
 		client: client,
@@ -129,10 +132,10 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, fmt.Sprintf("failed to enqueue task: %v", err))
-		q.logger.Error("Failed to enqueue task",
-			zap.String("task_type", taskType),
-			zap.String("event_id", eventID),
-			zap.Error(err))
+		q.logger.ErrorLog("Failed to enqueue task",
+			q.logger.String("task_type", taskType),
+			q.logger.String("event_id", eventID),
+			q.logger.Error("err", err))
 		return fmt.Errorf("failed to enqueue %s task: %w", taskType, err)
 	}
 
@@ -147,11 +150,11 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 		attribute.String("task.queue", info.Queue),
 	)
 
-	q.logger.Info("Enqueued task successfully",
-		zap.String("task_type", taskType),
-		zap.String("task_id", info.ID),
-		zap.String("queue", info.Queue),
-		zap.String("event_id", eventID))
+	q.logger.InfoLog("Enqueued task successfully",
+		q.logger.String("task_type", taskType),
+		q.logger.String("task_id", info.ID),
+		q.logger.String("queue", info.Queue),
+		q.logger.String("event_id", eventID))
 
 	return nil
 }
@@ -224,21 +227,18 @@ func (q *QueueService) Close() error {
 }
 
 // NewWorkerServer 創建Worker服務器
-func NewWorkerServer(cfg *config.Config, zapLogger *zap.Logger) (*asynq.Server, error) {
+func NewWorkerServer(cfg *config.Config, logger infraport.Logger) (*asynq.Server, error) {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Domain, cfg.Redis.Port)
 
-	zapLogger.Info("Creating worker server",
-		zap.String("redis_addr", redisAddr),
-		zap.Int("redis_db", cfg.Redis.DB))
+	logger.InfoLog("Creating worker server",
+		logger.String("redis_addr", redisAddr),
+		logger.Int("redis_db", cfg.Redis.DB))
 
 	redisOpt := asynq.RedisClientOpt{
 		Addr:     redisAddr,
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
 	}
-
-	// 創建日誌適配器
-	asynqLogger := logger.NewAsynqLoggerAdapter(zapLogger)
 
 	// 設置服務器配置
 	concurrency := 10
@@ -247,37 +247,36 @@ func NewWorkerServer(cfg *config.Config, zapLogger *zap.Logger) (*asynq.Server, 
 		"critical": 10, // 高優先級
 	}
 
-	zapLogger.Info("Worker server configuration",
-		zap.Int("concurrency", concurrency),
-		zap.Any("queues", queues))
+	logger.InfoLog("Worker server configuration",
+		logger.Int("concurrency", concurrency),
+		logger.Any("queues", queues))
 
 	server := asynq.NewServer(
 		redisOpt,
 		asynq.Config{
 			Concurrency: concurrency,
 			Queues:      queues,
-			Logger:      asynqLogger,
 			RetryDelayFunc: func(n int, err error, task *asynq.Task) time.Duration {
 				defer func() {
 					if r := recover(); r != nil {
-						zapLogger.Error("Panic in RetryDelayFunc",
-							zap.Any("recover", r),
-							zap.Int("retry_count", n))
+						logger.ErrorLog("Panic in RetryDelayFunc",
+							logger.Any("recover", r),
+							logger.Int("retry_count", n))
 					}
 				}()
 
-				logFields := []zap.Field{
-					zap.Int("retry_count", n),
-					zap.Error(err),
+				logFields := []*entity.LoggerFiled{
+					logger.Int("retry_count", n),
+					logger.Error("err", err),
 				}
 
 				if task != nil {
 					logFields = append(logFields,
-						zap.String("task_type", task.Type()),
-						zap.String("payload", string(task.Payload())))
+						logger.String("task_type", task.Type()),
+						logger.String("payload", string(task.Payload())))
 				}
 
-				zapLogger.Info("Task retry scheduled", logFields...)
+				logger.InfoLog("Task retry scheduled", logFields...)
 
 				// 使用指數退避策略，但設置上限
 				delay := time.Duration(n*n) * time.Second
@@ -289,9 +288,9 @@ func NewWorkerServer(cfg *config.Config, zapLogger *zap.Logger) (*asynq.Server, 
 			},
 			ErrorHandler: asynq.ErrorHandlerFunc(
 				func(ctx context.Context, task *asynq.Task, err error) {
-					zapLogger.Error("Task processing error",
-						zap.String("type", task.Type()),
-						zap.Error(err))
+					logger.ErrorLog("Task processing error",
+						logger.String("type", task.Type()),
+						logger.Error("err", err))
 				},
 			),
 		},
@@ -304,6 +303,6 @@ func NewWorkerServer(cfg *config.Config, zapLogger *zap.Logger) (*asynq.Server, 
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	zapLogger.Info("Worker server created successfully")
+	logger.InfoLog("Worker server created successfully")
 	return server, nil
 }

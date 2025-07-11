@@ -15,7 +15,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
-	sLog "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/spf13/cobra"
 )
@@ -38,11 +37,8 @@ func init() {
 
 // runConsumer 啟動消費者服務
 func runConsumer(cobraCmd *cobra.Command, args []string) {
-	// 獲取配置和日誌
 	cfg := cmd.GetConfig()
 	logger := cmd.GetLogger()
-	// 獲取ServiceLogger實例
-	sLogger := sLog.NewServiceLogger(cfg)
 
 	// 主程序的Context
 	rootCtx, rootCancel := context.WithCancel(context.Background())
@@ -51,48 +47,48 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 初始化追踪器
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
-		sLogger.FatalWithContext(
+		logger.FatalWithContext(
 			rootCtx,
-			"[Fatal][Consumer][runConsumer] Failed to initialize tracer",
-			sLogger.Error("error", err),
+			"Failed to initialize tracer",
+			logger.Error("error", err),
 		)
 	}
 	defer func() {
 		err = tracer.Shutdown(rootCtx)
 		if err != nil {
-			sLogger.ErrorLog("Failed to shutdown tracer", sLogger.Error("error", err))
+			logger.ErrorLog("Failed to shutdown tracer", logger.Error("error", err))
 		}
 	}()
-	sLogger.InfoWithContext(
+	logger.InfoWithContext(
 		rootCtx,
-		"[Info][Consumer][runConsumer] Successfully initialized tracer!",
+		"Successfully initialized tracer!",
 	)
 
 	// 初始化Redis連線
 	redisManager := redis.NewRedisManager(cfg)
 	defer func() {
 		_ = redisManager.Close()
-		sLogger.InfoWithContext(
+		logger.InfoWithContext(
 			rootCtx,
-			"[Info][Consumer][runConsumer] Redis connection closed successfully",
+			"Redis connection closed successfully",
 		)
 	}()
 	if err = redisManager.Connect(rootCtx); err != nil {
-		sLogger.FatalLog("Failed to connect to Redis after retry", sLogger.Error("err", err))
+		logger.FatalLog("Failed to connect to Redis after retry", logger.Error("err", err))
 	}
 
 	// 使用Wire初始化KDS服務
-	kdsService, err := di.InitializeConsumer(cfg, logger, sLogger, redisManager)
+	kdsService, err := di.InitializeConsumer(cfg, logger, redisManager)
 	if err != nil {
-		sLogger.FatalWithContext(
+		logger.FatalWithContext(
 			rootCtx,
-			"[Fatal][Consumer][runConsumer] Failed to initialize KDS service",
-			sLogger.Error("error", err),
+			"Failed to initialize KDS service",
+			logger.Error("error", err),
 		)
 	}
-	sLogger.InfoWithContext(
+	logger.InfoWithContext(
 		rootCtx,
-		"[Info][Consumer][runConsumer] Successfully initialized KDS service!",
+		"Successfully initialized KDS service!",
 	)
 
 	// 等待中斷信號
@@ -104,9 +100,9 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 
 	go func() {
 		defer wg.Done()
-		sLogger.InfoWithContext(
+		logger.InfoWithContext(
 			rootCtx,
-			"[Info][Consumer][runConsumer] Starting Consumer for all event listening",
+			"Starting Consumer for all event listening",
 		)
 
 		// 外層無限循環，確保Consumer持續運行
@@ -116,9 +112,9 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 
 			// 主程序Context取消，次Context也需一並取消
 			if rootCtx.Err() != nil {
-				sLogger.WarnWithContext(
+				logger.WarnWithContext(
 					consumerCtx,
-					"[Warn][Consumer][runConsumer] All events consumer stopping due to rootCtx cancellation",
+					"All events consumer stopping due to rootCtx cancellation",
 				)
 				consumerCancel()
 				return
@@ -133,9 +129,9 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 			for attempt := 0; attempt < maxRetries; attempt++ {
 				// Retry前先檢查主程序是否終止
 				if rootCtx.Err() != nil {
-					sLogger.WarnWithContext(
+					logger.WarnWithContext(
 						consumerCtx,
-						"[Warn][Consumer][runConsumer] All events consumer stopping due to rootCtx cancellation during retry",
+						"All events consumer stopping due to rootCtx cancellation during retry",
 					)
 					consumerCancel()
 					return
@@ -154,21 +150,21 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 							} else {
 								lastError = fmt.Errorf("panic recovered: %v\n%s", r, buf)
 							}
-							sLogger.ErrorWithContext(
+							logger.ErrorWithContext(
 								consumerCtx,
-								"[Error][Consumer][runConsumer] All events consumer panicked",
-								sLogger.Error("error", lastError),
+								"All events consumer panicked",
+								logger.Error("error", lastError),
 							)
 						}
 					}()
 
 					if attempt > 0 {
-						sLogger.InfoWithContext(
+						logger.InfoWithContext(
 							consumerCtx,
-							"[Info][Consumer][runConsumer] Retrying",
-							sLogger.Int("attempt", attempt+1),
-							sLogger.Int("max_retries", maxRetries),
-							sLogger.String("retry_delay", retryDelay.String()),
+							"Retrying to restart all events consumer...",
+							logger.Int("attempt", attempt+1),
+							logger.Int("max_retries", maxRetries),
+							logger.String("retry_delay", retryDelay.String()),
 						)
 
 						// 退避策略，避免後續重試等待時間過長
@@ -188,9 +184,9 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 					// 檢查Context是否被取消
 					if errors.Is(err, context.Canceled) ||
 						errors.Is(consumerCtx.Err(), context.Canceled) {
-						sLogger.WarnWithContext(
+						logger.WarnWithContext(
 							consumerCtx,
-							"[Warn][Consumer][runConsumer] All events consumer stopped due to context cancellation during consume",
+							"All events consumer stopped due to context cancellation during consume",
 						)
 						return
 					}
@@ -198,12 +194,12 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 					// 檢查Context是否超時
 					if errors.Is(consumerCtx.Err(), context.DeadlineExceeded) {
 						lastError = fmt.Errorf("consumer timed out: %w", consumerCtx.Err())
-						sLogger.ErrorWithContext(
+						logger.ErrorWithContext(
 							consumerCtx,
-							"[Error][Consumer][runConsumer] All events consumer timed out",
-							sLogger.Error("error", lastError),
-							sLogger.Int("attempt", attempt+1),
-							sLogger.Int("max_retries", maxRetries),
+							"All events consumer timed out",
+							logger.Error("error", lastError),
+							logger.Int("attempt", attempt+1),
+							logger.Int("max_retries", maxRetries),
 						)
 						return
 					}
@@ -211,19 +207,19 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 					// 其他錯誤重試
 					if err != nil {
 						lastError = err
-						sLogger.ErrorWithContext(
+						logger.ErrorWithContext(
 							consumerCtx,
-							"[Error][Consumer][runConsumer] All events consumer failed",
-							sLogger.Error("error", err),
-							sLogger.Int("attempt", attempt+1),
-							sLogger.Int("max_retries", maxRetries),
+							"All events consumer failed",
+							logger.Error("error", err),
+							logger.Int("attempt", attempt+1),
+							logger.Int("max_retries", maxRetries),
 						)
 						return
 					}
 
-					sLogger.InfoWithContext(
+					logger.InfoWithContext(
 						consumerCtx,
-						"[Info][Consumer][runConsumer] All events consumer completed successfully",
+						"All events consumer completed successfully",
 					)
 					// 如果沒有錯誤，則成功
 					success = true
@@ -236,11 +232,11 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 
 			// 重試次數達到上限
 			if !success {
-				sLogger.ErrorWithContext(
+				logger.ErrorWithContext(
 					consumerCtx,
-					"[Error][Consumer][runConsumer] All events consumer failed after max retries",
-					sLogger.Error("error", lastError),
-					sLogger.Int("max_retries", maxRetries),
+					"All events consumer failed after max retries",
+					logger.Error("error", lastError),
+					logger.Int("max_retries", maxRetries),
 				)
 				consumerCancel()            // 確保在循環結束前取消consumerCtx
 				time.Sleep(1 * time.Second) // 失敗後等待一段時間再嘗試下一次外層循環
@@ -253,7 +249,7 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 
 	// 等待中斷信號
 	<-quit
-	sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] Shutting down consumer...")
+	logger.InfoWithContext(rootCtx, "Shutting down consumer...")
 	// 收到中斷訊號後就要調用rootCancel()將次context全部取消
 	rootCancel()
 
@@ -266,15 +262,15 @@ func runConsumer(cobraCmd *cobra.Command, args []string) {
 	// 等待優雅關閉或超時
 	select {
 	case <-done:
-		sLogger.InfoWithContext(
+		logger.InfoWithContext(
 			rootCtx,
-			"[Info][Consumer][runConsumer] All consumers exited gracefully",
+			"All consumers exited gracefully",
 		)
 	case <-time.After(10 * time.Second):
-		sLogger.WarnWithContext(
+		logger.WarnWithContext(
 			rootCtx,
-			"[Warn][Consumer][runConsumer] Force Shutdown - some consumers may still be running",
+			"Force Shutdown - some consumers may still be running",
 		)
 	}
-	sLogger.InfoWithContext(rootCtx, "[Info][Consumer][runConsumer] All consumer exited")
+	logger.InfoWithContext(rootCtx, "All consumer exited")
 }

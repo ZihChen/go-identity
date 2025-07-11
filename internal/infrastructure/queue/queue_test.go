@@ -128,26 +128,6 @@ func TestEnqueueMethods(t *testing.T) {
 	}
 }
 
-// TestWrapHandlerWithTracing tests the WrapHandlerWithTracing function
-func TestWrapHandlerWithTracing(t *testing.T) {
-	// Create a simple handler that returns nil
-	handler := asynq.HandlerFunc(func(ctx context.Context, task *asynq.Task) error {
-		return nil
-	})
-
-	// Create a wrapped handler
-	wrappedHandler := WrapHandlerWithTracing(handler)
-
-	// Create a task
-	task := asynq.NewTask(TypeMerchantSync, []byte(`{"id":"test-id","data":"test-data"}`))
-
-	// Call the wrapped handler
-	err := wrappedHandler.ProcessTask(context.Background(), task)
-
-	// Check the results
-	assert.NoError(t, err)
-}
-
 // MockWorkerServer is a mock implementation of asynq.Server
 type MockWorkerServer struct {
 	mock.Mock

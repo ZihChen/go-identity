@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
@@ -16,7 +17,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 // PlayerUseCase 玩家用例
@@ -24,7 +24,7 @@ type PlayerUseCase struct {
 	playerRepo    repositoryport.PlayerRepository
 	merchantRepo  repositoryport.MerchantRepository
 	eventProducer serviceport.EventProducer
-	logger        *zap.Logger
+	logger        infraport.Logger
 	redis         *redis.Client
 }
 
@@ -33,7 +33,7 @@ func NewPlayerUseCase(
 	playerRepo repositoryport.PlayerRepository,
 	merchantRepo repositoryport.MerchantRepository,
 	eventProducer serviceport.EventProducer,
-	logger *zap.Logger,
+	logger infraport.Logger,
 	redis *redis.Client,
 ) usecaseport.PlayerUseCase {
 	return &PlayerUseCase{
@@ -126,9 +126,9 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 			span.RecordError(err)
 			return fmt.Errorf("create player: %w", err)
 		}
-		u.logger.Info("Player created",
-			zap.String("global_id", player.GlobalPlayerID),
-			zap.String("account", player.Account))
+		u.logger.InfoLog("Player created",
+			u.logger.String("global_id", player.GlobalPlayerID),
+			u.logger.String("account", player.Account))
 	} else {
 		// 更新現有玩家
 		tracing.TraceEvent(span, "Updating existing player")
@@ -143,9 +143,9 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 			span.RecordError(err)
 			return fmt.Errorf("update player: %w", err)
 		}
-		u.logger.Info("Player updated",
-			zap.String("global_id", player.GlobalPlayerID),
-			zap.String("account", player.Account))
+		u.logger.InfoLog("Player updated",
+			u.logger.String("global_id", player.GlobalPlayerID),
+			u.logger.String("account", player.Account))
 	}
 
 	// 記錄資料庫操作完成
@@ -228,9 +228,9 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 	// 記錄事件發布成功
 	tracing.TraceEvent(span, "Player sync event published successfully")
 
-	u.logger.Info("Player sync event published",
-		zap.String("global_id", player.GlobalPlayerID),
-		zap.String("event_id", cloudEvent.ID))
+	u.logger.InfoLog("Player sync event published",
+		u.logger.String("global_id", player.GlobalPlayerID),
+		u.logger.String("event_id", cloudEvent.ID))
 
 	return nil
 }
@@ -318,9 +318,9 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 		return fmt.Errorf("update player: %w", err)
 	}
 
-	u.logger.Info("Player last active time updated",
-		zap.String("global_id", player.GlobalPlayerID),
-		zap.Time("last_active_at", *player.LastActiveAt))
+	u.logger.InfoLog("Player last active time updated",
+		u.logger.String("global_id", player.GlobalPlayerID),
+		u.logger.String("last_active_at", player.LastActiveAt.String()))
 
 	return nil
 }

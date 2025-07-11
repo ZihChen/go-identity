@@ -11,11 +11,10 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zaptest"
 )
 
 // Mock implementations
@@ -64,7 +63,7 @@ func (m *MockManagerRepository) Delete(ctx context.Context, id uint64) error {
 // Helper functions
 func createManagerMockDependencies(
 	t *testing.T,
-) (*MockManagerRepository, *MockMerchantRepository, *MockEventProducer, *zap.Logger) {
+) (*MockManagerRepository, *MockMerchantRepository, *MockEventProducer, *helper.MockLogger) {
 	// Explicitly use imports to avoid "unused import" errors
 	var _ context.Context
 	var _ entity.Manager
@@ -73,7 +72,7 @@ func createManagerMockDependencies(
 	managerRepo := new(MockManagerRepository)
 	merchantRepo := new(MockMerchantRepository)
 	eventProducer := new(MockEventProducer)
-	logger := zaptest.NewLogger(t)
+	logger := helper.SetupLoggerMock(t)
 	return managerRepo, merchantRepo, eventProducer, logger
 }
 
