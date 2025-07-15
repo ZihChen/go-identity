@@ -21,9 +21,9 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	cfg "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
-	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
@@ -39,7 +39,7 @@ const (
 type KDSService struct {
 	client       *kinesis.Client
 	dynamoClient *dynamodb.Client
-	redisClient  *redis.Client
+	redisManager *redisCache.Manager
 	streamName   string
 	tableName    string
 	partitionKey string
@@ -53,7 +53,7 @@ type KDSService struct {
 func NewKDSService(
 	config *cfg.Config,
 	queueService serviceport.QueueService,
-	redisClient *redis.Client,
+	redisManager *redisCache.Manager,
 	logger infraport.Logger,
 ) (*KDSService, error) {
 	// 創建AWS配置
@@ -89,7 +89,7 @@ func NewKDSService(
 	return &KDSService{
 		client:       kinesisClient,
 		dynamoClient: dynamoClient,
-		redisClient:  redisClient,
+		redisManager: redisManager,
 		streamName:   streamName,
 		tableName:    config.AWS.DynamoDBTable,
 		partitionKey: config.AWS.PartitionKey,
@@ -404,14 +404,14 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						// 根據事件類型選擇合適的處理函數
 						var enqueueErr error
 						switch eventType {
-						case k.config.Events.IdentityMerchantSync:
+						case k.config.Events.MerchantSync:
 							enqueueErr = k.queueService.EnqueueMerchantSync(
 								msgCtxWithID,
 								record.Data,
 							)
-						case k.config.Events.IdentityPlayerSync:
+						case k.config.Events.PlayerSync:
 							enqueueErr = k.queueService.EnqueuePlayerSync(msgCtxWithID, record.Data)
-						case k.config.Events.IdentityManagerSync:
+						case k.config.Events.ManagerSync:
 							enqueueErr = k.queueService.EnqueueManagerSync(
 								msgCtxWithID,
 								record.Data,
@@ -708,14 +708,11 @@ func (k *KDSService) isEventProcessed(ctx context.Context, eventId string) (bool
 	if eventId == "" {
 		return false, nil // 無法檢查沒有ID的事件
 	}
-
 	key := processedEventKeyPrefix + eventId
-	// 嘗試設置，如果已存在則返回false，表示之前已處理過
-	success, err := k.redisClient.SetNX(ctx, key, "1", eventProcessedTTL).Result()
+	success, err := k.redisManager.SetNX(ctx, key, "1", eventProcessedTTL)
 	if err != nil {
 		return false, err
 	}
-
 	// 如果設置成功，返回false（未處理過）；如果設置失敗，返回true（已處理過）
 	return !success, nil
 }
@@ -725,10 +722,8 @@ func (k *KDSService) markEventProcessed(ctx context.Context, eventId string) err
 	if eventId == "" {
 		return nil // 無法標記沒有ID的事件
 	}
-
 	key := processedEventKeyPrefix + eventId
-	// 設置key，帶過期時間
-	_, err := k.redisClient.Set(ctx, key, "1", eventProcessedTTL).Result()
+	_, err := k.redisManager.Set(ctx, key, "1", eventProcessedTTL)
 	return err
 }
 

@@ -8,12 +8,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-redsync/redsync/v4"
+	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/redis/go-redis/v9"
 )
 
 type Manager struct {
 	client   *redis.Client
+	redsync  *redsync.Redsync
 	config   *config.Config
 	mu       sync.RWMutex
 	isClosed bool
@@ -44,6 +47,10 @@ func (m *Manager) Connect(ctx context.Context) error {
 				DB:       m.config.Redis.DB,
 			})
 
+			// 初始化 redsync 互斥鎖
+			pool := goredis.NewPool(client)
+			rs := redsync.New(pool)
+
 			// 測試連接
 			if err := client.Ping(ctx).Err(); err != nil {
 				log.Printf("Failed to connect to Redis: %v, retrying in 3 seconds...", err)
@@ -53,7 +60,7 @@ func (m *Manager) Connect(ctx context.Context) error {
 			}
 
 			// 連接成功
-			m.client, m.isClosed = client, false
+			m.client, m.redsync, m.isClosed = client, rs, false
 			log.Printf(
 				"Successfully connected to Redis at %s:%d",
 				m.config.Redis.Domain,
@@ -71,12 +78,22 @@ func (m *Manager) GetClient() (*redis.Client, error) {
 	if m.isClosed {
 		return nil, errors.New("redis connection is closed")
 	}
-
 	if m.client == nil {
 		return nil, errors.New("redis client not initialized")
 	}
-
 	return m.client, nil
+}
+
+func (m *Manager) GetRedsync() (*redsync.Redsync, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.isClosed {
+		return nil, errors.New("redis connection is closed")
+	}
+	if m.redsync == nil {
+		return nil, errors.New("redsync not initialized")
+	}
+	return m.redsync, nil
 }
 
 func (m *Manager) Close() error {
@@ -94,4 +111,38 @@ func (m *Manager) Close() error {
 
 	m.client, m.isClosed = nil, true
 	return nil
+}
+
+func (m *Manager) SetNX(
+	ctx context.Context,
+	key string,
+	value interface{},
+	expiration time.Duration,
+) (bool, error) {
+	client, err := m.GetClient()
+	if err != nil {
+		return false, err
+	}
+	success, err := client.SetNX(ctx, key, value, expiration).Result()
+	if err != nil {
+		return false, err
+	}
+	return success, nil
+}
+
+func (m *Manager) Set(
+	ctx context.Context,
+	key string,
+	value interface{},
+	expiration time.Duration,
+) (string, error) {
+	client, err := m.GetClient()
+	if err != nil {
+		return "", err
+	}
+	status, err := client.Set(ctx, key, value, expiration).Result()
+	if err != nil {
+		return status, err
+	}
+	return status, nil
 }

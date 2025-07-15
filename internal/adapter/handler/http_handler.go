@@ -419,8 +419,8 @@ func (h *HTTPHandler) DebuggerForDev(c *gin.Context) {
 	if err := redisManager.Connect(c.Request.Context()); err != nil {
 		logger.FatalLog("Failed to connect to Redis after retry", logger.Error("err", err))
 	}
-	client, _ := redisManager.GetClient()
-	ks, _ := kds.NewKDSService(cfg, queueService, client, logger)
+
+	ks, _ := kds.NewKDSService(cfg, queueService, redisManager, logger)
 	_ = ks.ConsumeAllEvents(c.Request.Context())
 }
 

@@ -32,17 +32,17 @@ func InitializeWebServer(cfg *config.Config, logger infraport.Logger, redisManag
 	if err != nil {
 		return nil, err
 	}
-	client, err := provideRedisClient(redisManager)
-	if err != nil {
-		return nil, err
-	}
-	kdsService, err := kds.NewKDSService(cfg, queueService, client, logger)
+	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, logger)
 	if err != nil {
 		return nil, err
 	}
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
+	client, err := provideRedisClient(redisManager)
+	if err != nil {
+		return nil, err
+	}
 	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
@@ -57,17 +57,17 @@ func InitializeWorkerServer(cfg *config.Config, logger infraport.Logger, redisMa
 	if err != nil {
 		return nil, err
 	}
-	client, err := provideRedisClient(redisManager)
-	if err != nil {
-		return nil, err
-	}
-	kdsService, err := kds.NewKDSService(cfg, queueService, client, logger)
+	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, logger)
 	if err != nil {
 		return nil, err
 	}
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
+	client, err := provideRedisClient(redisManager)
+	if err != nil {
+		return nil, err
+	}
 	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
@@ -82,17 +82,17 @@ func InitializeWorkerComponents(cfg *config.Config, logger infraport.Logger, red
 	if err != nil {
 		return nil, err
 	}
-	client, err := provideRedisClient(redisManager)
-	if err != nil {
-		return nil, err
-	}
-	kdsService, err := kds.NewKDSService(cfg, queueService, client, logger)
+	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, logger)
 	if err != nil {
 		return nil, err
 	}
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
+	client, err := provideRedisClient(redisManager)
+	if err != nil {
+		return nil, err
+	}
 	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
@@ -114,11 +114,7 @@ func InitializeConsumer(cfg *config.Config, logger infraport.Logger, redisManage
 	if err != nil {
 		return nil, err
 	}
-	client, err := provideRedisClient(redisManager)
-	if err != nil {
-		return nil, err
-	}
-	kdsService, err := kds.NewKDSService(cfg, queueService, client, logger)
+	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, logger)
 	if err != nil {
 		return nil, err
 	}

@@ -92,7 +92,6 @@ func provideWorkerServer(cfg *config.Config, logger infraport.Logger) (*asynq.Se
 func InitializeConsumer(cfg *config.Config, logger infraport.Logger, redisManager *redisCache.Manager) (*kds.KDSService, error) {
 	wire.Build(
 		queue.NewQueueService,
-		provideRedisClient,
 		kds.NewKDSService,
 	)
 	return nil, nil

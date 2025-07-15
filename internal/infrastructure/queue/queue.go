@@ -125,6 +125,7 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 		// 使用自訂的重試延遲函數設定
 		asynq.ProcessIn(0),              // 立即處理
 		asynq.Timeout(30 * time.Second), // 任務超時設置
+		asynq.Retention(0),              // 任務完成後立即刪除
 	}
 
 	// 將任務加入佇列

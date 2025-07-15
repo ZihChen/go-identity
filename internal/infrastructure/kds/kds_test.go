@@ -10,6 +10,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -254,7 +255,7 @@ func TestNewKDSService(t *testing.T) {
 
 	// Create mocks
 	mockQueueService := new(MockQueueService)
-	mockRedisClient := new(redis.Client) // Use a real redis.Client for simplicity
+	redisManager := redisCache.NewRedisManager(cfg)
 	mockLogger := new(MockLogger)
 
 	// Setup mock expectations
@@ -262,7 +263,7 @@ func TestNewKDSService(t *testing.T) {
 	mockLogger.On("ErrorWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 
 	// Call the function being tested
-	service, err := NewKDSService(cfg, mockQueueService, mockRedisClient, mockLogger)
+	service, err := NewKDSService(cfg, mockQueueService, redisManager, mockLogger)
 
 	// Check the results
 	assert.NoError(t, err)
@@ -431,7 +432,7 @@ func TestConsumeAllEvents(t *testing.T) {
 	service := &KDSService{
 		client:       &kinesis.Client{},
 		dynamoClient: &dynamodb.Client{},
-		redisClient:  &redis.Client{},
+		redisManager: &redisCache.Manager{},
 		streamName:   "test-stream",
 		tableName:    "test-table",
 		partitionKey: "id",
@@ -469,7 +470,7 @@ func TestHelperMethods(t *testing.T) {
 	service := &KDSService{
 		client:       &kinesis.Client{},
 		dynamoClient: &dynamodb.Client{},
-		redisClient:  &redis.Client{},
+		redisManager: &redisCache.Manager{},
 		streamName:   "test-stream",
 		tableName:    "test-table",
 		partitionKey: "id",
