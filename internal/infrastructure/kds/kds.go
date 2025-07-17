@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/go-redsync/redsync/v4"
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
@@ -33,6 +34,8 @@ const (
 	eventProcessedTTL = 24 * time.Hour
 	// 處理過的事件key前綴
 	processedEventKeyPrefix = "kds:processed:"
+	// 分佈式鎖Timeout時長
+	consumerProcessedTTL = 1 * time.Minute
 )
 
 // KDSService KDS服務實現
@@ -223,17 +226,41 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 			k.logger.String("shard_id", shardId),
 		)
 
+		// 為每個 shard 建立分布式鎖
+		mutexKey := fmt.Sprintf(consts.ShardMutexRedisKey, k.streamName, shardId)
+		mutex, err := k.redisManager.GetMutex(mutexKey, consumerProcessedTTL)
+		if err != nil {
+			// Redis連線異常仍執行後面程序
+			k.logger.WarnWithContext(ctx, "Failed to create mutex, skipping lock logic",
+				k.logger.String("mutex_key", mutexKey),
+				k.logger.Error("err", err))
+			mutex = nil
+		}
+
+		// 嘗試取得鎖，若失敗則跳過
+		if mutex != nil {
+			if err := mutex.Lock(); err != nil {
+				k.logger.WarnWithContext(ctx, "Shard already locked, skipping",
+					k.logger.String("mutex_key", mutexKey),
+					k.logger.Error("error", err))
+				shardWaiters.Done()
+				continue
+			}
+		}
+
 		// 為每個分片創建一個協程
-		go func(shardId, initialIterator string) {
+		go func(shardId, initialIterator string, shardMutex *redsync.Mutex) {
 			shardCtx, shardCancel := context.WithCancel(ctx)
 			defer shardCancel()
-
-			k.logger.InfoWithContext(
-				shardCtx,
-				fmt.Sprintf("ShardsLoop ShardId:%s", shardId),
-			)
-
 			defer shardWaiters.Done()
+			defer func() {
+				// 解鎖 shard mutex
+				if ok, err := shardMutex.Unlock(); !ok || err != nil {
+					k.logger.WarnWithContext(shardCtx, "Failed to release shard lock",
+						k.logger.String("shard_id", shardId),
+						k.logger.Error("err", err))
+				}
+			}()
 			defer func() {
 				if r := recover(); r != nil {
 					k.logger.ErrorWithContext(
@@ -495,7 +522,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 					time.Sleep(backoffDuration)
 				}
 			}
-		}(shardId, iterator)
+		}(shardId, iterator, mutex)
 	}
 
 	// 等待所有分片處理完成或出錯

@@ -146,3 +146,11 @@ func (m *Manager) Set(
 	}
 	return status, nil
 }
+
+func (m *Manager) GetMutex(key string, expireTime time.Duration) (*redsync.Mutex, error) {
+	r, err := m.GetRedsync()
+	if err != nil {
+		return nil, err
+	}
+	return r.NewMutex(key, redsync.WithExpiry(expireTime)), nil
+}
