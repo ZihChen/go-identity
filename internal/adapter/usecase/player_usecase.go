@@ -91,8 +91,12 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 	tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, playerEvent.GlobalMerchantID)
 	if err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("find merchant: %w", err)
+		if err.Error() == "record not found" {
+			merchant.ID = 0
+		} else {
+			span.RecordError(err)
+			return fmt.Errorf("find merchant: %w", err)
+		}
 	}
 
 	// 查找玩家是否存在

@@ -87,8 +87,12 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 	tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, managerEvent.GlobalMerchantID)
 	if err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("find merchant: %w", err)
+		if err.Error() == "record not found" {
+			merchant.ID = 0
+		} else {
+			span.RecordError(err)
+			return fmt.Errorf("find merchant: %w", err)
+		}
 	}
 
 	// 查找管理員是否存在
