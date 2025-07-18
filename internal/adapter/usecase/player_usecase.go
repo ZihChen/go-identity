@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -45,51 +44,12 @@ func NewPlayerUseCase(
 	}
 }
 
-// SyncPlayer 同步玩家信息
-func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error {
+func (u *PlayerUseCase) SyncPlayer(ctx context.Context, playerData *event.PlayerData, globalMerchantID, traceParent string) error {
 	// 獲取當前 span
 	span := trace.SpanFromContext(ctx)
 
-	// 將事件解析為 CloudEvent
-	var cloudEvent event.CloudEvent
-	if err := json.Unmarshal(eventData, &cloudEvent); err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("unmarshal cloud event: %w", err)
-	}
-
-	// 添加事件信息到 span
-	span.SetAttributes(
-		attribute.String("event.id", cloudEvent.ID),
-		attribute.String("event.type", cloudEvent.Type),
-		attribute.String("event.source", cloudEvent.Source),
-	)
-
-	// 記錄事件開始處理
-	tracing.TraceEvent(span, "Starting player sync processing")
-
-	// 將 data 部分解析為 PlayerSyncEvent
-	dataBytes, err := json.Marshal(cloudEvent.Data)
-	if err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("marshal event data: %w", err)
-	}
-
-	var playerEvent event.PlayerSyncEvent
-	if err := json.Unmarshal(dataBytes, &playerEvent); err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("unmarshal player event: %w", err)
-	}
-
-	// 添加玩家信息到 span
-	span.SetAttributes(
-		attribute.String("player.global_id", playerEvent.Player.GlobalPlayerID),
-		attribute.String("player.account", playerEvent.Player.Account),
-		attribute.String("merchant.global_id", playerEvent.GlobalMerchantID),
-	)
-
-	// 查找商戶是否存在
 	tracing.TraceEvent(span, "Checking if merchant exists")
-	merchant, err := u.merchantRepo.FindByGlobalID(ctx, playerEvent.GlobalMerchantID)
+	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
 	if err != nil {
 		if err.Error() == "record not found" {
 			merchant.ID = 0
@@ -101,7 +61,7 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 
 	// 查找玩家是否存在
 	tracing.TraceEvent(span, "Checking if player exists")
-	existing, err := u.playerRepo.FindByGlobalID(ctx, playerEvent.Player.GlobalPlayerID)
+	existing, err := u.playerRepo.FindByGlobalID(ctx, playerData.GlobalPlayerID)
 	if err != nil && err.Error() != "record not found" {
 		span.RecordError(err)
 		return fmt.Errorf("find player: %w", err)
@@ -113,15 +73,15 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 		// 創建新玩家
 		tracing.TraceEvent(span, "Creating new player")
 		var email *string
-		if playerEvent.Player.Email != "" {
-			email = &playerEvent.Player.Email
+		if playerData.Email != "" {
+			email = &playerData.Email
 		}
 
 		player = entity.Player{
 			MerchantID:     merchant.ID,
-			GlobalPlayerID: playerEvent.Player.GlobalPlayerID,
+			GlobalPlayerID: playerData.GlobalPlayerID,
 			APIKey:         uuid.New().String(), // 生成新的API密鑰
-			Account:        playerEvent.Player.Account,
+			Account:        playerData.Account,
 			Email:          email,
 			CreatedAt:      time.Now(),
 			UpdatedAt:      time.Now(),
@@ -137,9 +97,9 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 		// 更新現有玩家
 		tracing.TraceEvent(span, "Updating existing player")
 		player = *existing
-		player.Account = playerEvent.Player.Account
-		if playerEvent.Player.Email != "" {
-			player.Email = &playerEvent.Player.Email
+		player.Account = playerData.Account
+		if playerData.Email != "" {
+			player.Email = &playerData.Email
 		}
 		player.UpdatedAt = time.Now()
 
@@ -157,7 +117,7 @@ func (u *PlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error 
 
 	// 發布玩家同步事件到KDS
 	tracing.TraceEvent(span, "Publishing player sync event to KDS")
-	if err := u.publishPlayerSyncEvent(ctx, &player, playerEvent.GlobalMerchantID, cloudEvent.TraceParent); err != nil {
+	if err := u.publishPlayerSyncEvent(ctx, &player, globalMerchantID, traceParent); err != nil {
 		span.RecordError(err)
 		return fmt.Errorf("publish player sync event: %w", err)
 	}

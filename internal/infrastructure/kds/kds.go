@@ -40,16 +40,18 @@ const (
 
 // KDSService KDS服務實現
 type KDSService struct {
-	client       *kinesis.Client
-	dynamoClient *dynamodb.Client
-	redisManager *redisCache.Manager
-	streamName   string
-	tableName    string
-	partitionKey string
-	sortKey      string
-	config       *cfg.Config
-	queueService serviceport.QueueService
-	logger       infraport.Logger
+	client        *kinesis.Client
+	dynamoClient  *dynamodb.Client
+	redisManager  *redisCache.Manager
+	streamName    string
+	consumeStream string
+	produceStream string
+	tableName     string
+	partitionKey  string
+	sortKey       string
+	config        *cfg.Config
+	queueService  serviceport.QueueService
+	logger        infraport.Logger
 }
 
 // NewKDSService 創建KDS服務

@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
@@ -137,22 +138,44 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 		h.logger.String("task_id", taskID),
 		h.logger.Int("payload_size", len(task.Payload())))
 
-	// 記錄開始處理
+	// 將事件解析為 CloudEvent
+	var cloudEvent event.CloudEvent
+	if err := jsoniter.Unmarshal(task.Payload(), &cloudEvent); err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("unmarshal cloud event: %w", err)
+	}
+	span.SetAttributes(
+		attribute.String("event.id", cloudEvent.ID),
+		attribute.String("event.type", cloudEvent.Type),
+		attribute.String("event.source", cloudEvent.Source),
+	)
+
+	dataBytes, err := jsoniter.Marshal(cloudEvent.Data)
+	if err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("marshal event data: %w", err)
+	}
+
+	var playerEvent event.PlayerSyncEvent
+	if err := jsoniter.Unmarshal(dataBytes, &playerEvent); err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("unmarshal player event: %w", err)
+	}
+
 	tracing.TraceEvent(span, "Starting player sync processing")
 
-	// 執行實際的同步邏輯
-	if err := h.playerUseCase.SyncPlayer(ctx, task.Payload()); err != nil {
+	if err = h.playerUseCase.SyncPlayer(ctx,
+		&playerEvent.Player,
+		playerEvent.GlobalMerchantID,
+		cloudEvent.TraceParent); err != nil {
 		h.logger.ErrorLog("Failed to sync player",
 			h.logger.String("task_id", taskID),
 			h.logger.Error("err", err))
 
-		// 記錄錯誤
 		span.RecordError(err)
-
 		return fmt.Errorf("failed to sync player: %w", err)
 	}
 
-	// 記錄成功完成任務
 	tracing.TraceEvent(span, "Player sync completed successfully")
 
 	h.logger.InfoLog("Player sync task completed successfully",
