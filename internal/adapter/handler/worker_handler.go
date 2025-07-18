@@ -79,14 +79,12 @@ func (h *WorkerHandler) HandleMerchantSync(ctx context.Context, task *asynq.Task
 
 	// 創建處理任務的追蹤
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypeMerchantSync, taskID)
-	defer span.End()
+	defer tracing.SpanEnd(span)
 
-	// 添加任務屬性
-	span.SetAttributes(
+	tracing.RecordSpanAttributes(span,
 		attribute.String("task.id", taskID),
 		attribute.String("task.type", queue.TypeMerchantSync),
-		attribute.Int("task.payload_size_bytes", len(task.Payload())),
-	)
+		attribute.Int("task.payload_size_bytes", len(task.Payload())))
 
 	h.logger.InfoLog("Processing merchant sync task",
 		h.logger.String("task_id", taskID),
@@ -100,10 +98,7 @@ func (h *WorkerHandler) HandleMerchantSync(ctx context.Context, task *asynq.Task
 		h.logger.ErrorLog("Failed to sync merchant",
 			h.logger.String("task_id", taskID),
 			h.logger.Error("err", err))
-
-		// 記錄錯誤
-		span.RecordError(err)
-
+		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("failed to sync merchant: %w", err)
 	}
 
@@ -125,14 +120,12 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 
 	// 創建處理任務的追蹤
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypePlayerSync, taskID)
-	defer span.End()
+	defer tracing.SpanEnd(span)
 
-	// 添加任務屬性
-	span.SetAttributes(
+	tracing.RecordSpanAttributes(span,
 		attribute.String("task.id", taskID),
 		attribute.String("task.type", queue.TypePlayerSync),
-		attribute.Int("task.payload_size_bytes", len(task.Payload())),
-	)
+		attribute.Int("task.payload_size_bytes", len(task.Payload())))
 
 	h.logger.InfoLog("Processing player sync task",
 		h.logger.String("task_id", taskID),
@@ -141,24 +134,24 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 	// 將事件解析為 CloudEvent
 	var cloudEvent event.CloudEvent
 	if err := jsoniter.Unmarshal(task.Payload(), &cloudEvent); err != nil {
-		span.RecordError(err)
+		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("unmarshal cloud event: %w", err)
 	}
-	span.SetAttributes(
+
+	tracing.RecordSpanAttributes(span,
 		attribute.String("event.id", cloudEvent.ID),
 		attribute.String("event.type", cloudEvent.Type),
-		attribute.String("event.source", cloudEvent.Source),
-	)
+		attribute.String("event.source", cloudEvent.Source))
 
 	dataBytes, err := jsoniter.Marshal(cloudEvent.Data)
 	if err != nil {
-		span.RecordError(err)
+		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("marshal event data: %w", err)
 	}
 
 	var playerEvent event.PlayerSyncEvent
 	if err := jsoniter.Unmarshal(dataBytes, &playerEvent); err != nil {
-		span.RecordError(err)
+		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("unmarshal player event: %w", err)
 	}
 
@@ -172,7 +165,7 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 			h.logger.String("task_id", taskID),
 			h.logger.Error("err", err))
 
-		span.RecordError(err)
+		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("failed to sync player: %w", err)
 	}
 
@@ -191,16 +184,13 @@ func (h *WorkerHandler) HandleManagerSync(ctx context.Context, task *asynq.Task)
 	}
 	taskID := getTaskID(task)
 
-	// 創建處理任務的追蹤
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypeManagerSync, taskID)
-	defer span.End()
+	defer tracing.SpanEnd(span)
 
-	// 添加任務屬性
-	span.SetAttributes(
+	tracing.RecordSpanAttributes(span,
 		attribute.String("task.id", taskID),
 		attribute.String("task.type", queue.TypeManagerSync),
-		attribute.Int("task.payload_size_bytes", len(task.Payload())),
-	)
+		attribute.Int("task.payload_size_bytes", len(task.Payload())))
 
 	h.logger.InfoLog("Processing manager sync task",
 		h.logger.String("task_id", taskID),
@@ -216,8 +206,7 @@ func (h *WorkerHandler) HandleManagerSync(ctx context.Context, task *asynq.Task)
 			h.logger.Error("err", err))
 
 		// 記錄錯誤
-		span.RecordError(err)
-
+		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("failed to sync manager: %w", err)
 	}
 

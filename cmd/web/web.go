@@ -68,7 +68,7 @@ func runWebServer(cobraCmd *cobra.Command, args []string) {
 	logger.InfoLog("Successfully initialized web tracer!")
 
 	ctx, rootSpan := tracing.StartSpan(rootCtx, "WebService")
-	defer rootSpan.End()
+	defer tracing.SpanEnd(rootSpan)
 
 	// 初始化DB連線
 	db, err := mysql.NewDatabase(cfg, logger)

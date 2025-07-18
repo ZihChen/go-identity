@@ -1,11 +1,11 @@
 services:
-  redis:
+  fat-identity-redis:
     image: redis:7.2-alpine
-    container_name: fat-cat-redis
+    container_name: fat-identity-redis
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - identity_redis_data:/data
     networks:
       - fatcatnet
     restart: always
@@ -36,7 +36,7 @@ services:
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - redis
+      - fat-identity-redis
     networks:
       - fatcatnet
     restart: always
@@ -65,7 +65,7 @@ services:
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - redis
+      - fat-identity-redis
     networks:
       - fatcatnet
     restart: always
@@ -90,13 +90,13 @@ services:
     ports:
       - "6382:6382"   #debugger接口
     depends_on:
-      - redis
+      - fat-identity-redis
     networks:
       - fatcatnet
     restart: always
 
 volumes:
-  redis_data:
+  identity_redis_data:
 
 networks:
   fatcatnet:

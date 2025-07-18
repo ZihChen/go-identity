@@ -158,6 +158,15 @@ func LoadConfig() (*Config, error) {
 func (c *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 	return awsconfig.LoadDefaultConfig(ctx,
 		awsconfig.WithRegion(c.AWS.Region),
+		awsconfig.WithCredentialsProvider(
+			aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
+				return aws.Credentials{
+					AccessKeyID:     c.AWS.AccessKeyID,
+					SecretAccessKey: c.AWS.SecretAccessKey,
+					SessionToken:    viper.GetString("AWS_SESSION_TOKEN"),
+				}, nil
+			}),
+		),
 		awsconfig.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
 				o.MaxAttempts = 3               // 最大重試次數

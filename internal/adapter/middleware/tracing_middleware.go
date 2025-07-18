@@ -22,9 +22,9 @@ func TracingMiddleware() gin.HandlerFunc {
 
 		spanName := c.Request.Method + " " + c.FullPath()
 		ctx, span := tracing.StartSpan(ctx, spanName)
-		defer span.End()
+		defer tracing.SpanEnd(span)
 
-		span.SetAttributes(
+		tracing.RecordSpanAttributes(span,
 			attribute.String("http.method", c.Request.Method),
 			attribute.String("http.url", c.Request.URL.String()),
 			attribute.String("http.path", c.FullPath()),
@@ -35,10 +35,10 @@ func TracingMiddleware() gin.HandlerFunc {
 
 		c.Next()
 
-		span.SetAttributes(attribute.Int("http.status_code", c.Writer.Status()))
+		tracing.RecordSpanAttributes(span, attribute.Int("http.status_code", c.Writer.Status()))
 
 		if len(c.Errors) > 0 {
-			span.RecordError(c.Errors.Last().Err)
+			tracing.RecordSpanError(span, c.Errors.Last().Err)
 			fmt.Printf("Trace error %+v", c.Errors)
 		}
 	}

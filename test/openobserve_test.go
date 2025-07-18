@@ -74,10 +74,10 @@ func TestOpenObserveTracing(t *testing.T) {
 
 	// 創建測試跟蹤
 	ctx, rootSpan := tracing.StartSpan(context.Background(), "TestOpenObserveTracing")
-	defer rootSpan.End()
+	defer tracing.SpanEnd(rootSpan)
 
 	testID := time.Now().Format("20060102150405")
-	rootSpan.SetAttributes(
+	tracing.RecordSpanAttributes(rootSpan,
 		attribute.String("test_id", testID),
 		attribute.String("component", "test"),
 	)
@@ -89,12 +89,12 @@ func TestOpenObserveTracing(t *testing.T) {
 
 	// 創建子 span
 	_, childSpan := tracing.StartSpan(ctx, "TestOpenObserveTracingChild")
-	childSpan.SetAttributes(
+	tracing.RecordSpanAttributes(childSpan,
 		attribute.String("test_id", testID),
 		attribute.String("component", "test-child"),
 	)
 	tracing.TraceEvent(childSpan, "Test child event")
-	childSpan.End()
+	tracing.SpanEnd(childSpan)
 
 	// 給追蹤一些時間發送到 OpenObserve
 	time.Sleep(1 * time.Second)

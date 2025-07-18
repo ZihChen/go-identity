@@ -119,22 +119,6 @@ func StartSpan(
 	return GetTracer().Start(ctx, spanName, opts...)
 }
 
-// EndSpan 結束 span 並記錄錯誤（如果有）
-func EndSpan(span trace.Span, err error) {
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-		span.RecordError(err)
-	} else {
-		span.SetStatus(codes.Ok, "")
-	}
-	span.End()
-}
-
-// AddAttributes 添加屬性到 span
-func AddAttributes(span trace.Span, attrs ...attribute.KeyValue) {
-	span.SetAttributes(attrs...)
-}
-
 // ExtractTraceContext 取出資料
 func ExtractTraceContext(ctx context.Context, carrier []byte) context.Context {
 	// 嘗試解析 JSON
@@ -229,35 +213,17 @@ func WithSpan(ctx context.Context, name string, fn func(context.Context) error) 
 	return err
 }
 
-// TraceEvent 追蹤事件
-func TraceEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {
-	span.AddEvent(name, trace.WithAttributes(attrs...))
-}
-
-// TraceKDSToRedis 從KDS到Redis的追蹤封裝
-func TraceKDSToRedis(ctx context.Context, eventType, eventID string) (context.Context, trace.Span) {
-	ctx, span := StartSpan(ctx, "KDS.ConsumeToRedis")
-	span.SetAttributes(
-		attribute.String("messaging.system", "kds"),
-		attribute.String("messaging.destination", "redis_queue"),
-		attribute.String("messaging.event_type", eventType),
-		attribute.String("messaging.event_id", eventID),
-	)
-	return ctx, span
-}
-
 // TraceRedisToWorker 從Redis到Worker的追蹤封裝
 func TraceRedisToWorker(
 	ctx context.Context,
 	taskType, taskID string,
 ) (context.Context, trace.Span) {
 	ctx, span := StartSpan(ctx, "Redis.WorkerConsume")
-	span.SetAttributes(
+	RecordSpanAttributes(span,
 		attribute.String("messaging.system", "redis"),
 		attribute.String("messaging.destination", "worker"),
 		attribute.String("messaging.task_type", taskType),
-		attribute.String("messaging.task_id", taskID),
-	)
+		attribute.String("messaging.task_id", taskID))
 	return ctx, span
 }
 
@@ -267,10 +233,9 @@ func TraceWorkerProcessing(
 	taskType, taskID string,
 ) (context.Context, trace.Span) {
 	ctx, span := StartSpan(ctx, "Worker.ProcessTask")
-	span.SetAttributes(
+	RecordSpanAttributes(span,
 		attribute.String("processing.task_type", taskType),
-		attribute.String("processing.task_id", taskID),
-	)
+		attribute.String("processing.task_id", taskID))
 	return ctx, span
 }
 
@@ -280,12 +245,11 @@ func TraceWorkerToKDS(
 	eventType, eventID string,
 ) (context.Context, trace.Span) {
 	ctx, span := StartSpan(ctx, "Worker.PublishToKDS")
-	span.SetAttributes(
+	RecordSpanAttributes(span,
 		attribute.String("messaging.system", "kds"),
 		attribute.String("messaging.operation", "publish"),
 		attribute.String("messaging.event_type", eventType),
-		attribute.String("messaging.event_id", eventID),
-	)
+		attribute.String("messaging.event_id", eventID))
 	return ctx, span
 }
 
@@ -314,4 +278,49 @@ func GetTraceID(ctx context.Context) string {
 func GetSpanID(ctx context.Context) string {
 	spanCtx := trace.SpanContextFromContext(ctx)
 	return spanCtx.SpanID().String()
+}
+
+func RecordSpanError(span trace.Span, err error) {
+	if span != nil && span.IsRecording() {
+		span.RecordError(err)
+	}
+}
+
+func RecordSpanAttributes(span trace.Span, attrs ...attribute.KeyValue) {
+	if span != nil && span.IsRecording() {
+		span.SetAttributes(attrs...)
+	}
+}
+
+func RecordSpanStatus(span trace.Span, code codes.Code, desc string) {
+	if span != nil && span.IsRecording() {
+		span.SetStatus(code, desc)
+	}
+}
+
+// TraceEvent 追蹤事件
+func TraceEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {
+	if span != nil && span.IsRecording() {
+		span.AddEvent(name, trace.WithAttributes(attrs...))
+	}
+}
+
+func SpanEnd(span trace.Span) {
+	if span != nil {
+		span.End()
+	}
+}
+
+// EndSpanWithError 結束 span 並記錄錯誤（如果有）
+func EndSpanWithError(span trace.Span, err error) {
+	if span == nil || !span.IsRecording() {
+		return
+	}
+	if err != nil {
+		RecordSpanStatus(span, codes.Error, err.Error())
+		RecordSpanError(span, err)
+	} else {
+		RecordSpanStatus(span, codes.Ok, "")
+	}
+	span.End()
 }

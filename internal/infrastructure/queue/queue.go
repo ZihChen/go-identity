@@ -15,7 +15,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // 任務類型常量
@@ -82,9 +81,8 @@ func (q *QueueService) EnqueueManagerSync(ctx context.Context, data []byte) erro
 
 // enqueueTask 通用方法，將任務加入佇列並添加追蹤
 func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []byte) error {
-	// 從當前上下文中獲取 span
-	span := trace.SpanFromContext(ctx)
-	span.SetAttributes(
+	ctx, span := tracing.StartSpan(ctx, "QueueService.enqueueTask")
+	tracing.RecordSpanAttributes(span,
 		attribute.String("messaging.destination", "redis_queue"),
 		attribute.String("messaging.task_type", taskType),
 	)
@@ -94,14 +92,14 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 	if id, ok := ctx.Value("event_id").(string); ok && id != "" {
 		// 如果上下文中已有事件ID，直接使用
 		eventID = id
-		span.SetAttributes(attribute.String("messaging.event_id", id))
+		tracing.RecordSpanAttributes(span, attribute.String("messaging.event_id", id))
 	} else {
 		// 否則從數據中解析
 		var jsonData map[string]interface{}
 		if err := json.Unmarshal(data, &jsonData); err == nil {
 			if id, ok := jsonData["id"].(string); ok {
 				eventID = id
-				span.SetAttributes(attribute.String("messaging.event_id", id))
+				tracing.RecordSpanAttributes(span, attribute.String("messaging.event_id", id))
 			}
 		}
 	}
@@ -131,8 +129,8 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 	// 將任務加入佇列
 	info, err := q.client.EnqueueContext(ctx, task, opts...)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, fmt.Sprintf("failed to enqueue task: %v", err))
+		tracing.RecordSpanError(span, err)
+		tracing.RecordSpanStatus(span, codes.Error, fmt.Sprintf("failed to enqueue task: %v", err))
 		q.logger.ErrorLog("Failed to enqueue task",
 			q.logger.String("task_type", taskType),
 			q.logger.String("event_id", eventID),
@@ -145,8 +143,7 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 		attribute.String("task.id", info.ID),
 		attribute.String("task.queue", info.Queue))
 
-	// 為任務添加更多屬性
-	span.SetAttributes(
+	tracing.RecordSpanAttributes(span,
 		attribute.String("task.id", info.ID),
 		attribute.String("task.queue", info.Queue),
 	)
@@ -176,20 +173,17 @@ func WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
 			task.Type(),
 			task.ResultWriter().TaskID(),
 		)
-		defer span.End()
 
-		// 記錄任務開始處理
+		defer tracing.SpanEnd(span)
+
 		tracing.TraceEvent(span, "Starting worker task processing")
-		span.SetAttributes(
-			attribute.Int("task.payload_size_bytes", len(data)),
-			// 修復：移除 Retried 方法的調用，因為它不存在
-		)
+		tracing.RecordSpanAttributes(span, attribute.Int("task.payload_size_bytes", len(data)))
 
 		// 提取事件ID記錄在span中
 		var jsonData map[string]interface{}
 		if err := json.Unmarshal(data, &jsonData); err == nil {
 			if id, ok := jsonData["id"].(string); ok {
-				span.SetAttributes(attribute.String("messaging.event_id", id))
+				tracing.RecordSpanAttributes(span, attribute.String("messaging.event_id", id))
 			}
 		}
 
@@ -198,9 +192,8 @@ func WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
 
 		// 處理錯誤情況
 		if err != nil {
-			// 記錄錯誤
-			span.RecordError(err)
-			span.SetStatus(codes.Error, fmt.Sprintf("task processing failed: %v", err))
+			tracing.RecordSpanError(span, err)
+			tracing.RecordSpanStatus(span, codes.Error, fmt.Sprintf("task processing failed: %v", err))
 
 			// 檢查錯誤類型，決定是否需要重試
 			if strings.Contains(err.Error(), "(will retry)") {
