@@ -43,7 +43,11 @@ func NewPlayerUseCase(
 	}
 }
 
-func (u *PlayerUseCase) SyncPlayer(ctx context.Context, playerData *event.PlayerData, globalMerchantID, traceParent string) error {
+func (u *PlayerUseCase) SyncPlayer(
+	ctx context.Context,
+	playerData *event.PlayerData,
+	globalMerchantID, traceParent string,
+) error {
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.SyncPlayer")
 	defer tracing.SpanEnd(span)
 

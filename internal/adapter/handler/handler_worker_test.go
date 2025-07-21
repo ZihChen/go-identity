@@ -6,35 +6,52 @@ import (
 	"testing"
 
 	"github.com/hibiken/asynq"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
+// MockTagUseCase is a mock implementation of the TagUseCase interface
+type MockTagUseCase struct {
+	mock.Mock
+}
+
+func (m *MockTagUseCase) SyncTag(
+	ctx context.Context,
+	data []event.TagData,
+	globalMerchantID, traceParent string,
+) error {
+	args := m.Called(ctx, data, globalMerchantID, traceParent)
+	return args.Error(0)
+}
+
 // Setup function for tests
 func setupWorkerTest(
 	t *testing.T,
-) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *WorkerHandler) {
+) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *MockTagUseCase, *WorkerHandler) {
 	merchantUseCase := new(MockMerchantUseCase)
 	playerUseCase := new(MockPlayerUseCase)
 	managerUseCase := new(MockManagerUseCase)
+	tagUseCase := new(MockTagUseCase)
 	logger := helper.SetupLoggerMock(t)
 
 	handler := NewWorkerHandler(
 		merchantUseCase,
 		playerUseCase,
 		managerUseCase,
+		tagUseCase,
 		logger,
 	)
 
-	return merchantUseCase, playerUseCase, managerUseCase, handler
+	return merchantUseCase, playerUseCase, managerUseCase, tagUseCase, handler
 }
 
 // Tests for HandleMerchantSync
 func TestWorkerHandler_HandleMerchantSync_Success(t *testing.T) {
 	// Setup
-	merchantUseCase, _, _, handler := setupWorkerTest(t)
+	merchantUseCase, _, _, _, handler := setupWorkerTest(t)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -56,7 +73,7 @@ func TestWorkerHandler_HandleMerchantSync_Success(t *testing.T) {
 
 func TestWorkerHandler_HandleMerchantSync_NilTask(t *testing.T) {
 	// Setup
-	_, _, _, handler := setupWorkerTest(t)
+	_, _, _, _, handler := setupWorkerTest(t)
 
 	// Setup context
 	ctx := context.Background()
@@ -71,7 +88,7 @@ func TestWorkerHandler_HandleMerchantSync_NilTask(t *testing.T) {
 
 func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 	// Setup
-	merchantUseCase, _, _, handler := setupWorkerTest(t)
+	merchantUseCase, _, _, _, handler := setupWorkerTest(t)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -96,7 +113,7 @@ func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 // Tests for HandlePlayerSync
 func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, handler := setupWorkerTest(t)
+	_, playerUseCase, _, _, handler := setupWorkerTest(t)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -118,7 +135,7 @@ func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 
 func TestWorkerHandler_HandlePlayerSync_NilTask(t *testing.T) {
 	// Setup
-	_, _, _, handler := setupWorkerTest(t)
+	_, _, _, _, handler := setupWorkerTest(t)
 
 	// Setup context
 	ctx := context.Background()
@@ -133,7 +150,7 @@ func TestWorkerHandler_HandlePlayerSync_NilTask(t *testing.T) {
 
 func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, handler := setupWorkerTest(t)
+	_, playerUseCase, _, _, handler := setupWorkerTest(t)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -158,7 +175,7 @@ func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 // Tests for HandleManagerSync
 func TestWorkerHandler_HandleManagerSync_Success(t *testing.T) {
 	// Setup
-	_, _, managerUseCase, handler := setupWorkerTest(t)
+	_, _, managerUseCase, _, handler := setupWorkerTest(t)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -180,7 +197,7 @@ func TestWorkerHandler_HandleManagerSync_Success(t *testing.T) {
 
 func TestWorkerHandler_HandleManagerSync_NilTask(t *testing.T) {
 	// Setup
-	_, _, _, handler := setupWorkerTest(t)
+	_, _, _, _, handler := setupWorkerTest(t)
 
 	// Setup context
 	ctx := context.Background()
@@ -195,7 +212,7 @@ func TestWorkerHandler_HandleManagerSync_NilTask(t *testing.T) {
 
 func TestWorkerHandler_HandleManagerSync_Error(t *testing.T) {
 	// Setup
-	_, _, managerUseCase, handler := setupWorkerTest(t)
+	_, _, managerUseCase, _, handler := setupWorkerTest(t)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)

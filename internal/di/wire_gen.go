@@ -71,7 +71,9 @@ func InitializeWorkerServer(cfg *config.Config, logger infraport.Logger, redisMa
 	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
-	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, logger)
+	tagRepository := repository.NewTagRepository(db)
+	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, logger)
+	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, logger)
 	return workerHandler, nil
 }
 
@@ -96,7 +98,9 @@ func InitializeWorkerComponents(cfg *config.Config, logger infraport.Logger, red
 	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
-	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, logger)
+	tagRepository := repository.NewTagRepository(db)
+	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, logger)
+	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, logger)
 	server, err := provideWorkerServer(cfg, logger)
 	if err != nil {
 		return nil, err
@@ -130,7 +134,7 @@ type WorkerComponents struct {
 }
 
 var baseSet = wire.NewSet(queue.NewQueueService, provideRedisClient,
-	provideDeduplicationService, repository.NewMerchantRepository, repository.NewPlayerRepository, repository.NewManagerRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase.NewPlayerUseCase, usecase.NewManagerUseCase,
+	provideDeduplicationService, repository.NewMerchantRepository, repository.NewPlayerRepository, repository.NewManagerRepository, repository.NewTagRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase.NewPlayerUseCase, usecase.NewManagerUseCase, usecase.NewTagUseCase,
 )
 
 // 事件生產者提供者

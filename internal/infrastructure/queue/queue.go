@@ -193,7 +193,11 @@ func WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
 		// 處理錯誤情況
 		if err != nil {
 			tracing.RecordSpanError(span, err)
-			tracing.RecordSpanStatus(span, codes.Error, fmt.Sprintf("task processing failed: %v", err))
+			tracing.RecordSpanStatus(
+				span,
+				codes.Error,
+				fmt.Sprintf("task processing failed: %v", err),
+			)
 
 			// 檢查錯誤類型，決定是否需要重試
 			if strings.Contains(err.Error(), "(will retry)") {

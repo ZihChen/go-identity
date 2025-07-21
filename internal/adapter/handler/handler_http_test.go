@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -76,8 +77,12 @@ func (m *MockPlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint6
 	return args.Error(0)
 }
 
-func (m *MockPlayerUseCase) SyncPlayer(ctx context.Context, eventData []byte) error {
-	args := m.Called(ctx, eventData)
+func (m *MockPlayerUseCase) SyncPlayer(
+	ctx context.Context,
+	data *event.PlayerData,
+	globalMerchantID, traceParent string,
+) error {
+	args := m.Called(ctx, data, globalMerchantID, traceParent)
 	return args.Error(0)
 }
 

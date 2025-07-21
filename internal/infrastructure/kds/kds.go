@@ -126,7 +126,10 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 			jsonData["traceparent"] = traceparent
 			if newData, err := json.Marshal(jsonData); err == nil {
 				data = newData
-				tracing.RecordSpanAttributes(span, attribute.Bool("messaging.trace_propagated", true))
+				tracing.RecordSpanAttributes(
+					span,
+					attribute.Bool("messaging.trace_propagated", true),
+				)
 			}
 		}
 	}

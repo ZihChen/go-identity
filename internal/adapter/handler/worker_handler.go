@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	jsoniter "github.com/json-iterator/go"
@@ -31,6 +32,7 @@ type WorkerHandler struct {
 	merchantUseCase usecaseport.MerchantUseCase
 	playerUseCase   usecaseport.PlayerUseCase
 	managerUseCase  usecaseport.ManagerUseCase
+	tagUseCase      usecaseport.TagUseCase
 	logger          infraport.Logger
 }
 
@@ -39,12 +41,14 @@ func NewWorkerHandler(
 	merchantUseCase usecaseport.MerchantUseCase,
 	playerUseCase usecaseport.PlayerUseCase,
 	managerUseCase usecaseport.ManagerUseCase,
+	tagUseCase usecaseport.TagUseCase,
 	logger infraport.Logger,
 ) *WorkerHandler {
 	return &WorkerHandler{
 		merchantUseCase: merchantUseCase,
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
+		tagUseCase:      tagUseCase,
 		logger:          logger,
 	}
 }
@@ -167,6 +171,15 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("failed to sync player: %w", err)
+	}
+
+	if len(playerEvent.PlayerTags) != 0 {
+		if err = h.tagUseCase.SyncTag(ctx, playerEvent.PlayerTags,
+			playerEvent.GlobalMerchantID,
+			cloudEvent.TraceParent); err != nil {
+			tracing.RecordSpanError(span, err)
+			return fmt.Errorf("failed to sync player tags: %w", err)
+		}
 	}
 
 	tracing.TraceEvent(span, "Player sync completed successfully")

@@ -42,6 +42,16 @@ type Manager struct {
 	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
 }
 
+type Tag struct {
+	ID          uint64     `json:"id"`
+	MerchantID  uint64     `json:"merchant_id"`
+	Name        string     `json:"name"`
+	GlobalTagID string     `json:"global_tag_id"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+}
+
 type LoggerFiled struct {
 	Key   string
 	Value interface{}

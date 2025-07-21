@@ -2,9 +2,9 @@ package usecaseport
 
 import (
 	"context"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 )
 
 type MerchantUseCase interface {
@@ -20,8 +20,24 @@ type ManagerUseCase interface {
 }
 
 type PlayerUseCase interface {
-	SyncPlayer(ctx context.Context, data *event.PlayerData, globalMerchantID, traceParent string) error
+	SyncPlayer(
+		ctx context.Context,
+		data *event.PlayerData,
+		globalMerchantID, traceParent string,
+	) error
 	GetPlayerByID(ctx context.Context, id uint64) (*entity.Player, error)
 	GetPlayerByGlobalID(ctx context.Context, globalID string) (*entity.Player, error)
 	UpdatePlayerLastActive(ctx context.Context, id uint64) error
+}
+
+type TagUseCase interface {
+	SyncTag(ctx context.Context, data []event.TagData, globalMerchantID, traceParent string) error
+}
+
+type PlayerLevelUseCase interface {
+	SyncPlayerLevel(
+		ctx context.Context,
+		data *event.LevelData,
+		globalMerchantID, traceParent string,
+	) error
 }

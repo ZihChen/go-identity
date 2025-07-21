@@ -32,3 +32,7 @@ type ManagerRepository interface {
 	Update(ctx context.Context, manager *entity.Manager) error
 	Delete(ctx context.Context, id uint64) error
 }
+
+type TagRepository interface {
+	BatchUpsert(ctx context.Context, tags []*entity.Tag) error
+}

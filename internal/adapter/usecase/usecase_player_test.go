@@ -2,20 +2,19 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 // Mock implementations
@@ -170,8 +169,8 @@ func createTestMerchant() *entity.Merchant {
 	}
 }
 
-func createPlayerSyncEvent() ([]byte, error) {
-	playerEvent := event.PlayerSyncEvent{
+func createPlayerSyncEvent() *event.CloudEvent {
+	PlayerEvent := event.PlayerSyncEvent{
 		GlobalMerchantID: "FATCAT-MERCHANT-1",
 		Player: event.PlayerData{
 			GlobalPlayerID: "FATCAT-PLAYER-1",
@@ -181,7 +180,7 @@ func createPlayerSyncEvent() ([]byte, error) {
 		},
 	}
 
-	cloudEvent := event.CloudEvent{
+	cloudEvent := &event.CloudEvent{
 		SpecVersion:     "1.0",
 		Type:            "tw.jvd.fatidentitycat.player.sync.v1",
 		Source:          "/fatidentitycat/FATCAT",
@@ -190,10 +189,10 @@ func createPlayerSyncEvent() ([]byte, error) {
 		Time:            time.Now(),
 		DataContentType: "application/json",
 		TraceParent:     "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-		Data:            playerEvent,
+		Data:            PlayerEvent,
 	}
 
-	return json.Marshal(cloudEvent)
+	return cloudEvent
 }
 
 // Tests
@@ -229,11 +228,20 @@ func TestPlayerUseCase_SyncPlayer_CreateNew(t *testing.T) {
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
 
 	// Create test event data
-	eventData, err := createPlayerSyncEvent()
-	require.NoError(t, err)
+	eventData := createPlayerSyncEvent()
+	dataBytes, err := jsoniter.Marshal(eventData.Data)
+	assert.NoError(t, err)
+	var playerEvent event.PlayerSyncEvent
+	err = jsoniter.Unmarshal(dataBytes, &playerEvent)
+	assert.NoError(t, err)
 
 	// Execute the function
-	err = useCase.SyncPlayer(ctx, eventData)
+	err = useCase.SyncPlayer(
+		ctx,
+		&playerEvent.Player,
+		playerEvent.GlobalMerchantID,
+		eventData.TraceParent,
+	)
 
 	// Verify results
 	assert.NoError(t, err)
@@ -265,11 +273,20 @@ func TestPlayerUseCase_SyncPlayer_UpdateExisting(t *testing.T) {
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
 
 	// Create test event data
-	eventData, err := createPlayerSyncEvent()
-	require.NoError(t, err)
+	eventData := createPlayerSyncEvent()
+	dataBytes, err := jsoniter.Marshal(eventData.Data)
+	assert.NoError(t, err)
+	var playerEvent event.PlayerSyncEvent
+	err = jsoniter.Unmarshal(dataBytes, &playerEvent)
+	assert.NoError(t, err)
 
 	// Execute the function
-	err = useCase.SyncPlayer(ctx, eventData)
+	err = useCase.SyncPlayer(
+		ctx,
+		&playerEvent.Player,
+		playerEvent.GlobalMerchantID,
+		eventData.TraceParent,
+	)
 
 	// Verify results
 	assert.NoError(t, err)
@@ -290,11 +307,20 @@ func TestPlayerUseCase_SyncPlayer_MerchantNotFound(t *testing.T) {
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
 
 	// Create test event data
-	eventData, err := createPlayerSyncEvent()
-	require.NoError(t, err)
+	eventData := createPlayerSyncEvent()
+	dataBytes, err := jsoniter.Marshal(eventData.Data)
+	assert.NoError(t, err)
+	var playerEvent event.PlayerSyncEvent
+	err = jsoniter.Unmarshal(dataBytes, &playerEvent)
+	assert.NoError(t, err)
 
 	// Execute the function
-	err = useCase.SyncPlayer(ctx, eventData)
+	err = useCase.SyncPlayer(
+		ctx,
+		&playerEvent.Player,
+		playerEvent.GlobalMerchantID,
+		eventData.TraceParent,
+	)
 
 	// Verify results
 	assert.Error(t, err)
@@ -322,11 +348,20 @@ func TestPlayerUseCase_SyncPlayer_CreateError(t *testing.T) {
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
 
 	// Create test event data
-	eventData, err := createPlayerSyncEvent()
-	require.NoError(t, err)
+	eventData := createPlayerSyncEvent()
+	dataBytes, err := jsoniter.Marshal(eventData.Data)
+	assert.NoError(t, err)
+	var playerEvent event.PlayerSyncEvent
+	err = jsoniter.Unmarshal(dataBytes, &playerEvent)
+	assert.NoError(t, err)
 
 	// Execute the function
-	err = useCase.SyncPlayer(ctx, eventData)
+	err = useCase.SyncPlayer(
+		ctx,
+		&playerEvent.Player,
+		playerEvent.GlobalMerchantID,
+		eventData.TraceParent,
+	)
 
 	// Verify results
 	assert.Error(t, err)
