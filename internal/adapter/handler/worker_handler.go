@@ -164,6 +164,18 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 
 	tracing.TraceEvent(span, "Starting player sync processing")
 
+	if playerEvent.PlayerLevel.GlobalPlayerLevelID != "" {
+		var levelId uint64
+		levelId, err = h.levelUseCase.SyncPlayerLevel(ctx, &playerEvent.PlayerLevel,
+			playerEvent.GlobalMerchantID,
+			cloudEvent.TraceParent)
+		if err != nil {
+			tracing.RecordSpanError(span, err)
+			return fmt.Errorf("failed to sync player level: %w", err)
+		}
+		playerEvent.Player.LevelID = levelId
+	}
+
 	if err = h.playerUseCase.SyncPlayer(ctx,
 		&playerEvent.Player,
 		playerEvent.GlobalMerchantID,
@@ -182,14 +194,6 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 			cloudEvent.TraceParent); err != nil {
 			tracing.RecordSpanError(span, err)
 			return fmt.Errorf("failed to sync player tags: %w", err)
-		}
-	}
-	if playerEvent.PlayerLevel.GlobalPlayerLevelID != "" {
-		if err = h.levelUseCase.SyncPlayerLevel(ctx, &playerEvent.PlayerLevel,
-			playerEvent.GlobalMerchantID,
-			cloudEvent.TraceParent); err != nil {
-			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("failed to sync player level: %w", err)
 		}
 	}
 

@@ -46,6 +46,7 @@ type PlayerData struct {
 	Account        string `json:"account"`
 	Email          string `json:"email,omitempty"`
 	Status         string `json:"status"`
+	LevelID        uint64 `json:"level_id"`
 }
 
 // LevelData 玩家等級數據

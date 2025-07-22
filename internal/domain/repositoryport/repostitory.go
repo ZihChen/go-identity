@@ -38,5 +38,5 @@ type TagRepository interface {
 }
 
 type LevelRepository interface {
-	Upsert(ctx context.Context, level *entity.Level) error
+	Upsert(ctx context.Context, level *entity.Level) (uint64, error)
 }

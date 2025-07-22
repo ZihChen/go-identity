@@ -35,7 +35,7 @@ func (u *LevelUseCase) SyncPlayerLevel(
 	ctx context.Context,
 	data *event.LevelData,
 	globalMerchantID, traceParent string,
-) error {
+) (uint64, error) {
 	ctx, span := tracing.StartSpan(ctx, "LevelUseCase.SyncPlayerLevel")
 	defer tracing.SpanEnd(span)
 
@@ -46,20 +46,22 @@ func (u *LevelUseCase) SyncPlayerLevel(
 			merchant.ID = 0
 		} else {
 			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("find merchant: %w", err)
+			return 0, fmt.Errorf("find merchant: %w", err)
 		}
 	}
-	if err = u.levelRepo.Upsert(ctx, &entity.Level{
+
+	levelID, err := u.levelRepo.Upsert(ctx, &entity.Level{
 		GlobalPlayerLevelID: data.GlobalPlayerLevelID,
 		Name:                data.Name,
 		MerchantID:          merchant.ID,
 		CreatedAt:           time.Now(),
 		UpdatedAt:           time.Now(),
-	}); err != nil {
+	})
+	if err != nil {
 		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("upsert level: %w", err)
+		return 0, fmt.Errorf("upsert level: %w", err)
 	}
 	u.logger.InfoWithContext(ctx, "Upsert level completed", u.logger.Any("level", data))
 	tracing.TraceEvent(span, "Upsert completed")
-	return nil
+	return levelID, nil
 }

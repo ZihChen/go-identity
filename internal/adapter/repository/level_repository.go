@@ -19,14 +19,21 @@ func NewLevelRepository(db *gorm.DB) repositoryport.LevelRepository {
 	return &LevelRepository{db: db}
 }
 
-func (r *LevelRepository) Upsert(ctx context.Context, level *entity.Level) error {
+func (r *LevelRepository) Upsert(ctx context.Context, level *entity.Level) (uint64, error) {
+	dbLevel := mapToDBLevel(level)
 	if result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "global_player_level_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"name", "updated_at"}),
-	}).Create(mapToDBLevel(level)); result.Error != nil {
-		return fmt.Errorf("upsert level failed: %w", result.Error)
+	}).Create(dbLevel); result.Error != nil {
+		return 0, fmt.Errorf("upsert level failed: %w", result.Error)
 	}
-	return nil
+
+	if err := r.db.WithContext(ctx).
+		Where("global_player_level_id = ?", level.GlobalPlayerLevelID).
+		First(dbLevel).Error; err != nil {
+		return 0, fmt.Errorf("fetch level after upsert failed: %w", err)
+	}
+	return dbLevel.ID, nil
 }
 
 func mapToDBLevel(level *entity.Level) *models.Level {

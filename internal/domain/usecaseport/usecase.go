@@ -39,5 +39,5 @@ type PlayerLevelUseCase interface {
 		ctx context.Context,
 		data *event.LevelData,
 		globalMerchantID, traceParent string,
-	) error
+	) (uint64, error)
 }

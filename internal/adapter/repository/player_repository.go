@@ -120,6 +120,7 @@ func mapToDBPlayer(player *entity.Player) *models.Player {
 		ID:             player.ID,
 		MerchantID:     player.MerchantID,
 		GlobalPlayerID: player.GlobalPlayerID,
+		LevelID:        player.LevelID,
 		APIKey:         player.APIKey,
 		Account:        player.Account,
 		Email:          player.Email,

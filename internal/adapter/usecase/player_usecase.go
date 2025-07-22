@@ -83,6 +83,7 @@ func (u *PlayerUseCase) SyncPlayer(
 		player = entity.Player{
 			MerchantID:     merchant.ID,
 			GlobalPlayerID: playerData.GlobalPlayerID,
+			LevelID:        playerData.LevelID,
 			APIKey:         uuid.New().String(), // 生成新的API密鑰
 			Account:        playerData.Account,
 			Email:          email,
@@ -101,6 +102,7 @@ func (u *PlayerUseCase) SyncPlayer(
 		tracing.TraceEvent(span, "Updating existing player")
 		player = *existing
 		player.Account = playerData.Account
+		player.LevelID = playerData.LevelID
 		if playerData.Email != "" {
 			player.Email = &playerData.Email
 		}
