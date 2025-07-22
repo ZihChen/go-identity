@@ -33,6 +33,7 @@ type WorkerHandler struct {
 	playerUseCase   usecaseport.PlayerUseCase
 	managerUseCase  usecaseport.ManagerUseCase
 	tagUseCase      usecaseport.TagUseCase
+	levelUseCase    usecaseport.PlayerLevelUseCase
 	logger          infraport.Logger
 }
 
@@ -42,6 +43,7 @@ func NewWorkerHandler(
 	playerUseCase usecaseport.PlayerUseCase,
 	managerUseCase usecaseport.ManagerUseCase,
 	tagUseCase usecaseport.TagUseCase,
+	levelUseCase usecaseport.PlayerLevelUseCase,
 	logger infraport.Logger,
 ) *WorkerHandler {
 	return &WorkerHandler{
@@ -49,6 +51,7 @@ func NewWorkerHandler(
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
 		tagUseCase:      tagUseCase,
+		levelUseCase:    levelUseCase,
 		logger:          logger,
 	}
 }
@@ -181,12 +184,19 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 			return fmt.Errorf("failed to sync player tags: %w", err)
 		}
 	}
+	if playerEvent.PlayerLevel.GlobalPlayerLevelID != "" {
+		if err = h.levelUseCase.SyncPlayerLevel(ctx, &playerEvent.PlayerLevel,
+			playerEvent.GlobalMerchantID,
+			cloudEvent.TraceParent); err != nil {
+			tracing.RecordSpanError(span, err)
+			return fmt.Errorf("failed to sync player level: %w", err)
+		}
+	}
 
 	tracing.TraceEvent(span, "Player sync completed successfully")
 
 	h.logger.InfoLog("Player sync task completed successfully",
 		h.logger.String("task_id", taskID))
-
 	return nil
 }
 

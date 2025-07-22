@@ -37,6 +37,7 @@ var baseSet = wire.NewSet(
 	repository.NewPlayerRepository,
 	repository.NewManagerRepository,
 	repository.NewTagRepository,
+	repository.NewLevelRepository,
 
 	// 服務
 	provideEventProducer,
@@ -46,6 +47,7 @@ var baseSet = wire.NewSet(
 	adapterUsecase.NewPlayerUseCase,
 	adapterUsecase.NewManagerUseCase,
 	adapterUsecase.NewTagUseCase,
+	adapterUsecase.NewLevelUseCase,
 )
 
 // 事件生產者提供者

@@ -27,6 +27,19 @@ func (m *MockTagUseCase) SyncTag(
 	return args.Error(0)
 }
 
+type MockLevelUseCase struct {
+	mock.Mock
+}
+
+func (m *MockLevelUseCase) SyncPlayerLevel(
+	ctx context.Context,
+	data *event.LevelData,
+	globalMerchantID, traceParent string,
+) error {
+	args := m.Called(ctx, data, globalMerchantID, traceParent)
+	return args.Error(0)
+}
+
 // Setup function for tests
 func setupWorkerTest(
 	t *testing.T,
@@ -35,6 +48,7 @@ func setupWorkerTest(
 	playerUseCase := new(MockPlayerUseCase)
 	managerUseCase := new(MockManagerUseCase)
 	tagUseCase := new(MockTagUseCase)
+	mockLevelUseCase := new(MockLevelUseCase)
 	logger := helper.SetupLoggerMock(t)
 
 	handler := NewWorkerHandler(
@@ -42,6 +56,7 @@ func setupWorkerTest(
 		playerUseCase,
 		managerUseCase,
 		tagUseCase,
+		mockLevelUseCase,
 		logger,
 	)
 

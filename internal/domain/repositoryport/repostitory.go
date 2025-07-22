@@ -36,3 +36,7 @@ type ManagerRepository interface {
 type TagRepository interface {
 	BatchUpsert(ctx context.Context, tags []*entity.Tag) error
 }
+
+type LevelRepository interface {
+	Upsert(ctx context.Context, level *entity.Level) error
+}
