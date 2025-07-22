@@ -11,6 +11,7 @@ type Player struct {
 	ID             uint64         `gorm:"primaryKey;autoIncrement"`
 	MerchantID     uint64         `gorm:"index;not null"`
 	GlobalPlayerID string         `gorm:"uniqueIndex;size:100;not null"`
+	LevelID        uint64         `gorm:"index;default:0;not null"`
 	APIKey         string         `gorm:"uniqueIndex;size:255;not null"`
 	Account        string         `gorm:"size:255;not null;index:idx_merchant_account,priority:2"`
 	Email          *string        `gorm:"size:255"`
