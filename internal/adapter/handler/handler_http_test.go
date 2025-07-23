@@ -80,9 +80,9 @@ func (m *MockPlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint6
 func (m *MockPlayerUseCase) SyncPlayer(
 	ctx context.Context,
 	data *event.PlayerData,
-	globalMerchantID, traceParent string,
+	globalMerchantID string,
 ) error {
-	args := m.Called(ctx, data, globalMerchantID, traceParent)
+	args := m.Called(ctx, data, globalMerchantID)
 	return args.Error(0)
 }
 

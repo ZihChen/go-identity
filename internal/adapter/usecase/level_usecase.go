@@ -34,7 +34,7 @@ func NewLevelUseCase(
 func (u *LevelUseCase) SyncPlayerLevel(
 	ctx context.Context,
 	data *event.LevelData,
-	globalMerchantID, traceParent string,
+	globalMerchantID string,
 ) (uint64, error) {
 	ctx, span := tracing.StartSpan(ctx, "LevelUseCase.SyncPlayerLevel")
 	defer tracing.SpanEnd(span)

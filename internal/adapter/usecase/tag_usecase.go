@@ -40,7 +40,7 @@ func NewTagUseCase(
 func (u *TagUseCase) SyncTag(
 	ctx context.Context,
 	data []event.TagData,
-	globalMerchantID, traceParent string,
+	globalMerchantID string,
 ) error {
 	ctx, span := tracing.StartSpan(ctx, "TagUseCase.SyncTag")
 	defer tracing.SpanEnd(span)

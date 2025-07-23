@@ -46,7 +46,7 @@ func NewPlayerUseCase(
 func (u *PlayerUseCase) SyncPlayer(
 	ctx context.Context,
 	playerData *event.PlayerData,
-	globalMerchantID, traceParent string,
+	globalMerchantID string,
 ) error {
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.SyncPlayer")
 	defer tracing.SpanEnd(span)
@@ -123,7 +123,7 @@ func (u *PlayerUseCase) SyncPlayer(
 
 	// 發布玩家同步事件到KDS
 	tracing.TraceEvent(span, "Publishing player sync event to KDS")
-	if err := u.publishPlayerSyncEvent(ctx, &player, globalMerchantID, traceParent); err != nil {
+	if err := u.publishPlayerSyncEvent(ctx, &player, globalMerchantID); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player sync event: %w", err)
 	}
@@ -139,7 +139,6 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 	ctx context.Context,
 	player *entity.Player,
 	globalMerchantID string,
-	traceParent string,
 ) error {
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.publishPlayerSyncEvent")
 	defer tracing.SpanEnd(span)
@@ -223,7 +222,7 @@ func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.P
 		attribute.String("player.account", player.Account),
 	)
 
-	if err = u.publishPlayerSyncEvent(ctx, player, "123", "321"); err != nil {
+	if err = u.publishPlayerSyncEvent(ctx, player, "123"); err != nil {
 		return nil, err
 	}
 

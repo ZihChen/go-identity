@@ -240,7 +240,6 @@ func TestPlayerUseCase_SyncPlayer_CreateNew(t *testing.T) {
 		ctx,
 		&playerEvent.Player,
 		playerEvent.GlobalMerchantID,
-		eventData.TraceParent,
 	)
 
 	// Verify results
@@ -285,7 +284,6 @@ func TestPlayerUseCase_SyncPlayer_UpdateExisting(t *testing.T) {
 		ctx,
 		&playerEvent.Player,
 		playerEvent.GlobalMerchantID,
-		eventData.TraceParent,
 	)
 
 	// Verify results
@@ -332,7 +330,6 @@ func TestPlayerUseCase_SyncPlayer_MerchantNotFound(t *testing.T) {
 		ctx,
 		&playerEvent.Player,
 		playerEvent.GlobalMerchantID,
-		eventData.TraceParent,
 	)
 
 	// Verify results
@@ -374,7 +371,6 @@ func TestPlayerUseCase_SyncPlayer_CreateError(t *testing.T) {
 		ctx,
 		&playerEvent.Player,
 		playerEvent.GlobalMerchantID,
-		eventData.TraceParent,
 	)
 
 	// Verify results

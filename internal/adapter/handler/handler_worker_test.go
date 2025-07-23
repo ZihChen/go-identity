@@ -21,9 +21,9 @@ type MockTagUseCase struct {
 func (m *MockTagUseCase) SyncTag(
 	ctx context.Context,
 	data []event.TagData,
-	globalMerchantID, traceParent string,
+	globalMerchantID string,
 ) error {
-	args := m.Called(ctx, data, globalMerchantID, traceParent)
+	args := m.Called(ctx, data, globalMerchantID)
 	return args.Error(0)
 }
 
@@ -43,9 +43,9 @@ type MockLevelUseCase struct {
 func (m *MockLevelUseCase) SyncPlayerLevel(
 	ctx context.Context,
 	data *event.LevelData,
-	globalMerchantID, traceParent string,
+	globalMerchantID string,
 ) (uint64, error) {
-	args := m.Called(ctx, data, globalMerchantID, traceParent)
+	args := m.Called(ctx, data, globalMerchantID)
 	return args.Get(0).(uint64), args.Error(1)
 }
 
@@ -144,7 +144,7 @@ func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil)
 	tagUseCase.On("SyncPlayerTag", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -184,7 +184,7 @@ func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 
 	// Setup expectations
 	expectedErr := errors.New("sync error")
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, mock.Anything).
 		Return(expectedErr)
 
 	// Setup context
@@ -232,11 +232,11 @@ func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	mockLevelUseCase.On("SyncPlayerLevel", mock.Anything, mock.Anything, "merchant1", "test-trace").
+	mockLevelUseCase.On("SyncPlayerLevel", mock.Anything, mock.Anything, "merchant1").
 		Return(uint64(1), nil)
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1", "test-trace").
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1").
 		Return(nil)
-	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1", "test-trace").Return(nil)
+	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1").Return(nil)
 	tagUseCase.On("SyncPlayerTag", mock.Anything, "test-player-id", mock.Anything).Return(nil)
 
 	// Setup context
@@ -280,7 +280,7 @@ func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 
 	// Setup expectations
 	expectedErr := errors.New("level sync error")
-	mockLevelUseCase.On("SyncPlayerLevel", mock.Anything, mock.Anything, "merchant1", "test-trace").
+	mockLevelUseCase.On("SyncPlayerLevel", mock.Anything, mock.Anything, "merchant1").
 		Return(uint64(0), expectedErr)
 
 	// Setup context
@@ -322,10 +322,10 @@ func TestWorkerHandler_HandlePlayerSync_TagError(t *testing.T) {
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1", "test-trace").
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1").
 		Return(nil)
 	expectedErr := errors.New("tag sync error")
-	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1", "test-trace").
+	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1").
 		Return(expectedErr)
 
 	// Setup context
@@ -368,9 +368,9 @@ func TestWorkerHandler_HandlePlayerSync_PlayerTagRelationError(t *testing.T) {
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1", "test-trace").
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1").
 		Return(nil)
-	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1", "test-trace").Return(nil)
+	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1").Return(nil)
 	expectedErr := errors.New("player tag relation error")
 	tagUseCase.On("SyncPlayerTag", mock.Anything, "test-player-id", mock.Anything).
 		Return(expectedErr)

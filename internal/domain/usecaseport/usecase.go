@@ -23,7 +23,7 @@ type PlayerUseCase interface {
 	SyncPlayer(
 		ctx context.Context,
 		data *event.PlayerData,
-		globalMerchantID, traceParent string,
+		globalMerchantID string,
 	) error
 	GetPlayerByID(ctx context.Context, id uint64) (*entity.Player, error)
 	GetPlayerByGlobalID(ctx context.Context, globalID string) (*entity.Player, error)
@@ -31,7 +31,7 @@ type PlayerUseCase interface {
 }
 
 type TagUseCase interface {
-	SyncTag(ctx context.Context, data []event.TagData, globalMerchantID, traceParent string) error
+	SyncTag(ctx context.Context, data []event.TagData, globalMerchantID string) error
 	SyncPlayerTag(ctx context.Context, globalPlayerID string, data []event.TagData) error
 }
 
@@ -39,6 +39,6 @@ type PlayerLevelUseCase interface {
 	SyncPlayerLevel(
 		ctx context.Context,
 		data *event.LevelData,
-		globalMerchantID, traceParent string,
+		globalMerchantID string,
 	) (uint64, error)
 }
