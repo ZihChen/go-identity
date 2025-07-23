@@ -72,7 +72,8 @@ func InitializeWorkerServer(cfg *config.Config, logger infraport.Logger, redisMa
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
 	tagRepository := repository.NewTagRepository(db)
-	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, logger)
+	playerTagRepository := repository.NewPlayerLevelRepository(db)
+	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, logger)
 	levelRepository := repository.NewLevelRepository(db)
 	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, logger)
 	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
@@ -101,7 +102,8 @@ func InitializeWorkerComponents(cfg *config.Config, logger infraport.Logger, red
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
 	tagRepository := repository.NewTagRepository(db)
-	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, logger)
+	playerTagRepository := repository.NewPlayerLevelRepository(db)
+	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, logger)
 	levelRepository := repository.NewLevelRepository(db)
 	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, logger)
 	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
@@ -138,7 +140,7 @@ type WorkerComponents struct {
 }
 
 var baseSet = wire.NewSet(queue.NewQueueService, provideRedisClient,
-	provideDeduplicationService, repository.NewMerchantRepository, repository.NewPlayerRepository, repository.NewManagerRepository, repository.NewTagRepository, repository.NewLevelRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase.NewPlayerUseCase, usecase.NewManagerUseCase, usecase.NewTagUseCase, usecase.NewLevelUseCase,
+	provideDeduplicationService, repository.NewMerchantRepository, repository.NewPlayerRepository, repository.NewManagerRepository, repository.NewTagRepository, repository.NewLevelRepository, repository.NewPlayerLevelRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase.NewPlayerUseCase, usecase.NewManagerUseCase, usecase.NewTagUseCase, usecase.NewLevelUseCase,
 )
 
 // 事件生產者提供者

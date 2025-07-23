@@ -6,7 +6,7 @@ import "time"
 type PlayerTag struct {
 	PlayerID  uint64    `gorm:"uniqueIndex:idx_player_tag"`
 	TagID     uint64    `gorm:"uniqueIndex:idx_player_tag"`
-	CreatedAt time.Time `gorm:"type:datetime;default:CURRENT_TIMESTAMP"                             json:"created_at"`
+	CreatedAt time.Time `gorm:"type:datetime;default:CURRENT_TIMESTAMP" json:"created_at"`
 }
 
 func (*PlayerTag) TableName() string {

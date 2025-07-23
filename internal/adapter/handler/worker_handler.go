@@ -197,6 +197,11 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 		}
 	}
 
+	if err = h.tagUseCase.SyncPlayerTag(ctx, playerEvent.Player.GlobalPlayerID, playerEvent.PlayerTags); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("failed to sync player tags relation: %w", err)
+	}
+
 	tracing.TraceEvent(span, "Player sync completed successfully")
 
 	h.logger.InfoLog("Player sync task completed successfully",
