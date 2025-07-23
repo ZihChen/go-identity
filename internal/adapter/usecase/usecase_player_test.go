@@ -303,6 +303,19 @@ func TestPlayerUseCase_SyncPlayer_MerchantNotFound(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
 		Return(nil, errors.New("record not found"))
 
+	// Player doesn't exist yet
+	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").
+		Return(nil, errors.New("record not found"))
+
+	// Expect Create to be called with merchant ID 0
+	playerRepo.On("Create", mock.Anything, mock.MatchedBy(func(player *entity.Player) bool {
+		return player.MerchantID == 0
+	})).Return(nil)
+
+	// Expect PublishPlayerSync to be called
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+		Return(nil)
+
 	// Create the use case
 	useCase := NewPlayerUseCase(playerRepo, merchantRepo, eventProducer, logger, redisClient)
 
@@ -323,9 +336,10 @@ func TestPlayerUseCase_SyncPlayer_MerchantNotFound(t *testing.T) {
 	)
 
 	// Verify results
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "find merchant")
+	assert.NoError(t, err)
 	merchantRepo.AssertExpectations(t)
+	playerRepo.AssertExpectations(t)
+	eventProducer.AssertExpectations(t)
 }
 
 func TestPlayerUseCase_SyncPlayer_CreateError(t *testing.T) {

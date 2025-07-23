@@ -137,14 +137,16 @@ func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 // Tests for HandlePlayerSync
 func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, _, handler := setupWorkerTest(t)
+	_, playerUseCase, _, tagUseCase, handler := setupWorkerTest(t)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	playerUseCase.On("SyncPlayer", mock.Anything, payload).Return(nil)
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+	tagUseCase.On("SyncPlayerTag", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Setup context
 	ctx := context.Background()
