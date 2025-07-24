@@ -92,16 +92,18 @@ func NewKDSService(
 		logger.String("dynamodb_table", config.AWS.DynamoDBTable))
 
 	return &KDSService{
-		client:       kinesisClient,
-		dynamoClient: dynamoClient,
-		redisManager: redisManager,
-		streamName:   streamName,
-		tableName:    config.AWS.DynamoDBTable,
-		partitionKey: config.AWS.PartitionKey,
-		sortKey:      config.AWS.SortKey,
-		config:       config,
-		queueService: queueService,
-		logger:       logger,
+		client:        kinesisClient,
+		dynamoClient:  dynamoClient,
+		redisManager:  redisManager,
+		streamName:    streamName,
+		consumeStream: config.AWS.ConsumeStream,
+		produceStream: config.AWS.ProduceStream,
+		tableName:     config.AWS.DynamoDBTable,
+		partitionKey:  config.AWS.PartitionKey,
+		sortKey:       config.AWS.SortKey,
+		config:        config,
+		queueService:  queueService,
+		logger:        logger,
 	}, nil
 }
 
@@ -144,7 +146,7 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 
 	res, err := k.client.PutRecord(ctx, &kinesis.PutRecordInput{
 		Data:         data,
-		StreamName:   aws.String(k.streamName),
+		StreamName:   aws.String(k.produceStream),
 		PartitionKey: aws.String(partitionKey),
 	})
 	if err != nil {
@@ -209,7 +211,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 	k.logger.InfoWithContext(
 		ctx,
 		"Starting to consume all events from KDS",
-		k.logger.String("stream_name", k.streamName),
+		k.logger.String("stream_name", k.consumeStream),
 	)
 
 	// 獲取分片信息
@@ -232,7 +234,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 		)
 
 		// 為每個 shard 建立分布式鎖
-		mutexKey := fmt.Sprintf(consts.ShardMutexRedisKey, k.streamName, shardId)
+		mutexKey := fmt.Sprintf(consts.ShardMutexRedisKey, k.consumeStream, shardId)
 		mutex, err := k.redisManager.GetMutex(mutexKey, consumerProcessedTTL)
 		if err != nil {
 			// Redis連線異常仍執行後面程序
@@ -616,7 +618,7 @@ func (k *KDSService) getRecordsWithRetry(
 func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, error) {
 	// 獲取所有分片
 	shardsOutput, err := k.client.ListShards(ctx, &kinesis.ListShardsInput{
-		StreamName: aws.String(k.streamName),
+		StreamName: aws.String(k.consumeStream),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list shards: %w", err)
@@ -650,7 +652,7 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 			}
 
 			iterOutput, err := k.client.GetShardIterator(ctx, &kinesis.GetShardIteratorInput{
-				StreamName:             aws.String(k.streamName),
+				StreamName:             aws.String(k.consumeStream),
 				ShardId:                shard.ShardId,
 				ShardIteratorType:      iteratorType,
 				StartingSequenceNumber: sequenceNumber,
@@ -781,5 +783,5 @@ func extractMerchantID(event *event.CloudEvent) string {
 }
 
 func (k *KDSService) composeDynamoDBKey(shardId string) string {
-	return fmt.Sprintf("%s_%s_%s", k.streamName, shardId, k.config.App.Name)
+	return fmt.Sprintf("%s_%s_%s", k.consumeStream, shardId, k.config.App.Name)
 }

@@ -57,6 +57,8 @@ type AWSConfig struct {
 	SecretAccessKey string
 	Region          string
 	KinesisStream   string
+	ConsumeStream   string
+	ProduceStream   string
 	DynamoDBTable   string
 	PartitionKey    string
 	SortKey         string
@@ -127,6 +129,8 @@ func LoadConfig() (*Config, error) {
 			SecretAccessKey: viper.GetString("AWS_SECRET_ACCESS_KEY"),
 			Region:          viper.GetString("AWS_REGION"),
 			KinesisStream:   viper.GetString("KINESIS_STREAM_ARN"),
+			ConsumeStream:   viper.GetString("KINESIS_CONSUME_STREAM_NAME"),
+			ProduceStream:   viper.GetString("KINESIS_PRODUCE_STREAM_NAME"),
 			DynamoDBTable:   viper.GetString("DYNAMODB_TABLE"),
 			PartitionKey:    viper.GetString("DYNAMODB_PARTITION_KEY"),
 			SortKey:         viper.GetString("DYNAMODB_SORT_KEY"),
