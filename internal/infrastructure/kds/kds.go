@@ -451,13 +451,23 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 								record.Data,
 							)
 						default:
-							// TODO 新增checkpoint marked
-							k.logger.WarnWithContext(
-								eventCtx,
-								"Unknown event type, skipping",
-								k.logger.String("event_id", eventID),
-								k.logger.String("event_type", eventType),
-							)
+							if err := k.updateCheckpoint(eventCtx, shardId, sequenceNumber); err != nil {
+								k.logger.WarnWithContext(
+									eventCtx,
+									"Unknown event type, Failed to update checkpoint",
+									k.logger.String("shard_id", shardId),
+									k.logger.String("sequence_number", sequenceNumber),
+									k.logger.Error("error", err),
+								)
+								tracing.RecordSpanError(eventSpan, err)
+							} else {
+								k.logger.WarnWithContext(
+									eventCtx,
+									"Unknown event type, skipping",
+									k.logger.String("event_id", eventID),
+									k.logger.String("event_type", eventType),
+								)
+							}
 							tracing.SpanEnd(eventSpan)
 							continue
 						}
