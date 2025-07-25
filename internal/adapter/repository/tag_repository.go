@@ -44,14 +44,14 @@ func (r *TagRepository) FindByGlobalIDs(
 	ctx context.Context,
 	globalIDs []string,
 ) ([]*entity.Tag, error) {
-	var tags []*entity.Tag
+	tags := make([]*entity.Tag, len(globalIDs))
 
 	result := r.db.WithContext(ctx).
 		Where("global_tag_id IN ?", globalIDs).
 		Where("deleted_at IS NULL"). // 如果使用了软删除，确保只查询未删除的记录
 		Find(&tags)
 	if result.Error != nil {
-		return nil, fmt.Errorf("find tags by global ids failed: %w", result.Error)
+		return tags, fmt.Errorf("find tags by global ids failed: %w", result.Error)
 	}
 	return tags, nil
 }

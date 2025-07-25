@@ -54,10 +54,7 @@ func (u *PlayerUseCase) SyncPlayer(
 	tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
 	if err != nil {
-		if err.Error() == "record not found" {
-			// Initialize a new merchant with ID 0 when merchant is not found
-			merchant = &entity.Merchant{ID: 0}
-		} else {
+		if err.Error() != "record not found" {
 			tracing.RecordSpanError(span, err)
 			return fmt.Errorf("find merchant: %w", err)
 		}

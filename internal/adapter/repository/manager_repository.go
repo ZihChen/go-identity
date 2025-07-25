@@ -30,7 +30,7 @@ func (r *ManagerRepository) FindByID(ctx context.Context, id uint64) (*entity.Ma
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("record not found")
 		}
-		return nil, result.Error
+		return &entity.Manager{}, result.Error
 	}
 
 	return mapToDomainManager(&manager), nil
@@ -47,7 +47,7 @@ func (r *ManagerRepository) FindByGlobalID(
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("record not found")
 		}
-		return nil, result.Error
+		return &entity.Manager{}, result.Error
 	}
 
 	return mapToDomainManager(&manager), nil
