@@ -120,10 +120,18 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 	} else {
 		// 更新現有管理員
 		tracing.TraceEvent(span, "Updating existing manager")
+		nowTime := time.Now()
+
 		manager = *existing
 		manager.Account = managerEvent.Manager.Account
 		manager.Email = &managerEvent.Manager.Email
 		manager.UpdatedAt = time.Now()
+		manager.DeletedAt = func() *time.Time {
+			if managerEvent.Manager.DeletedAt == "" {
+				return nil
+			}
+			return &nowTime
+		}()
 
 		if err := u.managerRepo.Update(ctx, &manager); err != nil {
 			tracing.RecordSpanError(span, err)

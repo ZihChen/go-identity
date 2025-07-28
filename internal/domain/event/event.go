@@ -75,6 +75,7 @@ type ManagerData struct {
 	GlobalManagerID string `json:"global_manager_id"`
 	Account         string `json:"account"`
 	Email           string `json:"email"`
+	DeletedAt       string `json:"deleted_at,omitempty"`
 }
 
 // IdentityMerchantSyncEvent 發送到 KDS 的商戶同步事件
