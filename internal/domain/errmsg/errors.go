@@ -1,0 +1,12 @@
+package errmsg
+
+import "errors"
+
+var (
+	ErrRepoMerchantNotFound       = errors.New("repo merchant not found")
+	ErrRepoDeleteMerchantNotFound = errors.New("repo delete merchant not found")
+	ErrRepoManagerNotFound        = errors.New("repo manager not found")
+	ErrRepoDeleteManagerNotFound  = errors.New("repo delete manager not found")
+	ErrRepoPlayerNotFound         = errors.New("repo player not found")
+	ErrRepoDeletePlayerNotFound   = errors.New("repo delete player not found")
+)

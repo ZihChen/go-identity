@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -28,7 +28,7 @@ func (r *merchantRepository) FindByID(ctx context.Context, id uint64) (*entity.M
 	result := r.db.WithContext(ctx).First(&merchant, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("record not found")
+			return nil, errmsg.ErrRepoMerchantNotFound
 		}
 		return &entity.Merchant{}, result.Error
 	}
@@ -45,7 +45,7 @@ func (r *merchantRepository) FindByGlobalID(
 	result := r.db.WithContext(ctx).Where("global_merchant_id = ?", globalID).First(&merchant)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return &entity.Merchant{}, fmt.Errorf("record not found")
+			return &entity.Merchant{}, errmsg.ErrRepoMerchantNotFound
 		}
 		return &entity.Merchant{}, result.Error
 	}
@@ -86,7 +86,7 @@ func (r *merchantRepository) Delete(ctx context.Context, id uint64) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("record not found")
+		return errmsg.ErrRepoDeleteMerchantNotFound
 	}
 
 	return nil

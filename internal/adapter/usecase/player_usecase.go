@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"time"
 
 	"github.com/google/uuid"
@@ -53,24 +55,22 @@ func (u *PlayerUseCase) SyncPlayer(
 
 	tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
-	if err != nil {
-		if err.Error() != "record not found" {
-			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("find merchant: %w", err)
-		}
+	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("find merchant: %w", err)
 	}
 
 	// 查找玩家是否存在
 	tracing.TraceEvent(span, "Checking if player exists")
 	existing, err := u.playerRepo.FindByGlobalID(ctx, playerData.GlobalPlayerID)
-	if err != nil && err.Error() != "record not found" {
+	if err != nil && !errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find player: %w", err)
 	}
 
 	// 創建或更新玩家
 	var player entity.Player
-	if existing == nil {
+	if errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
 		// 創建新玩家
 		tracing.TraceEvent(span, "Creating new player")
 		var email *string

@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -47,13 +49,9 @@ func (u *TagUseCase) SyncTag(
 
 	tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
-	if err != nil {
-		if err.Error() == "record not found" {
-			merchant.ID = 0
-		} else {
-			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("find merchant: %w", err)
-		}
+	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("find merchant: %w", err)
 	}
 
 	var tagsToInsert []*entity.Tag

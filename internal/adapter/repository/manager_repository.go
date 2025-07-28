@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -28,7 +28,7 @@ func (r *ManagerRepository) FindByID(ctx context.Context, id uint64) (*entity.Ma
 	result := r.db.WithContext(ctx).First(&manager, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("record not found")
+			return nil, errmsg.ErrRepoManagerNotFound
 		}
 		return &entity.Manager{}, result.Error
 	}
@@ -45,7 +45,7 @@ func (r *ManagerRepository) FindByGlobalID(
 	result := r.db.WithContext(ctx).Where("global_manager_id = ?", globalID).First(&manager)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("record not found")
+			return nil, errmsg.ErrRepoManagerNotFound
 		}
 		return &entity.Manager{}, result.Error
 	}
@@ -86,7 +86,7 @@ func (r *ManagerRepository) Delete(ctx context.Context, id uint64) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("record not found")
+		return errmsg.ErrRepoDeleteManagerNotFound
 	}
 
 	return nil
