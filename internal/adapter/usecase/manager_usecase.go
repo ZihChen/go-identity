@@ -45,6 +45,7 @@ func NewManagerUseCase(
 // SyncManager 同步管理員信息
 func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) error {
 	ctx, span := tracing.StartSpan(ctx, "ManagerUseCase.SyncManager")
+	nowTime := time.Now()
 
 	// 將事件解析為 CloudEvent
 	var cloudEvent event.CloudEvent
@@ -69,7 +70,7 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 	}
 
 	var managerEvent event.ManagerSyncEvent
-	if err := json.Unmarshal(dataBytes, &managerEvent); err != nil {
+	if err = json.Unmarshal(dataBytes, &managerEvent); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("unmarshal manager event: %w", err)
 	}
@@ -105,10 +106,10 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 			GlobalManagerID: managerEvent.Manager.GlobalManagerID,
 			Account:         managerEvent.Manager.Account,
 			Email:           &managerEvent.Manager.Email,
-			CreatedAt:       time.Now(),
-			UpdatedAt:       time.Now(),
+			CreatedAt:       nowTime,
+			UpdatedAt:       nowTime,
 		}
-		if err := u.managerRepo.Create(ctx, &manager); err != nil {
+		if err = u.managerRepo.FirstOrCreate(ctx, &manager); err != nil {
 			tracing.RecordSpanError(span, err)
 			return fmt.Errorf("create manager: %w", err)
 		}
@@ -118,12 +119,25 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 	} else {
 		// 更新現有管理員
 		tracing.TraceEvent(span, "Updating existing manager")
-		nowTime := time.Now()
+
+		var eventTime time.Time
+		if cloudEvent.Time.After(time.Time{}) {
+			eventTime = cloudEvent.Time
+		} else {
+			eventTime = nowTime
+		}
+		// 如果現有記錄的更新時間較新，則跳過更新（確保幂等性）
+		if existing.UpdatedAt.After(eventTime) {
+			u.logger.InfoLog("Skipping manager update as existing data is newer",
+				u.logger.String("global_id", existing.GlobalManagerID),
+				u.logger.String("existing_updated_at", existing.UpdatedAt.String()),
+				u.logger.String("event_time", eventTime.String()))
+		}
 
 		manager = *existing
 		manager.Account = managerEvent.Manager.Account
 		manager.Email = &managerEvent.Manager.Email
-		manager.UpdatedAt = time.Now()
+		manager.UpdatedAt = nowTime
 		manager.DeletedAt = func() *time.Time {
 			if managerEvent.Manager.DeletedAt == "" {
 				return nil
@@ -131,7 +145,7 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 			return &nowTime
 		}()
 
-		if err := u.managerRepo.Update(ctx, &manager); err != nil {
+		if err = u.managerRepo.Update(ctx, &manager); err != nil {
 			tracing.RecordSpanError(span, err)
 			return fmt.Errorf("update manager: %w", err)
 		}
@@ -145,7 +159,7 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, eventData []byte) erro
 
 	// 發布管理員同步事件到KDS
 	tracing.TraceEvent(span, "Publishing manager sync event to KDS")
-	if err := u.publishManagerSyncEvent(ctx, &manager, managerEvent.GlobalMerchantID, cloudEvent.TraceParent); err != nil {
+	if err = u.publishManagerSyncEvent(ctx, &manager, managerEvent.GlobalMerchantID, cloudEvent.TraceParent); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish manager sync event: %w", err)
 	}

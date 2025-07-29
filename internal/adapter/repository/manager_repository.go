@@ -53,6 +53,19 @@ func (r *ManagerRepository) FindByGlobalID(
 	return mapToDomainManager(&manager), nil
 }
 
+// FirstOrCreate 取得或創建，避免重複插入
+func (r *ManagerRepository) FirstOrCreate(ctx context.Context, manager *entity.Manager) error {
+	managerModel := mapToDBManager(manager)
+	result := r.db.WithContext(ctx).Where("global_manager_id = ?", manager.GlobalManagerID).
+		FirstOrCreate(managerModel)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	manager.ID = managerModel.ID
+	return nil
+}
+
 // Create 創建管理員
 func (r *ManagerRepository) Create(ctx context.Context, manager *entity.Manager) error {
 	managerModel := mapToDBManager(manager)

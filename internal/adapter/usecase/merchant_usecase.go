@@ -42,6 +42,7 @@ func NewMerchantUseCase(
 // SyncMerchant 同步商戶信息
 func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) error {
 	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.SyncMerchant")
+	nowTime := time.Now()
 
 	// 將事件解析為 CloudEvent
 	var cloudEvent event.CloudEvent
@@ -66,7 +67,7 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 	}
 
 	var merchantEvent event.MerchantSyncEvent
-	if err := json.Unmarshal(dataBytes, &merchantEvent); err != nil {
+	if err = json.Unmarshal(dataBytes, &merchantEvent); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("unmarshal merchant event: %w", err)
 	}
@@ -93,10 +94,10 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 			Name:             merchantEvent.Merchant.Name,
 			DisplayName:      merchantEvent.Merchant.DisplayName,
 			APIKey:           uuid.New().String(), // 生成新的API密鑰
-			CreatedAt:        time.Now(),
-			UpdatedAt:        time.Now(),
+			CreatedAt:        nowTime,
+			UpdatedAt:        nowTime,
 		}
-		if err := u.merchantRepo.Create(ctx, &merchant); err != nil {
+		if err = u.merchantRepo.FirstOrCreate(ctx, &merchant); err != nil {
 			tracing.RecordSpanError(span, err)
 			return fmt.Errorf("create merchant: %w", err)
 		}
@@ -106,12 +107,29 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 	} else {
 		// 更新現有商戶
 		tracing.TraceEvent(span, "Updating existing merchant")
+
+		var eventTime time.Time
+		if cloudEvent.Time.After(time.Time{}) {
+			eventTime = cloudEvent.Time
+		} else {
+			eventTime = nowTime
+		}
+
+		// 如果現有記錄的更新時間較新，則跳過更新（確保幂等性）
+		if existing.UpdatedAt.After(eventTime) {
+			u.logger.InfoWithContext(ctx, "Skipping merchant update as existing data is newer",
+				u.logger.String("global_id", existing.GlobalMerchantID),
+				u.logger.String("existing_updated_at", existing.UpdatedAt.String()),
+				u.logger.String("event_time", eventTime.String()))
+			return nil
+		}
+
 		merchant = *existing
 		merchant.Name = merchantEvent.Merchant.Name
 		merchant.DisplayName = merchantEvent.Merchant.DisplayName
-		merchant.UpdatedAt = time.Now()
+		merchant.UpdatedAt = nowTime
 
-		if err := u.merchantRepo.Update(ctx, &merchant); err != nil {
+		if err = u.merchantRepo.Update(ctx, &merchant); err != nil {
 			tracing.RecordSpanError(span, err)
 			return fmt.Errorf("update merchant: %w", err)
 		}
@@ -125,14 +143,13 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 
 	// 發布商戶同步事件到KDS
 	tracing.TraceEvent(span, "Publishing merchant sync event to KDS")
-	if err := u.publishMerchantSyncEvent(ctx, &merchant, cloudEvent.TraceParent); err != nil {
+	if err = u.publishMerchantSyncEvent(ctx, &merchant, cloudEvent.TraceParent); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish merchant sync event: %w", err)
 	}
 
 	// 記錄處理完成
 	tracing.TraceEvent(span, "Merchant sync completed successfully")
-
 	return nil
 }
 

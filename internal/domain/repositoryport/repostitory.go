@@ -10,6 +10,7 @@ import (
 type MerchantRepository interface {
 	FindByID(ctx context.Context, id uint64) (*entity.Merchant, error)
 	FindByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error)
+	FirstOrCreate(ctx context.Context, merchant *entity.Merchant) error
 	Create(ctx context.Context, merchant *entity.Merchant) error
 	Update(ctx context.Context, merchant *entity.Merchant) error
 	Delete(ctx context.Context, id uint64) error
@@ -19,6 +20,7 @@ type MerchantRepository interface {
 type PlayerRepository interface {
 	FindByID(ctx context.Context, id uint64) (*entity.Player, error)
 	FindByGlobalID(ctx context.Context, globalID string) (*entity.Player, error)
+	FirstOrCreate(ctx context.Context, player *entity.Player) error
 	Create(ctx context.Context, player *entity.Player) error
 	Update(ctx context.Context, player *entity.Player) error
 	Delete(ctx context.Context, id uint64) error
@@ -28,6 +30,7 @@ type PlayerRepository interface {
 type ManagerRepository interface {
 	FindByID(ctx context.Context, id uint64) (*entity.Manager, error)
 	FindByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error)
+	FirstOrCreate(ctx context.Context, manager *entity.Manager) error
 	Create(ctx context.Context, manager *entity.Manager) error
 	Update(ctx context.Context, manager *entity.Manager) error
 	Delete(ctx context.Context, id uint64) error

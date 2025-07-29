@@ -53,6 +53,18 @@ func (r *merchantRepository) FindByGlobalID(
 	return mapToDomainMerchant(&merchant), nil
 }
 
+func (r *merchantRepository) FirstOrCreate(ctx context.Context, merchant *entity.Merchant) error {
+	merchantModel := mapToDBMerchant(merchant)
+	result := r.db.WithContext(ctx).Where("global_merchant_id = ?", merchant.GlobalMerchantID).
+		FirstOrCreate(merchantModel)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	merchant.ID = merchantModel.ID
+	return nil
+}
+
 // Create 創建商戶
 func (r *merchantRepository) Create(ctx context.Context, merchant *entity.Merchant) error {
 	merchantModel := mapToDBMerchant(merchant)

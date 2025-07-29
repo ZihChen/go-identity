@@ -53,6 +53,19 @@ func (r *PlayerRepository) FindByGlobalID(
 	return mapToDomainPlayer(&player), nil
 }
 
+// FirstOrCreate 取得或創建，避免重複插入
+func (r *PlayerRepository) FirstOrCreate(ctx context.Context, player *entity.Player) error {
+	playerModel := mapToDBPlayer(player)
+	result := r.db.WithContext(ctx).Where("global_player_id = ?", player.GlobalPlayerID).
+		FirstOrCreate(playerModel)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	player.ID = playerModel.ID
+	return nil
+}
+
 // Create 創建玩家
 func (r *PlayerRepository) Create(ctx context.Context, player *entity.Player) error {
 	playerModel := mapToDBPlayer(player)
