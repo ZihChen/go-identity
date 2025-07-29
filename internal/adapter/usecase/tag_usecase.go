@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
+	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -21,6 +24,7 @@ type TagUseCase struct {
 	playerRepo    repositoryport.PlayerRepository
 	playerTagRepo repositoryport.PlayerTagRepository
 	logger        infraport.Logger
+	redisManager  *redisCache.Manager
 }
 
 func NewTagUseCase(
@@ -29,6 +33,7 @@ func NewTagUseCase(
 	playerRepo repositoryport.PlayerRepository,
 	playerTagRepo repositoryport.PlayerTagRepository,
 	logger infraport.Logger,
+	redisManager *redisCache.Manager,
 ) usecaseport.TagUseCase {
 	return &TagUseCase{
 		tagRepo:       tagRepo,
@@ -36,6 +41,7 @@ func NewTagUseCase(
 		playerRepo:    playerRepo,
 		playerTagRepo: playerTagRepo,
 		logger:        logger,
+		redisManager:  redisManager,
 	}
 }
 
@@ -100,14 +106,16 @@ func (u *TagUseCase) SyncPlayerTag(
 	}
 
 	if len(data) == 0 {
-		if err = u.playerTagRepo.BatchDeleteByPlayerID(ctx, player.ID); err != nil {
-			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("batch delete player tags failed: %w", err)
-		}
-		u.logger.InfoWithContext(ctx, "Batch delete player tags completed",
-			u.logger.UInt64("player_id", player.ID),
-		)
-		return nil
+		return u.executeLocked(ctx, player.ID, func() error {
+			if err = u.playerTagRepo.BatchDeleteByPlayerID(ctx, player.ID); err != nil {
+				tracing.RecordSpanError(span, err)
+				return fmt.Errorf("batch delete player tags failed: %w", err)
+			}
+			u.logger.InfoWithContext(ctx, "Batch delete player tags completed",
+				u.logger.UInt64("player_id", player.ID),
+			)
+			return nil
+		})
 	}
 
 	var tagsGlobalIDs []string
@@ -126,15 +134,47 @@ func (u *TagUseCase) SyncPlayerTag(
 		tagIDs = append(tagIDs, tag.ID)
 	}
 
-	err = u.playerTagRepo.BatchUpdate(ctx, player.ID, tagIDs)
-	if err != nil {
-		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("batch update player tags failed: %w", err)
-	}
-	u.logger.InfoWithContext(ctx, "Batch upsert player tags completed",
-		u.logger.UInt64("player_id", player.ID),
-		u.logger.Int("count", len(tagIDs)),
-		u.logger.Any("tag_ids", tagIDs),
+	return u.executeLocked(ctx, player.ID, func() error {
+		err = u.playerTagRepo.BatchUpdate(ctx, player.ID, tagIDs)
+		if err != nil {
+			tracing.RecordSpanError(span, err)
+			return fmt.Errorf("batch update player tags failed: %w", err)
+		}
+		u.logger.InfoWithContext(ctx, "Batch upsert player tags completed",
+			u.logger.UInt64("player_id", player.ID),
+			u.logger.Int("count", len(tagIDs)),
+			u.logger.Any("tag_ids", tagIDs),
+		)
+		return nil
+	})
+}
+
+func (u *TagUseCase) executeLocked(ctx context.Context, playerID uint64, fn func() error) error {
+	mutexKey := fmt.Sprintf(consts.SyncPlayerTagRedisKey, playerID)
+
+	mutex, err := u.redisManager.GetMutexWithOption(mutexKey,
+		redsync.WithExpiry(5*time.Second),            // 鎖的過期時間
+		redsync.WithTries(3),                         // 獲取鎖的重試次數
+		redsync.WithRetryDelay(200*time.Millisecond), // 重試間隔
 	)
-	return nil
+	if err != nil {
+		return fmt.Errorf("failed to create mutex for player %d: %w", playerID, err)
+	}
+
+	if err = mutex.Lock(); err != nil {
+		return fmt.Errorf("failed to acquire lock for player %d: %w", playerID, err)
+	}
+
+	defer func() {
+		ok, unlockErr := mutex.Unlock()
+		if !ok || unlockErr != nil {
+			u.logger.ErrorWithContext(ctx, "Failed to unlock mutex",
+				u.logger.String("mutex_key", mutexKey),
+				u.logger.UInt64("player_id", playerID),
+				u.logger.Error("err", unlockErr),
+				u.logger.Bool("unlock_success", ok),
+			)
+		}
+	}()
+	return fn()
 }

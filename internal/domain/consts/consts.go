@@ -9,5 +9,6 @@ const (
 )
 
 const (
-	ShardMutexRedisKey = "kds:shard:mutex:%s:%s"
+	ShardMutexRedisKey    = "kds:shard:mutex:%s:%s"
+	SyncPlayerTagRedisKey = "worker:sync:play_tag:%d"
 )
