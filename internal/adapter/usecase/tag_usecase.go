@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-redsync/redsync/v4"
+	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
+	"go.opentelemetry.io/otel/attribute"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -23,6 +26,7 @@ type TagUseCase struct {
 	merchantRepo  repositoryport.MerchantRepository
 	playerRepo    repositoryport.PlayerRepository
 	playerTagRepo repositoryport.PlayerTagRepository
+	eventProducer serviceport.EventProducer
 	logger        infraport.Logger
 	redisManager  *redisCache.Manager
 }
@@ -32,6 +36,7 @@ func NewTagUseCase(
 	merchantRepo repositoryport.MerchantRepository,
 	playerRepo repositoryport.PlayerRepository,
 	playerTagRepo repositoryport.PlayerTagRepository,
+	eventProducer serviceport.EventProducer,
 	logger infraport.Logger,
 	redisManager *redisCache.Manager,
 ) usecaseport.TagUseCase {
@@ -40,6 +45,7 @@ func NewTagUseCase(
 		merchantRepo:  merchantRepo,
 		playerRepo:    playerRepo,
 		playerTagRepo: playerTagRepo,
+		eventProducer: eventProducer,
 		logger:        logger,
 		redisManager:  redisManager,
 	}
@@ -84,6 +90,59 @@ func (u *TagUseCase) SyncTag(
 	)
 
 	tracing.TraceEvent(span, "Batch upsert completed")
+
+	tracing.TraceEvent(span, "Publishing player tags sync event to KDS")
+	if err = u.publishPlayerTagsSyncEvent(ctx, tagsToInsert, globalMerchantID); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("publish player tags sync event: %w", err)
+	}
+	tracing.TraceEvent(span, "Player tags sync completed successfully")
+	return nil
+}
+
+func (u *TagUseCase) publishPlayerTagsSyncEvent(
+	ctx context.Context,
+	tags []*entity.Tag,
+	globalMerchantID string,
+) error {
+	ctx, span := tracing.StartSpan(ctx, "TagUseCase.publishPlayerTagsSyncEvent")
+	defer tracing.SpanEnd(span)
+
+	syncEvents := make([]*event.IdentityPlayerTagSyncEvent, len(tags))
+	for i, tag := range tags {
+		syncEvents[i] = &event.IdentityPlayerTagSyncEvent{
+			GlobalMerchantID: globalMerchantID,
+			GlobalTagID:      tag.GlobalTagID,
+			Name:             tag.Name,
+			CreatedAt:        tag.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:        tag.UpdatedAt.Format(time.RFC3339),
+		}
+	}
+
+	eventID := uuid.New().String()
+	cloudEvent := event.CloudEvent{
+		SpecVersion:     "1.0",
+		Type:            "tw.jvd.fatidentitycat.playertags.sync.v1",
+		Source:          "/fatidentitycat/FATCAT",
+		Subject:         "player_tags_sync",
+		ID:              eventID,
+		Time:            time.Now(),
+		DataContentType: "application/json",
+		TraceParent:     tracing.GetTraceparent(ctx),
+		Data:            syncEvents,
+	}
+
+	tracing.RecordSpanAttributes(span,
+		attribute.String("outgoing.event.id", eventID),
+		attribute.String("outgoing.event.type", cloudEvent.Type))
+
+	if err := u.eventProducer.PublishPlayerTagsSync(ctx, &cloudEvent); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("publish player level sync: %w", err)
+	}
+
+	u.logger.InfoWithContext(ctx, "Player tags sync event published",
+		u.logger.String("event_id", cloudEvent.ID))
 	return nil
 }
 

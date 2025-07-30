@@ -52,7 +52,6 @@ func (u *PlayerUseCase) SyncPlayer(
 ) error {
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.SyncPlayer")
 	defer tracing.SpanEnd(span)
-	nowTime := time.Now()
 
 	tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
@@ -86,8 +85,8 @@ func (u *PlayerUseCase) SyncPlayer(
 			APIKey:         uuid.New().String(), // 生成新的API密鑰
 			Account:        playerData.Account,
 			Email:          email,
-			CreatedAt:      nowTime,
-			UpdatedAt:      nowTime,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
 		}
 
 		if err = u.playerRepo.FirstOrCreate(ctx, &player); err != nil {
@@ -101,21 +100,7 @@ func (u *PlayerUseCase) SyncPlayer(
 		// 更新現有玩家
 		tracing.TraceEvent(span, "Updating existing player")
 
-		var eventTime time.Time
-		if playerData.EventTime.After(time.Time{}) {
-			eventTime = playerData.EventTime
-		} else {
-			eventTime = nowTime
-		}
-
-		// 如果現有記錄的更新時間較新，則跳過更新（確保幂等性）
-		if existing.UpdatedAt.After(eventTime) {
-			u.logger.InfoWithContext(ctx, "Skipping player update as existing data is newer",
-				u.logger.String("global_id", existing.GlobalPlayerID),
-				u.logger.String("existing_updated_at", existing.UpdatedAt.String()),
-				u.logger.String("event_time", eventTime.String()))
-			return nil
-		}
+		nowTime := time.Now()
 
 		player = *existing
 		player.Account = playerData.Account

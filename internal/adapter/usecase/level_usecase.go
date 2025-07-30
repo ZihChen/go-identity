@@ -101,7 +101,7 @@ func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 		SpecVersion:     "1.0",
 		Type:            "tw.jvd.fatidentitycat.playerlevel.sync.v1",
 		Source:          "/fatidentitycat/FATCAT",
-		Subject:         "player_tag_sync",
+		Subject:         "player_level_sync",
 		ID:              eventID,
 		Time:            time.Now(),
 		DataContentType: "application/json",
