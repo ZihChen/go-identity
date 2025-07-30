@@ -119,3 +119,13 @@ type IdentityManagerSyncEvent struct {
 	UpdatedAt        string  `json:"updated_at"`
 	DeletedAt        string  `json:"deleted_at,omitempty"`
 }
+
+// IdentityPlayerLevelSyncEvent 發送到 KDS 的玩家等級同步事件
+type IdentityPlayerLevelSyncEvent struct {
+	GlobalMerchantID    string `json:"global_merchant_id"`
+	GlobalPlayerLevelID string `json:"global_player_level_id"`
+	Name                string `json:"name"`
+	CreatedAt           string `json:"created_at"`
+	UpdatedAt           string `json:"updated_at"`
+	DeletedAt           string `json:"deleted_at,omitempty"`
+}

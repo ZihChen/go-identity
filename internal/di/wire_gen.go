@@ -75,7 +75,7 @@ func InitializeWorkerServer(cfg *config.Config, logger infraport.Logger, redisMa
 	playerTagRepository := repository.NewPlayerLevelRepository(db)
 	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, logger, redisManager)
 	levelRepository := repository.NewLevelRepository(db)
-	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, logger)
+	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger)
 	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
 	return workerHandler, nil
 }
@@ -105,7 +105,7 @@ func InitializeWorkerComponents(cfg *config.Config, logger infraport.Logger, red
 	playerTagRepository := repository.NewPlayerLevelRepository(db)
 	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, logger, redisManager)
 	levelRepository := repository.NewLevelRepository(db)
-	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, logger)
+	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger)
 	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
 	server, err := provideWorkerServer(cfg, logger)
 	if err != nil {

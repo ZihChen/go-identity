@@ -16,6 +16,9 @@ type EventProducer interface {
 
 	// PublishManagerSync 發布管理員同步事件
 	PublishManagerSync(ctx context.Context, event *event.CloudEvent) error
+
+	// PublishPlayerLevelSync 發布玩家等級同步事件
+	PublishPlayerLevelSync(ctx context.Context, event *event.CloudEvent) error
 }
 
 // EventConsumer 事件Consumer接口

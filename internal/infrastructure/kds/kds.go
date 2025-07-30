@@ -193,6 +193,14 @@ func (k *KDSService) PublishManagerSync(ctx context.Context, event *event.CloudE
 	return k.publishEvent(ctx, event)
 }
 
+// PublishPlayerLevelSync 發布玩家等級同步事件
+func (k *KDSService) PublishPlayerLevelSync(ctx context.Context, event *event.CloudEvent) error {
+	ctx, span := tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+	defer tracing.SpanEnd(span)
+
+	return k.publishEvent(ctx, event)
+}
+
 // 內部方法：發布事件到KDS
 func (k *KDSService) publishEvent(ctx context.Context, event *event.CloudEvent) error {
 	// 確保 traceparent 在事件中
