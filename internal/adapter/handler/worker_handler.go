@@ -188,16 +188,13 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 	}
 
 	if len(playerEvent.PlayerTags) != 0 {
-		if err = h.tagUseCase.SyncTag(ctx, playerEvent.PlayerTags,
-			playerEvent.GlobalMerchantID); err != nil {
+		if err = h.tagUseCase.SyncTag(ctx,
+			playerEvent.PlayerTags,
+			playerEvent.GlobalMerchantID,
+			playerEvent.Player.GlobalPlayerID); err != nil {
 			tracing.RecordSpanError(span, err)
 			return fmt.Errorf("failed to sync player tags: %w", err)
 		}
-	}
-
-	if err = h.tagUseCase.SyncPlayerTag(ctx, playerEvent.Player.GlobalPlayerID, playerEvent.PlayerTags); err != nil {
-		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("failed to sync player tags relation: %w", err)
 	}
 
 	tracing.TraceEvent(span, "Player sync completed successfully")
