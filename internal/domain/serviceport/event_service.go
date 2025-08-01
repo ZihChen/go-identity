@@ -46,4 +46,10 @@ type QueueService interface {
 
 	// EnqueueManagerSync 將管理員同步任務加入隊列
 	EnqueueManagerSync(ctx context.Context, data []byte) error
+
+	// EnqueueLevelSync 將會員等級同步任務加入佇列
+	EnqueueLevelSync(ctx context.Context, data []byte) error
+
+	// EnqueueTagSync 將會員標籤同步任務加入佇列
+	EnqueueTagSync(ctx context.Context, data []byte) error
 }

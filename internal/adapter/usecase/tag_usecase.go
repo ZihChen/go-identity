@@ -51,12 +51,12 @@ func NewTagUseCase(
 	}
 }
 
-func (u *TagUseCase) SyncTag(
+func (u *TagUseCase) SyncPlayerTag(
 	ctx context.Context,
 	data []event.TagData,
 	globalMerchantID, globalPlayerID string,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "TagUseCase.SyncTag")
+	ctx, span := tracing.StartSpan(ctx, "TagUseCase.SyncPlayerTag")
 	defer tracing.SpanEnd(span)
 
 	tracing.TraceEvent(span, "Checking if merchant exists")
@@ -136,6 +136,41 @@ func (u *TagUseCase) SyncTag(
 	}
 
 	tracing.TraceEvent(span, "Player tags sync completed successfully")
+	return nil
+}
+
+func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) error {
+	ctx, span := tracing.StartSpan(ctx, "TagUseCase.SyncTag")
+	defer tracing.SpanEnd(span)
+
+	tracing.TraceEvent(span, "Checking if merchant exists")
+	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
+	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("find merchant: %w", err)
+	}
+
+	nowTime := time.Now()
+	tagToInsert := &entity.Tag{
+		GlobalTagID: data.Tag.GlobalTagID,
+		Name:        data.Tag.Name,
+		MerchantID:  merchant.ID,
+		CreatedAt:   nowTime,
+		UpdatedAt:   nowTime,
+		DeletedAt: func() *time.Time {
+			if data.Tag.IsOpen {
+				return nil
+			}
+			return &nowTime
+		}(),
+	}
+
+	if err = u.tagRepo.Upsert(ctx, tagToInsert); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("upsert tag: %w", err)
+	}
+	u.logger.InfoWithContext(ctx, "Upsert tag completed", u.logger.Any("tag", tagToInsert))
+	tracing.TraceEvent(span, "Player tag sync completed successfully")
 	return nil
 }
 

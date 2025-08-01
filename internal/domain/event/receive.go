@@ -77,3 +77,26 @@ type ManagerData struct {
 	Email           string `json:"email"`
 	DeletedAt       string `json:"deleted_at,omitempty"`
 }
+
+type TagSyncEvent struct {
+	GlobalMerchantID string `json:"global_merchant_id"`
+	Tag              struct {
+		Description string    `json:"description"`
+		GlobalTagID string    `json:"global_tag_id"`
+		IsOpen      bool      `json:"is_open"`
+		Name        string    `json:"name"`
+		TagUserType string    `json:"tag_user_type"`
+		UpdatedAt   time.Time `json:"updated_at"`
+		CreatedAt   time.Time `json:"created_at"`
+	} `json:"tag"`
+}
+
+type LevelSyncEvent struct {
+	GlobalMerchantID string `json:"global_merchant_id"`
+	PlayerLevel      struct {
+		Name                string    `json:"name"`
+		GlobalPlayerLevelID string    `json:"global_player_level_id"`
+		CreatedAt           time.Time `json:"created_at"`
+		UpdatedAt           time.Time `json:"updated_at"`
+	} `json:"player_level"`
+}

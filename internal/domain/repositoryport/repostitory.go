@@ -37,12 +37,14 @@ type ManagerRepository interface {
 }
 
 type TagRepository interface {
+	Upsert(ctx context.Context, tag *entity.Tag) error
 	BatchUpsert(ctx context.Context, tags []*entity.Tag) error
 	FindByGlobalIDs(ctx context.Context, globalIDs []string) ([]*entity.Tag, error)
 }
 
 type LevelRepository interface {
-	Upsert(ctx context.Context, level *entity.Level) (uint64, error)
+	Upsert(ctx context.Context, level *entity.Level) error
+	FindByGlobalID(ctx context.Context, globalID string) (*entity.Level, error)
 }
 
 type PlayerTagRepository interface {

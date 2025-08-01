@@ -276,6 +276,10 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 								msgCtxWithID,
 								record.Data,
 							)
+						case k.config.Events.TagSync:
+							enqueueErr = k.queueService.EnqueueTagSync(msgCtxWithID, record.Data)
+						case k.config.Events.LevelSync:
+							enqueueErr = k.queueService.EnqueueLevelSync(msgCtxWithID, record.Data)
 						default:
 							if err := k.updateCheckpoint(eventCtx, shardId, sequenceNumber); err != nil {
 								k.logger.WarnWithContext(

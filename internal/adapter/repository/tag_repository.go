@@ -19,6 +19,19 @@ func NewTagRepository(db *gorm.DB) repositoryport.TagRepository {
 	return &TagRepository{db: db}
 }
 
+func (r *TagRepository) Upsert(ctx context.Context, tag *entity.Tag) error {
+	dbTag := mapToDBTag(tag)
+	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "global_tag_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"name", "updated_at", "deleted_at"}),
+	}).Create(&dbTag)
+
+	if result.Error != nil {
+		return fmt.Errorf("upsert tag failed: %w", result.Error)
+	}
+	return nil
+}
+
 func (r *TagRepository) BatchUpsert(ctx context.Context, tags []*entity.Tag) error {
 	if len(tags) == 0 {
 		return nil

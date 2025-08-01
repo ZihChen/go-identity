@@ -22,6 +22,8 @@ const (
 	TypeMerchantSync = "merchant:sync"
 	TypePlayerSync   = "player:sync"
 	TypeManagerSync  = "manager:sync"
+	TypeLevelSync    = "level:sync"
+	TypeTagSync      = "tag:sync"
 )
 
 // QueueService 佇列服務實現
@@ -77,6 +79,16 @@ func (q *QueueService) EnqueuePlayerSync(ctx context.Context, data []byte) error
 // EnqueueManagerSync 將管理員同步任務加入佇列
 func (q *QueueService) EnqueueManagerSync(ctx context.Context, data []byte) error {
 	return q.enqueueTask(ctx, TypeManagerSync, data)
+}
+
+// EnqueueLevelSync 將會員等級同步任務加入佇列
+func (q *QueueService) EnqueueLevelSync(ctx context.Context, data []byte) error {
+	return q.enqueueTask(ctx, TypeLevelSync, data)
+}
+
+// EnqueueTagSync 將會員標籤同步任務加入佇列
+func (q *QueueService) EnqueueTagSync(ctx context.Context, data []byte) error {
+	return q.enqueueTask(ctx, TypeTagSync, data)
 }
 
 // enqueueTask 通用方法，將任務加入佇列並添加追蹤

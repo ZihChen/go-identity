@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
@@ -19,21 +20,42 @@ func NewLevelRepository(db *gorm.DB) repositoryport.LevelRepository {
 	return &LevelRepository{db: db}
 }
 
-func (r *LevelRepository) Upsert(ctx context.Context, level *entity.Level) (uint64, error) {
+func (r *LevelRepository) Upsert(ctx context.Context, level *entity.Level) error {
 	dbLevel := mapToDBLevel(level)
 	if result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "global_player_level_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"name", "updated_at"}),
 	}).Create(dbLevel); result.Error != nil {
-		return 0, fmt.Errorf("upsert level failed: %w", result.Error)
+		return fmt.Errorf("upsert level failed: %w", result.Error)
 	}
+	return nil
+}
 
-	if err := r.db.WithContext(ctx).
-		Where("global_player_level_id = ?", level.GlobalPlayerLevelID).
-		First(dbLevel).Error; err != nil {
-		return 0, fmt.Errorf("fetch level after upsert failed: %w", err)
+func (r *LevelRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Level, error) {
+	var dbLevel models.Level
+	err := r.db.WithContext(ctx).
+		Where("global_player_level_id = ?", globalID).
+		First(&dbLevel).Error
+	if err != nil {
+		return &entity.Level{}, fmt.Errorf("fetch level after upsert failed: %w", err)
 	}
-	return dbLevel.ID, nil
+	return mapToDomainLevel(&dbLevel), nil
+}
+
+func mapToDomainLevel(level *models.Level) *entity.Level {
+	var deletedAt *time.Time
+	if level.DeletedAt.Valid {
+		deletedTime := level.DeletedAt.Time
+		deletedAt = &deletedTime
+	}
+	return &entity.Level{
+		ID:                  level.ID,
+		GlobalPlayerLevelID: level.GlobalPlayerLevelID,
+		Name:                level.Name,
+		CreatedAt:           level.CreatedAt,
+		UpdatedAt:           level.UpdatedAt,
+		DeletedAt:           deletedAt,
+	}
 }
 
 func mapToDBLevel(level *entity.Level) *models.Level {

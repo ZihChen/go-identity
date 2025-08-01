@@ -53,14 +53,15 @@ func (u *LevelUseCase) SyncPlayerLevel(
 		tracing.RecordSpanError(span, err)
 		return 0, fmt.Errorf("find merchant: %w", err)
 	}
-	level := &entity.Level{
+	levelToInsert := &entity.Level{
 		GlobalPlayerLevelID: data.GlobalPlayerLevelID,
+		GlobalMerchantID:    globalMerchantID,
 		Name:                data.Name,
 		MerchantID:          merchant.ID,
 		CreatedAt:           time.Now(),
 		UpdatedAt:           time.Now(),
 	}
-	levelID, err := u.levelRepo.Upsert(ctx, level)
+	err = u.levelRepo.Upsert(ctx, levelToInsert)
 	if err != nil {
 		tracing.RecordSpanError(span, err)
 		return 0, fmt.Errorf("upsert player level: %w", err)
@@ -69,19 +70,60 @@ func (u *LevelUseCase) SyncPlayerLevel(
 	tracing.TraceEvent(span, "Upsert completed")
 
 	tracing.TraceEvent(span, "Publishing player level sync event to KDS")
-	if err = u.publishPlayerLevelSyncEvent(ctx, level, globalMerchantID); err != nil {
+	if err = u.publishPlayerLevelSyncEvent(ctx, levelToInsert); err != nil {
 		tracing.RecordSpanError(span, err)
 		return 0, fmt.Errorf("publish player level sync event: %w", err)
 	}
 
+	level, err := u.levelRepo.FindByGlobalID(ctx, levelToInsert.GlobalPlayerLevelID)
+	if err != nil {
+		tracing.RecordSpanError(span, err)
+		return 0, fmt.Errorf("find player level: %w", err)
+	}
+
 	tracing.TraceEvent(span, "Player level sync completed successfully")
-	return levelID, nil
+	return level.ID, nil
+}
+
+func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent) error {
+	ctx, span := tracing.StartSpan(ctx, "LevelUseCase.SyncLevel")
+	defer tracing.SpanEnd(span)
+
+	tracing.TraceEvent(span, "Checking if merchant exists")
+	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
+	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("find merchant: %w", err)
+	}
+	level := &entity.Level{
+		GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
+		GlobalMerchantID:    data.GlobalMerchantID,
+		Name:                data.PlayerLevel.Name,
+		MerchantID:          merchant.ID,
+		CreatedAt:           time.Now(),
+		UpdatedAt:           time.Now(),
+	}
+	err = u.levelRepo.Upsert(ctx, level)
+	if err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("upsert player level: %w", err)
+	}
+	u.logger.InfoWithContext(ctx, "Upsert level completed", u.logger.Any("level", data))
+	tracing.TraceEvent(span, "Upsert completed")
+
+	tracing.TraceEvent(span, "Publishing level sync event to KDS")
+	if err = u.publishPlayerLevelSyncEvent(ctx, level); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("publish level sync event: %w", err)
+	}
+
+	tracing.TraceEvent(span, "Level sync completed successfully")
+	return nil
 }
 
 func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 	ctx context.Context,
 	level *entity.Level,
-	globalMerchantID string,
 ) error {
 	ctx, span := tracing.StartSpan(ctx, "LevelUseCase.publishPlayerLevelSyncEvent")
 	defer tracing.SpanEnd(span)
@@ -89,7 +131,7 @@ func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 	tracing.TraceEvent(span, "Preparing player level sync event for KDS")
 
 	syncEvent := event.IdentityPlayerLevelSyncEvent{
-		GlobalMerchantID:    globalMerchantID,
+		GlobalMerchantID:    level.GlobalMerchantID,
 		GlobalPlayerLevelID: level.GlobalPlayerLevelID,
 		Name:                level.Name,
 		CreatedAt:           level.CreatedAt.Format(time.RFC3339),
