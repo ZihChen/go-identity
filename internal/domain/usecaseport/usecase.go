@@ -8,13 +8,13 @@ import (
 )
 
 type MerchantUseCase interface {
-	SyncMerchant(ctx context.Context, eventData []byte) error
+	SyncMerchant(ctx context.Context, data *event.MerchantSyncEvent) error
 	GetMerchantByID(ctx context.Context, id uint64) (*entity.Merchant, error)
 	GetMerchantByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error)
 }
 
 type ManagerUseCase interface {
-	SyncManager(ctx context.Context, eventData []byte) error
+	SyncManager(ctx context.Context, data *event.ManagerSyncEvent) error
 	GetManagerByID(ctx context.Context, id uint64) (*entity.Manager, error)
 	GetManagerByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error)
 }

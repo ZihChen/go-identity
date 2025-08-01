@@ -23,11 +23,11 @@ type MerchantSyncEvent struct {
 
 // MerchantData 從 KDS 接收的商戶數據
 type MerchantData struct {
-	ID               int    `json:"id"`
-	Name             string `json:"name"`
-	DisplayName      string `json:"display_name"`
-	GlobalMerchantID string `json:"global_merchant_id"`
-	// 其他字段省略，因為不需要處理
+	ID               int       `json:"id"`
+	Name             string    `json:"name"`
+	DisplayName      string    `json:"display_name"`
+	GlobalMerchantID string    `json:"global_merchant_id"`
+	UpdateAt         time.Time `json:"update_at"`
 }
 
 // PlayerSyncEvent 玩家同步事件數據

@@ -2,8 +2,8 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -79,29 +79,46 @@ func (h *WorkerHandler) RegisterHandlers(mux *asynq.ServeMux) {
 
 // HandleMerchantSync 處理商戶同步任務
 func (h *WorkerHandler) HandleMerchantSync(ctx context.Context, task *asynq.Task) error {
-	if task == nil {
-		return errors.New("task is empty")
-	}
 	taskID := getTaskID(task)
 
 	// 創建處理任務的追蹤
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypeMerchantSync, taskID)
 	defer tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span,
-		attribute.String("task.id", taskID),
-		attribute.String("task.type", queue.TypeMerchantSync),
-		attribute.Int("task.payload_size_bytes", len(task.Payload())))
-
 	h.logger.InfoLog("Processing merchant sync task",
 		h.logger.String("task_id", taskID),
 		h.logger.Int("payload_size", len(task.Payload())))
 
-	// 記錄開始處理
+	cloudEvent, err := parseCloudEvent(task.Payload(), span)
+	if err != nil {
+		tracing.RecordSpanError(span, err)
+		h.logger.ErrorWithContext(ctx, "Failed to parse cloud event",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID),
+			h.logger.String("data", string(task.Payload())))
+		return err
+	}
+
+	dataBytes, err := jsoniter.Marshal(cloudEvent.Data)
+	if err != nil {
+		tracing.RecordSpanError(span, err)
+		h.logger.ErrorWithContext(ctx, "Failed to marshal event data",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID),
+			h.logger.Any("data", cloudEvent.Data))
+		return fmt.Errorf("marshal event data: %w", err)
+	}
+
+	var merchantEvent event.MerchantSyncEvent
+	if err = jsoniter.Unmarshal(dataBytes, &merchantEvent); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("unmarshal merchant event: %w", err)
+	}
+
 	tracing.TraceEvent(span, "Starting merchant sync processing")
 
-	// 執行實際的同步邏輯
-	if err := h.merchantUseCase.SyncMerchant(ctx, task.Payload()); err != nil {
+	// 同步資料
+	if err = h.merchantUseCase.SyncMerchant(ctx, &merchantEvent); err != nil {
 		h.logger.ErrorLog("Failed to sync merchant",
 			h.logger.String("task_id", taskID),
 			h.logger.Error("err", err))
@@ -109,55 +126,46 @@ func (h *WorkerHandler) HandleMerchantSync(ctx context.Context, task *asynq.Task
 		return fmt.Errorf("failed to sync merchant: %w", err)
 	}
 
-	// 記錄成功完成任務
 	tracing.TraceEvent(span, "Merchant sync completed successfully")
 
 	h.logger.InfoLog("Merchant sync task completed successfully",
 		h.logger.String("task_id", taskID))
-
 	return nil
 }
 
 // HandlePlayerSync 處理玩家同步任務
 func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) error {
-	if task == nil {
-		return errors.New("task is empty")
-	}
 	taskID := getTaskID(task)
 
-	// 創建處理任務的追蹤
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypePlayerSync, taskID)
 	defer tracing.SpanEnd(span)
-
-	tracing.RecordSpanAttributes(span,
-		attribute.String("task.id", taskID),
-		attribute.String("task.type", queue.TypePlayerSync),
-		attribute.Int("task.payload_size_bytes", len(task.Payload())))
 
 	h.logger.InfoLog("Processing player sync task",
 		h.logger.String("task_id", taskID),
 		h.logger.Int("payload_size", len(task.Payload())))
 
-	// 將事件解析為 CloudEvent
-	var cloudEvent event.CloudEvent
-	if err := jsoniter.Unmarshal(task.Payload(), &cloudEvent); err != nil {
+	cloudEvent, err := parseCloudEvent(task.Payload(), span)
+	if err != nil {
 		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("unmarshal cloud event: %w", err)
+		h.logger.ErrorWithContext(ctx, "Failed to parse cloud event",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID),
+			h.logger.String("data", string(task.Payload())))
+		return err
 	}
-
-	tracing.RecordSpanAttributes(span,
-		attribute.String("event.id", cloudEvent.ID),
-		attribute.String("event.type", cloudEvent.Type),
-		attribute.String("event.source", cloudEvent.Source))
 
 	dataBytes, err := jsoniter.Marshal(cloudEvent.Data)
 	if err != nil {
 		tracing.RecordSpanError(span, err)
+		h.logger.ErrorWithContext(ctx, "Failed to marshal event data",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID),
+			h.logger.Any("data", cloudEvent.Data))
 		return fmt.Errorf("marshal event data: %w", err)
 	}
 
 	var playerEvent event.PlayerSyncEvent
-	if err := jsoniter.Unmarshal(dataBytes, &playerEvent); err != nil {
+	if err = jsoniter.Unmarshal(dataBytes, &playerEvent); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("unmarshal player event: %w", err)
 	}
@@ -206,42 +214,68 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 
 // HandleManagerSync 處理管理員同步任務
 func (h *WorkerHandler) HandleManagerSync(ctx context.Context, task *asynq.Task) error {
-	if task == nil {
-		return errors.New("task is empty")
-	}
 	taskID := getTaskID(task)
 
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypeManagerSync, taskID)
 	defer tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span,
-		attribute.String("task.id", taskID),
-		attribute.String("task.type", queue.TypeManagerSync),
-		attribute.Int("task.payload_size_bytes", len(task.Payload())))
-
 	h.logger.InfoLog("Processing manager sync task",
 		h.logger.String("task_id", taskID),
 		h.logger.Int("payload_size", len(task.Payload())))
+	cloudEvent, err := parseCloudEvent(task.Payload(), span)
+	if err != nil {
+		tracing.RecordSpanError(span, err)
+		h.logger.ErrorWithContext(ctx, "Failed to parse cloud event",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID),
+			h.logger.String("data", string(task.Payload())))
+		return err
+	}
 
-	// 記錄開始處理
+	dataBytes, err := jsoniter.Marshal(cloudEvent.Data)
+	if err != nil {
+		tracing.RecordSpanError(span, err)
+		h.logger.ErrorWithContext(ctx, "Failed to marshal event data",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID),
+			h.logger.Any("data", cloudEvent.Data))
+		return fmt.Errorf("marshal event data: %w", err)
+	}
+
+	var managerEvent event.ManagerSyncEvent
+	if err = jsoniter.Unmarshal(dataBytes, &managerEvent); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("unmarshal manager event: %w", err)
+	}
+
 	tracing.TraceEvent(span, "Starting manager sync processing")
 
-	// 執行實際的同步邏輯
-	if err := h.managerUseCase.SyncManager(ctx, task.Payload()); err != nil {
+	// 同步資料
+	if err = h.managerUseCase.SyncManager(ctx, &managerEvent); err != nil {
 		h.logger.ErrorLog("Failed to sync manager",
 			h.logger.String("task_id", taskID),
 			h.logger.Error("err", err))
-
-		// 記錄錯誤
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("failed to sync manager: %w", err)
 	}
 
-	// 記錄成功完成任務
 	tracing.TraceEvent(span, "Manager sync completed successfully")
 
 	h.logger.InfoLog("Manager sync task completed successfully",
 		h.logger.String("task_id", taskID))
 
 	return nil
+}
+
+func parseCloudEvent(eventData []byte, span trace.Span) (*event.CloudEvent, error) {
+	var cloudEvent event.CloudEvent
+	if err := jsoniter.Unmarshal(eventData, &cloudEvent); err != nil {
+		tracing.RecordSpanError(span, err)
+		return nil, fmt.Errorf("unmarshal cloud event: %w", err)
+	}
+	tracing.RecordSpanAttributes(span,
+		attribute.String("event.id", cloudEvent.ID),
+		attribute.String("event.type", cloudEvent.Type),
+		attribute.String("event.source", cloudEvent.Source))
+	return &cloudEvent, nil
 }

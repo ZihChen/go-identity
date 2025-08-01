@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
@@ -40,45 +39,20 @@ func NewMerchantUseCase(
 }
 
 // SyncMerchant 同步商戶信息
-func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) error {
+func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.MerchantSyncEvent) error {
 	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.SyncMerchant")
+	defer tracing.SpanEnd(span)
 	nowTime := time.Now()
-
-	// 將事件解析為 CloudEvent
-	var cloudEvent event.CloudEvent
-	if err := json.Unmarshal(eventData, &cloudEvent); err != nil {
-		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("unmarshal cloud event: %w", err)
-	}
-
-	tracing.RecordSpanAttributes(span,
-		attribute.String("event.id", cloudEvent.ID),
-		attribute.String("event.type", cloudEvent.Type),
-		attribute.String("event.source", cloudEvent.Source))
 
 	// 記錄事件開始處理
 	tracing.TraceEvent(span, "Starting merchant sync processing")
-
-	// 將 data 部分解析為 MerchantSyncEvent
-	dataBytes, err := json.Marshal(cloudEvent.Data)
-	if err != nil {
-		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("marshal event data: %w", err)
-	}
-
-	var merchantEvent event.MerchantSyncEvent
-	if err = json.Unmarshal(dataBytes, &merchantEvent); err != nil {
-		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("unmarshal merchant event: %w", err)
-	}
-
 	tracing.RecordSpanAttributes(span,
-		attribute.String("merchant.global_id", merchantEvent.GlobalMerchantID),
-		attribute.String("merchant.name", merchantEvent.Merchant.Name))
+		attribute.String("merchant.global_id", data.GlobalMerchantID),
+		attribute.String("merchant.name", data.Merchant.Name))
 
 	// 查找商戶是否存在
 	tracing.TraceEvent(span, "Checking if merchant exists")
-	existing, err := u.merchantRepo.FindByGlobalID(ctx, merchantEvent.GlobalMerchantID)
+	existing, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
@@ -90,9 +64,9 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 		// 創建新商戶
 		tracing.TraceEvent(span, "Creating new merchant")
 		merchant = entity.Merchant{
-			GlobalMerchantID: merchantEvent.GlobalMerchantID,
-			Name:             merchantEvent.Merchant.Name,
-			DisplayName:      merchantEvent.Merchant.DisplayName,
+			GlobalMerchantID: data.GlobalMerchantID,
+			Name:             data.Merchant.Name,
+			DisplayName:      data.Merchant.DisplayName,
 			APIKey:           uuid.New().String(), // 生成新的API密鑰
 			CreatedAt:        nowTime,
 			UpdatedAt:        nowTime,
@@ -108,25 +82,9 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 		// 更新現有商戶
 		tracing.TraceEvent(span, "Updating existing merchant")
 
-		var eventTime time.Time
-		if cloudEvent.Time.After(time.Time{}) {
-			eventTime = cloudEvent.Time
-		} else {
-			eventTime = nowTime
-		}
-
-		// 如果現有記錄的更新時間較新，則跳過更新（確保幂等性）
-		if existing.UpdatedAt.After(eventTime) {
-			u.logger.InfoWithContext(ctx, "Skipping merchant update as existing data is newer",
-				u.logger.String("global_id", existing.GlobalMerchantID),
-				u.logger.String("existing_updated_at", existing.UpdatedAt.String()),
-				u.logger.String("event_time", eventTime.String()))
-			return nil
-		}
-
 		merchant = *existing
-		merchant.Name = merchantEvent.Merchant.Name
-		merchant.DisplayName = merchantEvent.Merchant.DisplayName
+		merchant.Name = data.Merchant.Name
+		merchant.DisplayName = data.Merchant.DisplayName
 		merchant.UpdatedAt = nowTime
 
 		if err = u.merchantRepo.Update(ctx, &merchant); err != nil {
@@ -138,17 +96,15 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 			u.logger.String("name", merchant.Name))
 	}
 
-	// 記錄資料庫操作完成
 	tracing.TraceEvent(span, "Database operation completed")
 
 	// 發布商戶同步事件到KDS
 	tracing.TraceEvent(span, "Publishing merchant sync event to KDS")
-	if err = u.publishMerchantSyncEvent(ctx, &merchant, cloudEvent.TraceParent); err != nil {
+	if err = u.publishMerchantSyncEvent(ctx, &merchant); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish merchant sync event: %w", err)
 	}
 
-	// 記錄處理完成
 	tracing.TraceEvent(span, "Merchant sync completed successfully")
 	return nil
 }
@@ -157,7 +113,6 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) er
 func (u *MerchantUseCase) publishMerchantSyncEvent(
 	ctx context.Context,
 	merchant *entity.Merchant,
-	traceParent string,
 ) error {
 	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.publishMerchantSyncEvent")
 
