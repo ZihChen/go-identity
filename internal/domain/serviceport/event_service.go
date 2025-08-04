@@ -22,6 +22,9 @@ type EventProducer interface {
 
 	// PublishPlayerTagsSync 發布玩家標籤同步事件
 	PublishPlayerTagsSync(ctx context.Context, event *event.CloudEvent) error
+
+	// PublishTagSync 發布標籤同步事件
+	PublishTagSync(ctx context.Context, event *event.CloudEvent) error
 }
 
 // EventConsumer 事件Consumer接口

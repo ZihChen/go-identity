@@ -170,7 +170,12 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 		return fmt.Errorf("upsert tag: %w", err)
 	}
 	u.logger.InfoWithContext(ctx, "Upsert tag completed", u.logger.Any("tag", tagToInsert))
-	tracing.TraceEvent(span, "Player tag sync completed successfully")
+
+	if err = u.publishTagSyncEvent(ctx, tagToInsert, data.GlobalMerchantID); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("publish tag sync event: %w", err)
+	}
+	tracing.TraceEvent(span, "Tag sync completed successfully")
 	return nil
 }
 
@@ -214,10 +219,59 @@ func (u *TagUseCase) publishPlayerTagsSyncEvent(
 
 	if err := u.eventProducer.PublishPlayerTagsSync(ctx, &cloudEvent); err != nil {
 		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("publish player level sync: %w", err)
+		return fmt.Errorf("publish tag sync: %w", err)
 	}
 
 	u.logger.InfoWithContext(ctx, "Player tags sync event published",
+		u.logger.String("event_id", cloudEvent.ID))
+	return nil
+}
+
+func (u *TagUseCase) publishTagSyncEvent(
+	ctx context.Context,
+	tag *entity.Tag,
+	globalMerchantID string,
+) error {
+	ctx, span := tracing.StartSpan(ctx, "TagUseCase.publishTagSyncEvent")
+	defer tracing.SpanEnd(span)
+
+	eventID := uuid.New().String()
+	cloudEvent := event.CloudEvent{
+		SpecVersion:     "1.0",
+		Type:            "tw.jvd.fatidentitycat.tag.sync.v1",
+		Source:          "/fatidentitycat/FATCAT",
+		Subject:         "tag_sync",
+		ID:              eventID,
+		Time:            time.Now(),
+		DataContentType: "application/json",
+		TraceParent:     tracing.GetTraceparent(ctx),
+		Data: event.IdentityTagSyncEvent{
+			GlobalMerchantID: globalMerchantID,
+			Tag: &event.IdentityTagDataSyncEvent{
+				GlobalTagID: tag.GlobalTagID,
+				Name:        tag.Name,
+				CreatedAt:   tag.CreatedAt.Format(time.RFC3339),
+				UpdatedAt:   tag.UpdatedAt.Format(time.RFC3339),
+				DeletedAt: func() string {
+					if tag.DeletedAt == nil {
+						return ""
+					}
+					return tag.DeletedAt.Format(time.RFC3339)
+				}(),
+			},
+		},
+	}
+
+	tracing.RecordSpanAttributes(span,
+		attribute.String("outgoing.event.id", eventID),
+		attribute.String("outgoing.event.type", cloudEvent.Type))
+
+	if err := u.eventProducer.PublishTagSync(ctx, &cloudEvent); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("publish tag sync: %w", err)
+	}
+
+	u.logger.InfoWithContext(ctx, "Tag sync event published",
 		u.logger.String("event_id", cloudEvent.ID))
 	return nil
 }

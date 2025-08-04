@@ -56,6 +56,11 @@ type IdentityPlayerTagSyncEvent struct {
 	Tags             []*IdentityTagDataSyncEvent `json:"tags"`
 }
 
+type IdentityTagSyncEvent struct {
+	GlobalMerchantID string                    `json:"global_merchant_id"`
+	Tag              *IdentityTagDataSyncEvent `json:"tag"`
+}
+
 type IdentityTagDataSyncEvent struct {
 	GlobalTagID string `json:"global_tag_id"`
 	Name        string `json:"name"`

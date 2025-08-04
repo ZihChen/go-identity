@@ -68,6 +68,17 @@ func (k *KDSService) PublishPlayerTagsSync(ctx context.Context, event *event.Clo
 	return k.publishEvent(ctx, event)
 }
 
+// PublishTagSync 發布標籤同步事件
+func (k *KDSService) PublishTagSync(ctx context.Context, event *event.CloudEvent) error {
+	ctx, span := tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+	defer tracing.SpanEnd(span)
+
+	k.logger.InfoWithContext(ctx, "Publishing tag sync event",
+		k.logger.String("event_id", event.ID),
+		k.logger.String("global_merchant_id", extractGlobalMerchantID(event)))
+	return k.publishEvent(ctx, event)
+}
+
 // 內部方法：發布事件到KDS
 func (k *KDSService) publishEvent(ctx context.Context, event *event.CloudEvent) error {
 	if event == nil {
