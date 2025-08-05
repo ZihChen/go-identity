@@ -58,8 +58,9 @@ type LevelData struct {
 // TagData 玩家標籤數據
 type TagData struct {
 	Tag struct {
-		GlobalTagID string `json:"global_tag_id"`
-		Name        string `json:"name"`
+		GlobalTagID string    `json:"global_tag_id"`
+		Name        string    `json:"name"`
+		UpdatedAt   time.Time `json:"updated_at"`
 	} `json:"tag"`
 }
 
@@ -71,11 +72,12 @@ type ManagerSyncEvent struct {
 
 // ManagerData 從 KDS 接收的管理員數據
 type ManagerData struct {
-	ID              int    `json:"id"`
-	GlobalManagerID string `json:"global_manager_id"`
-	Account         string `json:"account"`
-	Email           string `json:"email"`
-	DeletedAt       string `json:"deleted_at,omitempty"`
+	ID              int       `json:"id"`
+	GlobalManagerID string    `json:"global_manager_id"`
+	Account         string    `json:"account"`
+	Email           string    `json:"email"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	DeletedAt       string    `json:"deleted_at,omitempty"`
 }
 
 type TagSyncEvent struct {

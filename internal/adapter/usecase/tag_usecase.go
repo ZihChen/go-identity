@@ -79,8 +79,8 @@ func (u *TagUseCase) SyncPlayerTag(
 			GlobalTagID: item.Tag.GlobalTagID,
 			Name:        item.Tag.Name,
 			MerchantID:  merchant.ID,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
+			CreatedAt:   item.Tag.UpdatedAt,
+			UpdatedAt:   item.Tag.UpdatedAt,
 		}
 		tagsGlobalIDs[k] = item.Tag.GlobalTagID
 	}
