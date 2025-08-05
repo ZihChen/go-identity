@@ -30,7 +30,16 @@ const (
 	processedEventKeyPrefix = "kds:processed:"
 	// 分佈式鎖Timeout時長
 	consumerProcessedTTL = 1 * time.Minute
+	minBackoff           = 500 * time.Millisecond
+	maxBackoff           = 5 * time.Second
 )
+
+type EventPayload struct {
+	ID               string
+	Type             string
+	GlobalMerchantID string
+	Data             map[string]interface{}
+}
 
 // ConsumeAllEvents 消費所有事件類型
 func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
@@ -109,8 +118,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 			currentIterator := initialIterator
 
 			// 自適應退避策略參數設置
-			backoffDuration, minBackoff, maxBackoff := 500*time.Millisecond, 500*time.Millisecond, 5*time.Second
-
+			backoffDuration := 500 * time.Millisecond
 			for {
 				select {
 				case <-shardCtx.Done():
@@ -192,30 +200,23 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						)
 
 						sequenceNumber := *record.SequenceNumber
-						// 只解析一次JSON數據
-						var jsonData map[string]interface{}
-						if err := json.Unmarshal(record.Data, &jsonData); err != nil {
+
+						parseEvent, err := k.parseEvent(record.Data)
+						if err != nil {
 							k.logger.WarnWithContext(
 								eventCtx,
-								"Failed to unmarshal record data, skipping",
+								"Failed to parse event, skipping",
 								k.logger.String("sequence_number", sequenceNumber),
 								k.logger.Error("error", err),
 							)
+							tracing.SpanEnd(eventSpan)
 							continue
 						}
 
-						// 提取事件ID和事件類型
-						eventID, _ := jsonData["id"].(string)
-						eventType, _ := jsonData["type"].(string)
-
-						// 提取全局商戶ID
-						var globalMerchantID string
-						if data, ok := jsonData["data"].(map[string]interface{}); ok {
-							globalMerchantID, _ = data["global_merchant_id"].(string)
-						}
+						eventID, eventType, globalMerchantID := parseEvent.ID, parseEvent.Type, parseEvent.GlobalMerchantID
 
 						// 如果無法確定事件類型，則跳過
-						if eventType == "" {
+						if parseEvent.Type == "" {
 							k.logger.WarnWithContext(
 								eventCtx,
 								"Skipping event with unknown type",
@@ -620,6 +621,24 @@ func extractMerchantID(event *event.CloudEvent) string {
 	}
 
 	return ""
+}
+
+func (k *KDSService) parseEvent(data []byte) (EventPayload, error) {
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(data, &jsonData); err != nil {
+		return EventPayload{}, err
+	}
+
+	eventPayload := EventPayload{
+		ID:   jsonData["id"].(string),
+		Type: jsonData["type"].(string),
+	}
+
+	if parseData, ok := jsonData["data"].(map[string]interface{}); ok {
+		eventPayload.GlobalMerchantID, _ = parseData["global_merchant_id"].(string)
+		eventPayload.Data = parseData
+	}
+	return eventPayload, nil
 }
 
 func (k *KDSService) composeDynamoDBKey(shardId string) string {
