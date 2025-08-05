@@ -20,11 +20,18 @@ func NewTagRepository(db *gorm.DB) repositoryport.TagRepository {
 }
 
 func (r *TagRepository) Upsert(ctx context.Context, tag *entity.Tag) error {
-	dbTag := mapToDBTag(tag)
-	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "global_tag_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"name", "updated_at", "deleted_at"}),
-	}).Create(&dbTag)
+	tagModel := mapToDBTag(tag)
+	result := r.db.WithContext(ctx).Debug().Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "global_tag_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"name": gorm.Expr(
+				"CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END"),
+			"updated_at": gorm.Expr(
+				"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END"),
+			"deleted_at": gorm.Expr(
+				"CASE WHEN VALUES(updated_at) > updated_at AND deleted_at IS NULL THEN VALUES(deleted_at) ELSE deleted_at END"),
+		}),
+	}).Create(&tagModel)
 
 	if result.Error != nil {
 		return fmt.Errorf("upsert tag failed: %w", result.Error)

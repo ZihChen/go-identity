@@ -150,18 +150,17 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
-	nowTime := time.Now()
 	tagToInsert := &entity.Tag{
 		GlobalTagID: data.Tag.GlobalTagID,
 		Name:        data.Tag.Name,
 		MerchantID:  merchant.ID,
-		CreatedAt:   nowTime,
-		UpdatedAt:   nowTime,
+		CreatedAt:   data.Tag.UpdatedAt,
+		UpdatedAt:   data.Tag.UpdatedAt,
 		DeletedAt: func() *time.Time {
 			if data.Tag.IsOpen {
 				return nil
 			}
-			return &nowTime
+			return &data.Tag.UpdatedAt
 		}(),
 	}
 
