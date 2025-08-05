@@ -44,7 +44,6 @@ func NewManagerUseCase(
 // SyncManager 同步管理員信息
 func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyncEvent) error {
 	ctx, span := tracing.StartSpan(ctx, "ManagerUseCase.SyncManager")
-	nowTime := time.Now()
 
 	// 記錄事件開始處理
 	tracing.TraceEvent(span, "Starting manager sync processing")
@@ -61,71 +60,44 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyn
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
-	// 查找管理員是否存在
-	tracing.TraceEvent(span, "Checking if manager exists")
-	existing, err := u.managerRepo.FindByGlobalID(ctx, data.Manager.GlobalManagerID)
-	if err != nil && !errors.Is(err, errmsg.ErrRepoManagerNotFound) {
-		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("find manager: %w", err)
-	}
-
-	// 創建或更新管理員
-	var manager entity.Manager
-	if errors.Is(err, errmsg.ErrRepoManagerNotFound) {
-		// 創建新管理員
-		tracing.TraceEvent(span, "Creating new manager")
-		manager = entity.Manager{
-			MerchantID:      merchant.ID,
-			GlobalManagerID: data.Manager.GlobalManagerID,
-			Account:         data.Manager.Account,
-			Email:           &data.Manager.Email,
-			CreatedAt:       nowTime,
-			UpdatedAt:       nowTime,
-		}
-		if err = u.managerRepo.FirstOrCreate(ctx, &manager); err != nil {
-			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("create manager: %w", err)
-		}
-		u.logger.InfoLog("Manager created",
-			u.logger.String("global_id", manager.GlobalManagerID),
-			u.logger.String("account", manager.Account))
-	} else {
-		// 更新現有管理員
-		tracing.TraceEvent(span, "Updating existing manager")
-
-		manager = *existing
-		manager.Account = data.Manager.Account
-		manager.Email = &data.Manager.Email
-		manager.UpdatedAt = nowTime
-		manager.DeletedAt = func() *time.Time {
+	manager := &entity.Manager{
+		MerchantID:      merchant.ID,
+		GlobalManagerID: data.Manager.GlobalManagerID,
+		Account:         data.Manager.Account,
+		Email:           &data.Manager.Email,
+		CreatedAt:       data.Manager.UpdatedAt,
+		UpdatedAt:       data.Manager.UpdatedAt,
+		DeletedAt: func() *time.Time {
 			if data.Manager.DeletedAt == "" {
 				return nil
 			}
-			return &nowTime
-		}()
-
-		if err = u.managerRepo.Update(ctx, &manager); err != nil {
-			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("update manager: %w", err)
-		}
-		u.logger.InfoLog("Manager updated",
-			u.logger.String("global_id", manager.GlobalManagerID),
-			u.logger.String("account", manager.Account))
+			return &data.Manager.UpdatedAt
+		}(),
 	}
 
-	// 記錄資料庫操作完成
+	tracing.TraceEvent(span, "Upsert manager")
+	if err = u.managerRepo.Upsert(ctx, manager); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("upsert manager: %w", err)
+	}
+
+	u.logger.InfoLog("Manager upserted successfully",
+		u.logger.String("global_id", manager.GlobalManagerID),
+		u.logger.String("account", manager.Account))
 	tracing.TraceEvent(span, "Database operation completed")
+	tracing.RecordSpanAttributes(span,
+		attribute.String("manager.global_id", manager.GlobalManagerID),
+		attribute.String("manager.account", manager.Account))
 
 	// 發布管理員同步事件到KDS
 	tracing.TraceEvent(span, "Publishing manager sync event to KDS")
-	if err = u.publishManagerSyncEvent(ctx, &manager, data.GlobalMerchantID); err != nil {
+	if err = u.publishManagerSyncEvent(ctx, manager, data.GlobalMerchantID); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish manager sync event: %w", err)
 	}
 
 	// 記錄處理完成
 	tracing.TraceEvent(span, "Manager sync completed successfully")
-
 	return nil
 }
 

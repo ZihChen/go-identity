@@ -35,6 +35,7 @@ type ManagerRepository interface {
 	Create(ctx context.Context, manager *entity.Manager) error
 	Update(ctx context.Context, manager *entity.Manager) error
 	Delete(ctx context.Context, id uint64) error
+	Upsert(ctx context.Context, manager *entity.Manager) error
 }
 
 type TagRepository interface {

@@ -3,7 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
+	"gorm.io/gorm/clause"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -102,6 +104,34 @@ func (r *ManagerRepository) Delete(ctx context.Context, id uint64) error {
 		return errmsg.ErrRepoDeleteManagerNotFound
 	}
 
+	return nil
+}
+
+// Upsert 新增/更新
+func (r *ManagerRepository) Upsert(ctx context.Context, manager *entity.Manager) error {
+	managerModel := mapToDBManager(manager)
+	// 資料冪等性設計：只有當新資料的UpdatedAt要大於當前資料，並且內容要不同時才更新
+	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "global_manager_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"account": gorm.Expr(
+				"CASE WHEN ? > updated_at AND account != ? THEN ? ELSE account END",
+				managerModel.UpdatedAt, managerModel.Account, managerModel.Account),
+			"email": gorm.Expr(
+				"CASE WHEN ? > updated_at AND email != ? THEN ? ELSE email END",
+				managerModel.UpdatedAt, managerModel.Email, managerModel.Email),
+			"updated_at": gorm.Expr(
+				"CASE WHEN ? > updated_at THEN ? ELSE updated_at END",
+				managerModel.UpdatedAt, managerModel.UpdatedAt),
+			"deleted_at": gorm.Expr(
+				"CASE WHEN ? > updated_at AND deleted_at IS NULL THEN ? ELSE deleted_at END",
+				managerModel.UpdatedAt, managerModel.DeletedAt),
+		}),
+	}).Create(managerModel)
+
+	if result.Error != nil {
+		return fmt.Errorf("manager upsert failed: %w", result.Error)
+	}
 	return nil
 }
 
