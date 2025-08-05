@@ -24,6 +24,7 @@ type PlayerRepository interface {
 	Create(ctx context.Context, player *entity.Player) error
 	Update(ctx context.Context, player *entity.Player) error
 	Delete(ctx context.Context, id uint64) error
+	Upsert(ctx context.Context, player *entity.Player) error
 }
 
 // ManagerRepository 管理員資料庫接口

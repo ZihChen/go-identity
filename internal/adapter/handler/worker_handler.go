@@ -179,7 +179,6 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("unmarshal player event: %w", err)
 	}
-	playerEvent.Player.EventTime = cloudEvent.Time
 
 	tracing.TraceEvent(span, "Starting player sync processing")
 

@@ -60,84 +60,52 @@ func (u *PlayerUseCase) SyncPlayer(
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
-	// 查找玩家是否存在
-	tracing.TraceEvent(span, "Checking if player exists")
-	existing, err := u.playerRepo.FindByGlobalID(ctx, playerData.GlobalPlayerID)
-	if err != nil && !errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
-		tracing.RecordSpanError(span, err)
-		return fmt.Errorf("find player: %w", err)
+	var email *string
+	if playerData.Email != "" {
+		email = &playerData.Email
 	}
-
-	// 創建或更新玩家
-	var player entity.Player
-	if errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
-		// 創建新玩家
-		tracing.TraceEvent(span, "Creating new player")
-		var email *string
-		if playerData.Email != "" {
-			email = &playerData.Email
-		}
-
-		player = entity.Player{
-			MerchantID:     merchant.ID,
-			GlobalPlayerID: playerData.GlobalPlayerID,
-			LevelID:        playerData.LevelID,
-			APIKey:         uuid.New().String(), // 生成新的API密鑰
-			Account:        playerData.Account,
-			Email:          email,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
-		}
-
-		if err = u.playerRepo.FirstOrCreate(ctx, &player); err != nil {
-			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("create player: %w", err)
-		}
-		u.logger.InfoLog("Player created",
-			u.logger.String("global_id", player.GlobalPlayerID),
-			u.logger.String("account", player.Account))
-	} else {
-		// 更新現有玩家
-		tracing.TraceEvent(span, "Updating existing player")
-
-		nowTime := time.Now()
-
-		player = *existing
-		player.Account = playerData.Account
-		player.LevelID = playerData.LevelID
-		if playerData.Email != "" {
-			player.Email = &playerData.Email
-		}
-		player.UpdatedAt = nowTime
-		player.DeletedAt = func() *time.Time {
+	player := entity.Player{
+		MerchantID:     merchant.ID,
+		GlobalPlayerID: playerData.GlobalPlayerID,
+		LevelID:        playerData.LevelID,
+		APIKey:         uuid.New().String(), // 生成新的API密鑰
+		Account:        playerData.Account,
+		Email:          email,
+		CreatedAt:      playerData.UpdatedAt,
+		UpdatedAt:      playerData.UpdatedAt,
+		DeletedAt: func() *time.Time {
 			if playerData.DeletedAt == "" {
 				return nil
 			}
+			nowTime := time.Now()
 			return &nowTime
-		}()
+		}(),
+	}
 
-		if err = u.playerRepo.Update(ctx, &player); err != nil {
-			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("update player: %w", err)
-		}
-		u.logger.InfoLog("Player updated",
-			u.logger.String("global_id", player.GlobalPlayerID),
-			u.logger.String("account", player.Account))
+	tracing.TraceEvent(span, "Upsert player")
+	if err = u.playerRepo.Upsert(ctx, &player); err != nil {
+		tracing.RecordSpanError(span, err)
+		return fmt.Errorf("upsert player: %w", err)
 	}
 
 	// 記錄資料庫操作完成
+	u.logger.InfoLog("Player upserted successfully",
+		u.logger.String("global_id", player.GlobalPlayerID),
+		u.logger.String("account", player.Account))
 	tracing.TraceEvent(span, "Database operation completed")
+	tracing.RecordSpanAttributes(span,
+		attribute.String("player.global_id", player.GlobalPlayerID),
+		attribute.String("player.account", player.Account))
 
 	// 發布玩家同步事件到KDS
 	tracing.TraceEvent(span, "Publishing player sync event to KDS")
-	if err := u.publishPlayerSyncEvent(ctx, &player, globalMerchantID); err != nil {
+	if err = u.publishPlayerSyncEvent(ctx, &player, globalMerchantID); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player sync event: %w", err)
 	}
 
 	// 記錄處理完成
 	tracing.TraceEvent(span, "Player sync completed successfully")
-
 	return nil
 }
 

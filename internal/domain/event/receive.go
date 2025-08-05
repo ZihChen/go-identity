@@ -27,7 +27,7 @@ type MerchantData struct {
 	Name             string    `json:"name"`
 	DisplayName      string    `json:"display_name"`
 	GlobalMerchantID string    `json:"global_merchant_id"`
-	UpdateAt         time.Time `json:"update_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 // PlayerSyncEvent 玩家同步事件數據
@@ -46,7 +46,7 @@ type PlayerData struct {
 	Status         string    `json:"status"`
 	LevelID        uint64    `json:"level_id"`
 	DeletedAt      string    `json:"deleted_at,omitempty"`
-	EventTime      time.Time `json:"time"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // LevelData 玩家等級數據
