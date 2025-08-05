@@ -100,8 +100,8 @@ func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent
 		GlobalMerchantID:    data.GlobalMerchantID,
 		Name:                data.PlayerLevel.Name,
 		MerchantID:          merchant.ID,
-		CreatedAt:           time.Now(),
-		UpdatedAt:           time.Now(),
+		CreatedAt:           data.PlayerLevel.UpdatedAt,
+		UpdatedAt:           data.PlayerLevel.UpdatedAt,
 	}
 	err = u.levelRepo.Upsert(ctx, level)
 	if err != nil {

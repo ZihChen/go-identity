@@ -23,8 +23,12 @@ func NewLevelRepository(db *gorm.DB) repositoryport.LevelRepository {
 func (r *LevelRepository) Upsert(ctx context.Context, level *entity.Level) error {
 	dbLevel := mapToDBLevel(level)
 	if result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "global_player_level_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"name", "updated_at"}),
+		Columns: []clause.Column{{Name: "global_player_level_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"name": gorm.Expr(
+				"CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END"),
+			"updated_at": gorm.Expr(
+				"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END")}),
 	}).Create(dbLevel); result.Error != nil {
 		return fmt.Errorf("upsert level failed: %w", result.Error)
 	}
