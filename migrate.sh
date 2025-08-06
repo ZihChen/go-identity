@@ -149,7 +149,7 @@ case "$1" in
     migrate_hash
     ;;
   *)
-    echo "❗ Usage: bash $0 [init|apply|dry-run|gen|inspect|status|diff|rollback]"
+    echo "❗ Usage: bash $0 [init|apply|dry-run|gen|inspect|status|diff|rollback|hash]"
     exit 1
     ;;
 esac

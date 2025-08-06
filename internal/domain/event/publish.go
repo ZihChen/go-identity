@@ -14,17 +14,18 @@ type IdentityMerchantSyncEvent struct {
 
 // IdentityPlayerSyncEvent 發送到 KDS 的玩家同步事件
 type IdentityPlayerSyncEvent struct {
-	GlobalMerchantID string  `json:"global_merchant_id"`
-	GlobalPlayerID   string  `json:"global_player_id"`
-	ID               uint64  `json:"id"`
-	MerchantID       uint64  `json:"merchant_id"`
-	APIKey           string  `json:"api_key"`
-	Account          string  `json:"account"`
-	Email            *string `json:"email,omitempty"`
-	LastActiveAt     string  `json:"last_active_at,omitempty"`
-	CreatedAt        string  `json:"created_at"`
-	UpdatedAt        string  `json:"updated_at"`
-	DeletedAt        string  `json:"deleted_at,omitempty"`
+	GlobalMerchantID    string  `json:"global_merchant_id"`
+	GlobalPlayerID      string  `json:"global_player_id"`
+	GlobalPlayerLevelID string  `json:"global_player_level_id"`
+	ID                  uint64  `json:"id"`
+	MerchantID          uint64  `json:"merchant_id"`
+	APIKey              string  `json:"api_key"`
+	Account             string  `json:"account"`
+	Email               *string `json:"email,omitempty"`
+	LastActiveAt        string  `json:"last_active_at,omitempty"`
+	CreatedAt           string  `json:"created_at"`
+	UpdatedAt           string  `json:"updated_at"`
+	DeletedAt           string  `json:"deleted_at,omitempty"`
 }
 
 // IdentityManagerSyncEvent 發送到 KDS 的管理員同步事件

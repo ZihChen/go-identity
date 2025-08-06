@@ -40,13 +40,14 @@ type PlayerSyncEvent struct {
 
 // PlayerData 從 KDS 接收的玩家數據
 type PlayerData struct {
-	GlobalPlayerID string    `json:"global_player_id"`
-	Account        string    `json:"account"`
-	Email          string    `json:"email,omitempty"`
-	Status         string    `json:"status"`
-	LevelID        uint64    `json:"level_id"`
-	DeletedAt      string    `json:"deleted_at,omitempty"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	GlobalPlayerID      string    `json:"global_player_id"`
+	Account             string    `json:"account"`
+	Email               string    `json:"email,omitempty"`
+	Status              string    `json:"status"`
+	LevelID             uint64    `json:"level_id"`
+	GlobalPlayerLevelID string    `json:"global_player_level_id"`
+	DeletedAt           string    `json:"deleted_at,omitempty"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // LevelData 玩家等級數據

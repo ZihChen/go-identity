@@ -65,14 +65,15 @@ func (u *PlayerUseCase) SyncPlayer(
 		email = &playerData.Email
 	}
 	player := entity.Player{
-		MerchantID:     merchant.ID,
-		GlobalPlayerID: playerData.GlobalPlayerID,
-		LevelID:        playerData.LevelID,
-		APIKey:         uuid.New().String(), // 生成新的API密鑰
-		Account:        playerData.Account,
-		Email:          email,
-		CreatedAt:      playerData.UpdatedAt,
-		UpdatedAt:      playerData.UpdatedAt,
+		MerchantID:          merchant.ID,
+		GlobalPlayerID:      playerData.GlobalPlayerID,
+		GlobalPlayerLevelID: playerData.GlobalPlayerLevelID,
+		LevelID:             playerData.LevelID,
+		APIKey:              uuid.New().String(), // 生成新的API密鑰
+		Account:             playerData.Account,
+		Email:               email,
+		CreatedAt:           playerData.UpdatedAt,
+		UpdatedAt:           playerData.UpdatedAt,
 		DeletedAt: func() *time.Time {
 			if playerData.DeletedAt == "" {
 				return nil
@@ -123,15 +124,16 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 
 	// 構建事件數據
 	syncEvent := event.IdentityPlayerSyncEvent{
-		GlobalMerchantID: globalMerchantID,
-		GlobalPlayerID:   player.GlobalPlayerID,
-		ID:               player.ID,
-		MerchantID:       player.MerchantID,
-		APIKey:           player.APIKey,
-		Account:          player.Account,
-		Email:            player.Email,
-		CreatedAt:        player.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        player.UpdatedAt.Format(time.RFC3339),
+		GlobalMerchantID:    globalMerchantID,
+		GlobalPlayerID:      player.GlobalPlayerID,
+		GlobalPlayerLevelID: player.GlobalPlayerLevelID,
+		ID:                  player.ID,
+		MerchantID:          player.MerchantID,
+		APIKey:              player.APIKey,
+		Account:             player.Account,
+		Email:               player.Email,
+		CreatedAt:           player.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:           player.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if player.LastActiveAt != nil {

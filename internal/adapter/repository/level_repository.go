@@ -41,7 +41,7 @@ func (r *LevelRepository) FindByGlobalID(ctx context.Context, globalID string) (
 		Where("global_player_level_id = ?", globalID).
 		First(&dbLevel).Error
 	if err != nil {
-		return &entity.Level{}, fmt.Errorf("fetch level after upsert failed: %w", err)
+		return &entity.Level{}, err
 	}
 	return mapToDomainLevel(&dbLevel), nil
 }

@@ -191,6 +191,7 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 			return fmt.Errorf("failed to sync player level: %w", err)
 		}
 		playerEvent.Player.LevelID = levelId
+		playerEvent.Player.GlobalPlayerLevelID = playerEvent.PlayerLevel.GlobalPlayerLevelID
 	}
 
 	if err = h.playerUseCase.SyncPlayer(ctx,
