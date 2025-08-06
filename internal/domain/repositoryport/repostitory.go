@@ -14,6 +14,7 @@ type MerchantRepository interface {
 	Create(ctx context.Context, merchant *entity.Merchant) error
 	Update(ctx context.Context, merchant *entity.Merchant) error
 	Delete(ctx context.Context, id uint64) error
+	Upsert(ctx context.Context, merchant *entity.Merchant) error
 }
 
 // PlayerRepository 玩家資料庫接口

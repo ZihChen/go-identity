@@ -3,7 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
+	"gorm.io/gorm/clause"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -101,6 +103,33 @@ func (r *merchantRepository) Delete(ctx context.Context, id uint64) error {
 		return errmsg.ErrRepoDeleteMerchantNotFound
 	}
 
+	return nil
+}
+
+// Upsert 資料冪等性設計：只有當新資料的UpdatedAt要大於當前資料，並且內容要不同時才更新
+func (r *merchantRepository) Upsert(ctx context.Context, merchant *entity.Merchant) error {
+	merchantModel := mapToDBMerchant(merchant)
+
+	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "global_merchant_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"name": gorm.Expr(
+				"CASE WHEN ? > updated_at AND name != ? THEN ? ELSE name END",
+				merchantModel.UpdatedAt, merchantModel.Name, merchantModel.Name),
+			"display_name": gorm.Expr(
+				"CASE WHEN ? > updated_at AND display_name != ? THEN ? ELSE display_name END",
+				merchantModel.UpdatedAt, merchantModel.DisplayName, merchantModel.DisplayName),
+			"updated_at": gorm.Expr(
+				"CASE WHEN ? > updated_at THEN ? ELSE updated_at END",
+				merchantModel.UpdatedAt, merchantModel.UpdatedAt),
+			"deleted_at": gorm.Expr(
+				"CASE WHEN ? > updated_at AND deleted_at IS NULL THEN ? ELSE deleted_at END",
+				merchantModel.UpdatedAt, merchantModel.DeletedAt),
+		}),
+	}).Create(merchantModel)
+	if result.Error != nil {
+		return fmt.Errorf("timestamp-based upsert failed: %w", result.Error)
+	}
 	return nil
 }
 

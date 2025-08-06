@@ -106,10 +106,10 @@ func (r *PlayerRepository) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
+// Upsert 資料冪等性設計：只有當新資料的UpdatedAt要大於當前資料，並且內容要不同時才更新
 func (r *PlayerRepository) Upsert(ctx context.Context, player *entity.Player) error {
 	playerModel := mapToDBPlayer(player)
 
-	// 資料冪等性設計：只有當新資料的UpdatedAt要大於當前資料，並且內容要不同時才更新
 	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "global_player_id"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
@@ -129,11 +129,11 @@ func (r *PlayerRepository) Upsert(ctx context.Context, player *entity.Player) er
 				"CASE WHEN ? > updated_at AND last_active_at != ? THEN ? ELSE last_active_at END",
 				playerModel.UpdatedAt, playerModel.LastActiveAt, playerModel.LastActiveAt),
 			"updated_at": gorm.Expr(
-				"CASE WHEN ? > updated_at AND updated_at != ? THEN ? ELSE updated_at END",
-				playerModel.UpdatedAt, playerModel.UpdatedAt, playerModel.UpdatedAt),
+				"CASE WHEN ? > updated_at THEN ? ELSE updated_at END",
+				playerModel.UpdatedAt, playerModel.UpdatedAt),
 			"deleted_at": gorm.Expr(
-				"CASE WHEN ? > updated_at AND deleted_at != ? THEN ? ELSE deleted_at END",
-				playerModel.UpdatedAt, playerModel.DeletedAt, playerModel.DeletedAt),
+				"CASE WHEN ? > updated_at AND deleted_at IS NULL THEN ? ELSE deleted_at END",
+				playerModel.UpdatedAt, playerModel.DeletedAt),
 		}),
 	}).Create(playerModel)
 

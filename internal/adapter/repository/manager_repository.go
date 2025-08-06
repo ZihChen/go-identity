@@ -107,10 +107,10 @@ func (r *ManagerRepository) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// Upsert 新增/更新
+// Upsert 資料冪等性設計：只有當新資料的UpdatedAt要大於當前資料，並且內容要不同時才更新
 func (r *ManagerRepository) Upsert(ctx context.Context, manager *entity.Manager) error {
 	managerModel := mapToDBManager(manager)
-	// 資料冪等性設計：只有當新資料的UpdatedAt要大於當前資料，並且內容要不同時才更新
+
 	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "global_manager_id"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
