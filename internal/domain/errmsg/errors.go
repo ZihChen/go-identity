@@ -9,4 +9,5 @@ var (
 	ErrRepoDeleteManagerNotFound  = errors.New("repo delete manager not found")
 	ErrRepoPlayerNotFound         = errors.New("repo player not found")
 	ErrRepoDeletePlayerNotFound   = errors.New("repo delete player not found")
+	ErrUnknownEventType           = errors.New("unknown event type")
 )
