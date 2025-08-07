@@ -13,7 +13,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/deduplication"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/redis/go-redis/v9"
@@ -30,7 +29,6 @@ var baseSet = wire.NewSet(
 	// 基礎設施層
 	queue.NewQueueService,
 	provideRedisClient,
-	provideDeduplicationService,
 
 	// 資料庫
 	repository.NewMerchantRepository,
@@ -109,9 +107,4 @@ func provideRedisClient(manager *redisCache.Manager) (*redis.Client, error) {
 		return nil, err
 	}
 	return redisInstance, nil
-}
-
-// 提供事件去重服務
-func provideDeduplicationService(redisClient *redis.Client, logger infraport.Logger) serviceport.EventDeduplicationService {
-	return deduplication.NewRedisDeduplicationService(redisClient, logger)
 }
