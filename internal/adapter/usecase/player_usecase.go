@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
+	"go.opentelemetry.io/otel/trace"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ import (
 type PlayerUseCase struct {
 	playerRepo    repositoryport.PlayerRepository
 	merchantRepo  repositoryport.MerchantRepository
+	levelRepo     repositoryport.LevelRepository
 	eventProducer serviceport.EventProducer
 	logger        infraport.Logger
 	redis         *redis.Client
@@ -32,6 +34,7 @@ type PlayerUseCase struct {
 func NewPlayerUseCase(
 	playerRepo repositoryport.PlayerRepository,
 	merchantRepo repositoryport.MerchantRepository,
+	levelRepo repositoryport.LevelRepository,
 	eventProducer serviceport.EventProducer,
 	logger infraport.Logger,
 	redis *redis.Client,
@@ -39,6 +42,7 @@ func NewPlayerUseCase(
 	return &PlayerUseCase{
 		playerRepo:    playerRepo,
 		merchantRepo:  merchantRepo,
+		levelRepo:     levelRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
 		redis:         redis,
@@ -47,40 +51,52 @@ func NewPlayerUseCase(
 
 func (u *PlayerUseCase) SyncPlayer(
 	ctx context.Context,
-	playerData *event.PlayerData,
-	globalMerchantID string,
+	data *event.PlayerSyncEvent,
 ) error {
 	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.SyncPlayer")
 	defer tracing.SpanEnd(span)
 
 	tracing.TraceEvent(span, "Checking if merchant exists")
-	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
+	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
+	level := &entity.Level{}
+	if data.PlayerLevel.GlobalPlayerLevelID != "" {
+		// 檢查有無Level，沒有則建立
+		level, err = u.findOrCreateLevel(ctx, span, data, merchant.ID)
+		if err != nil {
+			tracing.RecordSpanError(span, err)
+			return fmt.Errorf("find or create level: %w", err)
+		}
+	}
+
 	var email *string
-	if playerData.Email != "" {
-		email = &playerData.Email
+	if data.Player.Email != "" {
+		email = &data.Player.Email
 	}
 	player := entity.Player{
-		MerchantID:          merchant.ID,
-		GlobalPlayerID:      playerData.GlobalPlayerID,
-		GlobalPlayerLevelID: playerData.GlobalPlayerLevelID,
-		LevelID:             playerData.LevelID,
-		APIKey:              uuid.New().String(), // 生成新的API密鑰
-		Account:             playerData.Account,
-		Email:               email,
-		CreatedAt:           playerData.UpdatedAt,
-		UpdatedAt:           playerData.UpdatedAt,
+		MerchantID:     merchant.ID,
+		GlobalPlayerID: data.Player.GlobalPlayerID,
+		LevelID:        level.ID,
+		APIKey:         uuid.New().String(), // 生成新的API密鑰
+		Account:        data.Player.Account,
+		Email:          email,
+		CreatedAt:      data.Player.UpdatedAt,
+		UpdatedAt:      data.Player.UpdatedAt,
 		DeletedAt: func() *time.Time {
-			if playerData.DeletedAt == "" {
+			if data.Player.DeletedAt == "" {
 				return nil
 			}
 			nowTime := time.Now()
 			return &nowTime
 		}(),
+		PlayerLevel: entity.PlayerLevel{
+			GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
+			Name:                data.PlayerLevel.Name,
+		},
 	}
 
 	tracing.TraceEvent(span, "Upsert player")
@@ -100,7 +116,7 @@ func (u *PlayerUseCase) SyncPlayer(
 
 	// 發布玩家同步事件到KDS
 	tracing.TraceEvent(span, "Publishing player sync event to KDS")
-	if err = u.publishPlayerSyncEvent(ctx, &player, globalMerchantID); err != nil {
+	if err = u.publishPlayerSyncEvent(ctx, &player, data.GlobalMerchantID); err != nil {
 		tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player sync event: %w", err)
 	}
@@ -108,6 +124,57 @@ func (u *PlayerUseCase) SyncPlayer(
 	// 記錄處理完成
 	tracing.TraceEvent(span, "Player sync completed successfully")
 	return nil
+}
+
+func (u *PlayerUseCase) findOrCreateLevel(
+	ctx context.Context,
+	span trace.Span,
+	data *event.PlayerSyncEvent,
+	merchantID uint64,
+) (*entity.Level, error) {
+	level, err := u.findByGlobalID(ctx, span, data.PlayerLevel.GlobalPlayerLevelID)
+	if err == nil {
+		return level, nil
+	}
+
+	if !errors.Is(err, errmsg.ErrRepoLevelNotFound) {
+		return nil, fmt.Errorf("find level: %w", err)
+	}
+
+	tracing.TraceEvent(span, "Upsert player")
+	newLevel := &entity.Level{
+		GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
+		GlobalMerchantID:    data.GlobalMerchantID,
+		MerchantID:          merchantID,
+		Name:                data.PlayerLevel.Name,
+		CreatedAt:           data.Player.UpdatedAt,
+		UpdatedAt:           data.Player.UpdatedAt,
+	}
+
+	if err = u.levelRepo.Upsert(ctx, newLevel); err != nil {
+		tracing.RecordSpanError(span, err)
+		return nil, fmt.Errorf("upsert level: %w", err)
+	}
+
+	// 取得新的level
+	level, err = u.findByGlobalID(ctx, span, data.PlayerLevel.GlobalPlayerLevelID)
+	if err != nil {
+		return level, nil
+	}
+	return level, nil
+}
+
+func (u *PlayerUseCase) findByGlobalID(ctx context.Context, span trace.Span, globalPlayerLevelID string) (*entity.Level, error) {
+	level, err := u.levelRepo.FindByGlobalID(ctx, globalPlayerLevelID)
+	if err == nil {
+		return level, nil
+	}
+
+	if !errors.Is(err, errmsg.ErrRepoLevelNotFound) {
+		tracing.RecordSpanError(span, err)
+		return nil, fmt.Errorf("find level: %w", err)
+	}
+	return nil, errmsg.ErrRepoLevelNotFound
 }
 
 // publishPlayerSyncEvent 發布玩家同步事件
@@ -124,16 +191,19 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 
 	// 構建事件數據
 	syncEvent := event.IdentityPlayerSyncEvent{
-		GlobalMerchantID:    globalMerchantID,
-		GlobalPlayerID:      player.GlobalPlayerID,
-		GlobalPlayerLevelID: player.GlobalPlayerLevelID,
-		ID:                  player.ID,
-		MerchantID:          player.MerchantID,
-		APIKey:              player.APIKey,
-		Account:             player.Account,
-		Email:               player.Email,
-		CreatedAt:           player.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:           player.UpdatedAt.Format(time.RFC3339),
+		GlobalMerchantID: globalMerchantID,
+		GlobalPlayerID:   player.GlobalPlayerID,
+		ID:               player.ID,
+		MerchantID:       player.MerchantID,
+		APIKey:           player.APIKey,
+		Account:          player.Account,
+		Email:            player.Email,
+		CreatedAt:        player.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        player.UpdatedAt.Format(time.RFC3339),
+		PlayerLevel: event.PlayerLevel{
+			GlobalPlayerLevelID: player.PlayerLevel.GlobalPlayerLevelID,
+			Name:                player.PlayerLevel.Name,
+		},
 	}
 
 	if player.LastActiveAt != nil {

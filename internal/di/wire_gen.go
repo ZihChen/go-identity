@@ -38,11 +38,12 @@ func InitializeWebServer(cfg *config.Config, logger infraport.Logger, redisManag
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
+	levelRepository := repository.NewLevelRepository(db)
 	client, err := provideRedisClient(redisManager)
 	if err != nil {
 		return nil, err
 	}
-	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, client)
+	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
 	httpHandler := handler.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger)
@@ -63,17 +64,17 @@ func InitializeWorkerServer(cfg *config.Config, logger infraport.Logger, redisMa
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
+	levelRepository := repository.NewLevelRepository(db)
 	client, err := provideRedisClient(redisManager)
 	if err != nil {
 		return nil, err
 	}
-	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, client)
+	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
 	tagRepository := repository.NewTagRepository(db)
 	playerTagRepository := repository.NewPlayerLevelRepository(db)
 	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, redisManager)
-	levelRepository := repository.NewLevelRepository(db)
 	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger)
 	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
 	return workerHandler, nil
@@ -93,17 +94,17 @@ func InitializeWorkerComponents(cfg *config.Config, logger infraport.Logger, red
 	eventProducer := provideEventProducer(kdsService, logger)
 	merchantUseCase := usecase.NewMerchantUseCase(merchantRepository, eventProducer, logger)
 	playerRepository := repository.NewPlayerRepository(db)
+	levelRepository := repository.NewLevelRepository(db)
 	client, err := provideRedisClient(redisManager)
 	if err != nil {
 		return nil, err
 	}
-	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, eventProducer, logger, client)
+	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
 	tagRepository := repository.NewTagRepository(db)
 	playerTagRepository := repository.NewPlayerLevelRepository(db)
 	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, redisManager)
-	levelRepository := repository.NewLevelRepository(db)
 	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger)
 	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
 	server, err := provideWorkerServer(cfg, logger)

@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -41,6 +43,9 @@ func (r *LevelRepository) FindByGlobalID(ctx context.Context, globalID string) (
 		Where("global_player_level_id = ?", globalID).
 		First(&dbLevel).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &entity.Level{}, errmsg.ErrRepoLevelNotFound
+		}
 		return &entity.Level{}, err
 	}
 	return mapToDomainLevel(&dbLevel), nil

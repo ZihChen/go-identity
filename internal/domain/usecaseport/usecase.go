@@ -22,8 +22,7 @@ type ManagerUseCase interface {
 type PlayerUseCase interface {
 	SyncPlayer(
 		ctx context.Context,
-		data *event.PlayerData,
-		globalMerchantID string,
+		data *event.PlayerSyncEvent,
 	) error
 	GetPlayerByID(ctx context.Context, id uint64) (*entity.Player, error)
 	GetPlayerByGlobalID(ctx context.Context, globalID string) (*entity.Player, error)
