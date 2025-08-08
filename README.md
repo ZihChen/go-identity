@@ -187,40 +187,42 @@ fat_identity_cat/
 │   └── worker/             # 任務處理服務
 ├── docs/                   # Swagger 文檔
 ├── internal/               # 內部包
-│   ├── adapter/            # 適配器層
+│   ├── adapter/            # 適配器層 (實作層)
 │   │   ├── handler/        # HTTP 和 Worker 處理器
 │   │   ├── middleware/     # HTTP 中間件
-│   │   ├── repository/     # 數據庫存儲庫
-│   │   ├── service/        # 服務實現
-│   │   └── usecase/        # 用例實現
+│   │   ├── repository/     # 資料庫操作實作層
+│   │   ├── service/        # 服務實作層
+│   │   └── usecase/        # 用例實作層
 │   ├── di/                 # 依賴注入
-│   ├── domain/             # 領域層
-│   │   ├── entity/         # 領域實體
-│   │   ├── event/          # 事件定義
+│   ├── domain/             # 領域層 (定義接口、參數、結構體)
+│   │   ├── consts/         # 常數定義
+│   │   ├── dto/            # 資料轉換結構體定義 (handler <-> usecase)
+│   │   ├── entity/         # 領域層結構體定義 (usecase <-> repository)
+│   │   ├── errmsg/         # error message定義
+│   │   ├── event/          # 事件結構體定義
 │   │   ├── infraport/      # 基礎設施接口
 │   │   ├── repositoryport/ # 存儲庫接口
 │   │   ├── serviceport/    # 服務接口
 │   │   └── usecaseport/    # 用例接口
 │   └── infrastructure/     # 基礎設施層
-│       ├── config/         # 配置
-│       ├── database/       # 數據庫連接
-│       ├── deduplication/  # 事件去重
+│       ├── cache/          # 快取相關元件
+│       │   └── redis/      # Redis元件
+│       ├── config/         # 變數配置
+│       ├── database/       # 資料庫相關元件
+│       │   └── mysql/      # MySQL元件
 │       ├── kds/            # Kinesis Data Streams
-│       ├── logger/         # 日誌
-│       ├── models/         # 數據庫模型
+│       ├── logger/         # 日誌元件
+│       ├── models/         # 資料庫模型
 │       ├── queue/          # 任務隊列
-│       ├── redis/          # Redis 連接
-│       └── tracing/        # 分布式追踪
-├── migrations/             # 數據庫遷移
-├── scripts/                # 腳本
+│       └── tracing/        # 分布式追踪器
+├── migrations/             # 資料庫 schema migrations檔案
 ├── test/                   # 集成測試
 ├── .env                    # 環境變量
 ├── .gitlab-ci.yml          # Gitlab CI 配置
 ├── .golangci.yml           # golangci:程式碼規範工具配置
 ├── atlas.hcl               # Altas:Migration 工具配置
 ├── docker-compose.yml      # Docker Compose 配置
-├── Dockerfile
-└── README.md               # 項目文檔
+└── Dockerfile
 ```
 
 ### 主要組件
