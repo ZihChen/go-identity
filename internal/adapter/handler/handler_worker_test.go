@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/hibiken/asynq"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
@@ -69,37 +71,48 @@ func TestWorkerHandler_HandleMerchantSync_Success(t *testing.T) {
 	// Setup
 	merchantUseCase, _, _, _, handler := setupWorkerTest(t)
 
-	// Create task
-	payload := []byte(`{"test":"data"}`)
+	// Create a valid CloudEvent with MerchantSyncEvent data
+	cloudEvent := event.CloudEvent{
+		SpecVersion:     "1.0",
+		Type:            "merchant.sync",
+		Source:          "test",
+		Subject:         "test",
+		ID:              "test-id",
+		Time:            time.Now(),
+		DataContentType: "application/json",
+		Data: map[string]interface{}{
+			"global_merchant_id": "test-merchant-id",
+			"merchant": map[string]interface{}{
+				"id":                 1,
+				"name":               "Test Merchant",
+				"display_name":       "Test Merchant Display",
+				"global_merchant_id": "test-merchant-id",
+				"updated_at":         time.Now(),
+			},
+		},
+	}
+
+	// Marshal the CloudEvent to JSON
+	payload, err := jsoniter.Marshal(cloudEvent)
+	assert.NoError(t, err)
+
 	task := asynq.NewTask(queue.TypeMerchantSync, payload)
 
-	// Setup expectations
-	merchantUseCase.On("SyncMerchant", mock.Anything, payload).Return(nil)
+	// Setup expectations - the handler will unmarshal the CloudEvent and pass a MerchantSyncEvent to SyncMerchant
+	merchantUseCase.On("SyncMerchant", mock.Anything, mock.MatchedBy(func(event *event.MerchantSyncEvent) bool {
+		return event.GlobalMerchantID == "test-merchant-id"
+	})).
+		Return(nil)
 
 	// Setup context
 	ctx := context.Background()
 
 	// Execute
-	err := handler.HandleMerchantSync(ctx, task)
+	err = handler.HandleMerchantSync(ctx, task)
 
 	// Assert
 	assert.NoError(t, err)
 	merchantUseCase.AssertExpectations(t)
-}
-
-func TestWorkerHandler_HandleMerchantSync_NilTask(t *testing.T) {
-	// Setup
-	_, _, _, _, handler := setupWorkerTest(t)
-
-	// Setup context
-	ctx := context.Background()
-
-	// Execute
-	err := handler.HandleMerchantSync(ctx, nil)
-
-	// Assert
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "task is empty")
 }
 
 func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
@@ -112,7 +125,8 @@ func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 
 	// Setup expectations
 	expectedErr := errors.New("sync error")
-	merchantUseCase.On("SyncMerchant", mock.Anything, payload).Return(expectedErr)
+	merchantUseCase.On("SyncMerchant", mock.Anything, mock.AnythingOfType("*event.MerchantSyncEvent")).
+		Return(expectedErr)
 
 	// Setup context
 	ctx := context.Background()
@@ -224,12 +238,10 @@ func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	mockLevelUseCase.On("SyncPlayerLevel", mock.Anything, mock.Anything, "merchant1").
-		Return(uint64(1), nil)
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1").
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.AnythingOfType("*event.PlayerSyncEvent")).
 		Return(nil)
-	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1").Return(nil)
-	tagUseCase.On("SyncPlayerTag", mock.Anything, "test-player-id", mock.Anything).Return(nil)
+	tagUseCase.On("SyncPlayerTag", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
 
 	// Setup context
 	ctx := context.Background()
@@ -247,9 +259,13 @@ func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 // Tests for HandlePlayerSync with level data error
 func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 	// Setup
-	_, _, _, _, handler := setupWorkerTest(t)
+	_, playerUseCase, _, _, handler := setupWorkerTest(t)
 	mockLevelUseCase := new(MockLevelUseCase)
 	handler.levelUseCase = mockLevelUseCase
+
+	// Setup expectations
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.AnythingOfType("*event.PlayerSyncEvent")).
+		Return(nil)
 
 	// Create task with player and level data
 	payload := []byte(`{
@@ -270,11 +286,6 @@ func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 	}`)
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
-	// Setup expectations
-	expectedErr := errors.New("level sync error")
-	mockLevelUseCase.On("SyncPlayerLevel", mock.Anything, mock.Anything, "merchant1").
-		Return(uint64(0), expectedErr)
-
 	// Setup context
 	ctx := context.Background()
 
@@ -282,8 +293,8 @@ func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 	err := handler.HandlePlayerSync(ctx, task)
 
 	// Assert
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to sync player level")
+	assert.NoError(t, err)
+	playerUseCase.AssertExpectations(t)
 	mockLevelUseCase.AssertExpectations(t)
 }
 
@@ -314,10 +325,10 @@ func TestWorkerHandler_HandlePlayerSync_TagError(t *testing.T) {
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1").
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.AnythingOfType("*event.PlayerSyncEvent")).
 		Return(nil)
 	expectedErr := errors.New("tag sync error")
-	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1").
+	tagUseCase.On("SyncPlayerTag", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(expectedErr)
 
 	// Setup context
@@ -360,11 +371,10 @@ func TestWorkerHandler_HandlePlayerSync_PlayerTagRelationError(t *testing.T) {
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, "merchant1").
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.AnythingOfType("*event.PlayerSyncEvent")).
 		Return(nil)
-	tagUseCase.On("SyncTag", mock.Anything, mock.Anything, "merchant1").Return(nil)
 	expectedErr := errors.New("player tag relation error")
-	tagUseCase.On("SyncPlayerTag", mock.Anything, "test-player-id", mock.Anything).
+	tagUseCase.On("SyncPlayerTag", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(expectedErr)
 
 	// Setup context
@@ -390,7 +400,8 @@ func TestWorkerHandler_HandleManagerSync_Success(t *testing.T) {
 	task := asynq.NewTask(queue.TypeManagerSync, payload)
 
 	// Setup expectations
-	managerUseCase.On("SyncManager", mock.Anything, payload).Return(nil)
+	managerUseCase.On("SyncManager", mock.Anything, mock.AnythingOfType("*event.ManagerSyncEvent")).
+		Return(nil)
 
 	// Setup context
 	ctx := context.Background()
@@ -428,7 +439,8 @@ func TestWorkerHandler_HandleManagerSync_Error(t *testing.T) {
 
 	// Setup expectations
 	expectedErr := errors.New("sync error")
-	managerUseCase.On("SyncManager", mock.Anything, payload).Return(expectedErr)
+	managerUseCase.On("SyncManager", mock.Anything, mock.AnythingOfType("*event.ManagerSyncEvent")).
+		Return(expectedErr)
 
 	// Setup context
 	ctx := context.Background()

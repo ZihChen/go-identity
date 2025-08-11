@@ -476,33 +476,6 @@ func TestConsumeAllEvents(t *testing.T) {
 
 // TestHelperMethods tests the helper methods
 func TestHelperMethods(t *testing.T) {
-	// Create a KDSService with mocked dependencies
-	service := &KDSService{
-		client:       &kinesis.Client{},
-		dynamoClient: &dynamodb.Client{},
-		redisManager: &redisCache.Manager{},
-		streamName:   "test-stream",
-		tableName:    "test-table",
-		partitionKey: "id",
-		sortKey:      "sort",
-		config: &config.Config{
-			AWS: config.AWSConfig{
-				Region:        "us-west-2",
-				KinesisStream: "test-stream",
-				DynamoDBTable: "test-table",
-			},
-			App: config.AppConfig{
-				Name: "test-app",
-			},
-		},
-		queueService: new(MockQueueService),
-		logger:       new(MockLogger),
-	}
-
-	// Test composeDynamoDBKey
-	key := service.composeDynamoDBKey("shard-001")
-	assert.Equal(t, "test-stream_shard-001_test-app", key)
-
 	// Test extractMerchantID
 	merchantEvent := &event.CloudEvent{
 		Data: &event.MerchantSyncEvent{

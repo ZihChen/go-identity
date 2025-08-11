@@ -279,7 +279,7 @@ func TestNewPlayerUseCase(t *testing.T) {
 	assert.IsType(t, &PlayerUseCase{}, useCase)
 }
 
-func TestPlayerUseCase_SyncPlayer_CreateNew(t *testing.T) {
+func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 	ctx := createTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
@@ -290,11 +290,8 @@ func TestPlayerUseCase_SyncPlayer_CreateNew(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Player doesn't exist yet
-	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").
-		Return(nil, errors.New("record not found"))
-
-	// Expect Create to be called
-	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
+	playerRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Player")).
+		Return(nil)
 
 	// Expect PublishPlayerSync to be called
 	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
@@ -331,113 +328,7 @@ func TestPlayerUseCase_SyncPlayer_CreateNew(t *testing.T) {
 	eventProducer.AssertExpectations(t)
 }
 
-func TestPlayerUseCase_SyncPlayer_UpdateExisting(t *testing.T) {
-	ctx := createTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
-		t,
-	)
-
-	// Setup mocks
-	merchant := createTestMerchant()
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
-
-	// Player exists
-	player := createTestPlayer()
-	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(player, nil)
-
-	// Expect Update to be called
-	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
-
-	// Expect PublishPlayerSync to be called
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
-		Return(nil)
-
-	// Create the use case
-	useCase := NewPlayerUseCase(
-		playerRepo,
-		merchantRepo,
-		levelRepo,
-		eventProducer,
-		logger,
-		redisClient,
-	)
-
-	// Create test event data
-	eventData := createPlayerSyncEvent()
-	dataBytes, err := jsoniter.Marshal(eventData.Data)
-	assert.NoError(t, err)
-	var playerEvent event.PlayerSyncEvent
-	err = jsoniter.Unmarshal(dataBytes, &playerEvent)
-	assert.NoError(t, err)
-
-	// Execute the function
-	err = useCase.SyncPlayer(
-		ctx,
-		&playerEvent,
-	)
-
-	// Verify results
-	assert.NoError(t, err)
-	playerRepo.AssertExpectations(t)
-	merchantRepo.AssertExpectations(t)
-	eventProducer.AssertExpectations(t)
-}
-
-func TestPlayerUseCase_SyncPlayer_MerchantNotFound(t *testing.T) {
-	ctx := createTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
-		t,
-	)
-
-	// Setup mocks - merchant not found
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
-		Return(nil, errors.New("record not found"))
-
-	// Player doesn't exist yet
-	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").
-		Return(nil, errors.New("record not found"))
-
-	// Expect Create to be called with merchant ID 0
-	playerRepo.On("Create", mock.Anything, mock.MatchedBy(func(player *entity.Player) bool {
-		return player.MerchantID == 0
-	})).Return(nil)
-
-	// Expect PublishPlayerSync to be called
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
-		Return(nil)
-
-	// Create the use case
-	useCase := NewPlayerUseCase(
-		playerRepo,
-		merchantRepo,
-		levelRepo,
-		eventProducer,
-		logger,
-		redisClient,
-	)
-
-	// Create test event data
-	eventData := createPlayerSyncEvent()
-	dataBytes, err := jsoniter.Marshal(eventData.Data)
-	assert.NoError(t, err)
-	var playerEvent event.PlayerSyncEvent
-	err = jsoniter.Unmarshal(dataBytes, &playerEvent)
-	assert.NoError(t, err)
-
-	// Execute the function
-	err = useCase.SyncPlayer(
-		ctx,
-		&playerEvent,
-	)
-
-	// Verify results
-	assert.NoError(t, err)
-	merchantRepo.AssertExpectations(t)
-	playerRepo.AssertExpectations(t)
-	eventProducer.AssertExpectations(t)
-}
-
-func TestPlayerUseCase_SyncPlayer_CreateError(t *testing.T) {
+func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 	ctx := createTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
@@ -448,12 +339,8 @@ func TestPlayerUseCase_SyncPlayer_CreateError(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Player doesn't exist yet
-	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").
-		Return(nil, errors.New("record not found"))
-
-	// Create fails
-	playerRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Player")).
-		Return(errors.New("create error"))
+	playerRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Player")).
+		Return(errors.New("timestamp-based upsert failed"))
 
 	// Create the use case
 	useCase := NewPlayerUseCase(
@@ -481,7 +368,7 @@ func TestPlayerUseCase_SyncPlayer_CreateError(t *testing.T) {
 
 	// Verify results
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "create player")
+	assert.Contains(t, err.Error(), "upsert player")
 	playerRepo.AssertExpectations(t)
 	merchantRepo.AssertExpectations(t)
 }

@@ -53,12 +53,8 @@ func TestMerchantUseCase_SyncMerchant_CreateNew(t *testing.T) {
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks
-	// Merchant doesn't exist yet
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
-		Return(nil, errors.New("record not found"))
-
-	// Expect Create to be called
-	merchantRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Merchant")).Return(nil)
+	// Expect Upsert to be called
+	merchantRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Merchant")).Return(nil)
 
 	// Expect PublishMerchantSync to be called
 	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
@@ -84,12 +80,8 @@ func TestMerchantUseCase_SyncMerchant_UpdateExisting(t *testing.T) {
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks
-	// Merchant exists
-	merchant := createTestMerchant()
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
-
-	// Expect Update to be called
-	merchantRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Merchant")).Return(nil)
+	// Expect Upsert to be called
+	merchantRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Merchant")).Return(nil)
 
 	// Expect PublishMerchantSync to be called
 	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
@@ -110,18 +102,14 @@ func TestMerchantUseCase_SyncMerchant_UpdateExisting(t *testing.T) {
 	eventProducer.AssertExpectations(t)
 }
 
-func TestMerchantUseCase_SyncMerchant_CreateError(t *testing.T) {
+func TestMerchantUseCase_SyncMerchant_UpsertError(t *testing.T) {
 	ctx := createTestContext()
-	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
-
 	// Setup mocks
-	// Merchant doesn't exist yet
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
-		Return(nil, errors.New("record not found"))
+	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Create fails
-	merchantRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Merchant")).
-		Return(errors.New("create error"))
+	merchantRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Merchant")).
+		Return(errors.New("timestamp-based upsert failed"))
 
 	// Create the use case
 	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
@@ -134,49 +122,18 @@ func TestMerchantUseCase_SyncMerchant_CreateError(t *testing.T) {
 
 	// Verify results
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "create merchant")
-	merchantRepo.AssertExpectations(t)
-}
-
-func TestMerchantUseCase_SyncMerchant_UpdateError(t *testing.T) {
-	ctx := createTestContext()
-	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
-
-	// Setup mocks
-	// Merchant exists
-	merchant := createTestMerchant()
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
-
-	// Update fails
-	merchantRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Merchant")).
-		Return(errors.New("update error"))
-
-	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
-
-	// Create test event data
-	eventData := createMerchantSyncEvent()
-
-	// Execute the function
-	err := useCase.SyncMerchant(ctx, eventData)
-
-	// Verify results
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "update merchant")
+	assert.Contains(t, err.Error(), "upsert merchant")
 	merchantRepo.AssertExpectations(t)
 }
 
 func TestMerchantUseCase_SyncMerchant_PublishError(t *testing.T) {
 	ctx := createTestContext()
+	// Setup mocks
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
-	// Setup mocks
-	// Merchant doesn't exist yet
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
-		Return(nil, errors.New("record not found"))
-
 	// Expect Create to be called
-	merchantRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Merchant")).Return(nil)
+	merchantRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Merchant")).
+		Return(nil)
 
 	// PublishMerchantSync fails
 	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
@@ -329,62 +286,4 @@ func TestMerchantUseCase_publishMerchantSyncEvent_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "publish merchant sync")
 	eventProducer.AssertExpectations(t)
-}
-
-func TestMerchantUseCase_SyncMerchant_MarshalError(t *testing.T) {
-	ctx := createTestContext()
-	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
-
-	// Create a CloudEvent with valid data
-	merchantEvent := event.MerchantSyncEvent{
-		GlobalMerchantID: "FATCAT-MERCHANT-1",
-		Merchant: event.MerchantData{
-			Name:        "TestMerchant",
-			DisplayName: "Test Merchant",
-		},
-	}
-
-	// Create a mock that will cause a marshal error when trying to marshal the event data
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
-		Return(nil, errors.New("record not found"))
-	merchantRepo.On("Create", mock.Anything, mock.AnythingOfType("*entity.Merchant")).Return(nil)
-
-	// Mock json.Marshal to return an error
-	// We can't directly mock json.Marshal, but we can make the PublishMerchantSync method
-	// return an error that looks like it came from a marshal operation
-	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
-		Return(errors.New("json: unsupported type"))
-
-	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
-
-	// Execute the function
-	err := useCase.SyncMerchant(ctx, &merchantEvent)
-
-	// Verify results
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "publish merchant sync event")
-}
-
-func TestMerchantUseCase_SyncMerchant_FindByGlobalIDError(t *testing.T) {
-	ctx := createTestContext()
-	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
-
-	// Setup mocks - FindByGlobalID returns an error other than "record not found"
-	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
-		Return(nil, errors.New("database error"))
-
-	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
-
-	// Create test event data
-	eventData := createMerchantSyncEvent()
-
-	// Execute the function
-	err := useCase.SyncMerchant(ctx, eventData)
-
-	// Verify results
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "find merchant")
-	merchantRepo.AssertExpectations(t)
 }

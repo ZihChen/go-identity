@@ -145,6 +145,9 @@ func (h *WorkerHandler) HandleMerchantSync(ctx context.Context, task *asynq.Task
 
 // HandlePlayerSync 處理玩家同步任務
 func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) error {
+	if task == nil {
+		return fmt.Errorf("task is empty")
+	}
 	taskID := getTaskID(task)
 
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypePlayerSync, taskID)
@@ -198,7 +201,7 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 			playerEvent.GlobalMerchantID,
 			playerEvent.Player.GlobalPlayerID); err != nil {
 			tracing.RecordSpanError(span, err)
-			return fmt.Errorf("failed to sync player tags: %w", err)
+			return fmt.Errorf("failed to sync player tags relation: %w", err)
 		}
 	}
 
@@ -211,6 +214,9 @@ func (h *WorkerHandler) HandlePlayerSync(ctx context.Context, task *asynq.Task) 
 
 // HandleManagerSync 處理管理員同步任務
 func (h *WorkerHandler) HandleManagerSync(ctx context.Context, task *asynq.Task) error {
+	if task == nil {
+		return fmt.Errorf("task is empty")
+	}
 	taskID := getTaskID(task)
 
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypeManagerSync, taskID)
@@ -264,6 +270,9 @@ func (h *WorkerHandler) HandleManagerSync(ctx context.Context, task *asynq.Task)
 
 // HandleTagSync 處理會員標籤同步任務
 func (h *WorkerHandler) HandleTagSync(ctx context.Context, task *asynq.Task) error {
+	if task == nil {
+		return fmt.Errorf("task is empty")
+	}
 	taskID := getTaskID(task)
 
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypeTagSync, taskID)
@@ -315,6 +324,9 @@ func (h *WorkerHandler) HandleTagSync(ctx context.Context, task *asynq.Task) err
 
 // HandleLevelSync 處理會員等級同步任務
 func (h *WorkerHandler) HandleLevelSync(ctx context.Context, task *asynq.Task) error {
+	if task == nil {
+		return fmt.Errorf("task is empty")
+	}
 	taskID := getTaskID(task)
 
 	ctx, span := tracing.TraceWorkerProcessing(ctx, queue.TypeLevelSync, taskID)
