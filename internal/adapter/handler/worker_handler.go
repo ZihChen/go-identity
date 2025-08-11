@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -14,6 +13,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func getTaskID(task *asynq.Task) string {

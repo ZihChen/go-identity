@@ -4,21 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/go-redsync/redsync/v4"
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
-	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
-	"go.opentelemetry.io/otel/attribute"
-	"time"
-
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
+	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type TagUseCase struct {

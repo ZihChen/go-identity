@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"gorm.io/gorm/clause"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ManagerRepository GORM 實現的管理員資料庫

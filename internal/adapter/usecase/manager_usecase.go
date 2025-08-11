@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"

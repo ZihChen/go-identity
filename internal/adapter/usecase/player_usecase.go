@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"go.opentelemetry.io/otel/trace"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
@@ -18,6 +17,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // PlayerUseCase 玩家用例
@@ -164,7 +164,11 @@ func (u *PlayerUseCase) findOrCreateLevel(
 	return level, nil
 }
 
-func (u *PlayerUseCase) findByGlobalID(ctx context.Context, span trace.Span, globalPlayerLevelID string) (*entity.Level, error) {
+func (u *PlayerUseCase) findByGlobalID(
+	ctx context.Context,
+	span trace.Span,
+	globalPlayerLevelID string,
+) (*entity.Level, error) {
 	level, err := u.levelRepo.FindByGlobalID(ctx, globalPlayerLevelID)
 	if err == nil {
 		return level, nil

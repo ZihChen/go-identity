@@ -30,15 +30,14 @@ type PlayerUseCase interface {
 }
 
 type TagUseCase interface {
-	SyncPlayerTag(ctx context.Context, data []event.TagData, globalMerchantID, globalPlayerID string) error
+	SyncPlayerTag(
+		ctx context.Context,
+		data []event.TagData,
+		globalMerchantID, globalPlayerID string,
+	) error
 	SyncTag(ctx context.Context, data *event.TagSyncEvent) error
 }
 
 type PlayerLevelUseCase interface {
-	SyncPlayerLevel(
-		ctx context.Context,
-		data *event.LevelData,
-		globalMerchantID string,
-	) (uint64, error)
 	SyncLevel(ctx context.Context, data *event.LevelSyncEvent) error
 }

@@ -44,7 +44,10 @@ func (m *MockMerchantUseCase) GetMerchantByGlobalID(
 	return args.Get(0).(*entity.Merchant), args.Error(1)
 }
 
-func (m *MockMerchantUseCase) SyncMerchant(ctx context.Context, eventData []byte) error {
+func (m *MockMerchantUseCase) SyncMerchant(
+	ctx context.Context,
+	eventData *event.MerchantSyncEvent,
+) error {
 	args := m.Called(ctx, eventData)
 	return args.Error(0)
 }
@@ -79,10 +82,9 @@ func (m *MockPlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint6
 
 func (m *MockPlayerUseCase) SyncPlayer(
 	ctx context.Context,
-	data *event.PlayerData,
-	globalMerchantID string,
+	data *event.PlayerSyncEvent,
 ) error {
-	args := m.Called(ctx, data, globalMerchantID)
+	args := m.Called(ctx, data)
 	return args.Error(0)
 }
 
@@ -112,8 +114,8 @@ func (m *MockManagerUseCase) GetManagerByGlobalID(
 	return args.Get(0).(*entity.Manager), args.Error(1)
 }
 
-func (m *MockManagerUseCase) SyncManager(ctx context.Context, eventData []byte) error {
-	args := m.Called(ctx, eventData)
+func (m *MockManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyncEvent) error {
+	args := m.Called(ctx, data)
 	return args.Error(0)
 }
 

@@ -2,19 +2,16 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 // Mock implementations
@@ -50,6 +47,11 @@ func (m *MockManagerRepository) Create(ctx context.Context, manager *entity.Mana
 	return args.Error(0)
 }
 
+func (m *MockManagerRepository) FirstOrCreate(ctx context.Context, manager *entity.Manager) error {
+	args := m.Called(ctx, manager)
+	return args.Error(0)
+}
+
 func (m *MockManagerRepository) Update(ctx context.Context, manager *entity.Manager) error {
 	args := m.Called(ctx, manager)
 	return args.Error(0)
@@ -57,6 +59,11 @@ func (m *MockManagerRepository) Update(ctx context.Context, manager *entity.Mana
 
 func (m *MockManagerRepository) Delete(ctx context.Context, id uint64) error {
 	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockManagerRepository) Upsert(ctx context.Context, manager *entity.Manager) error {
+	args := m.Called(ctx, manager)
 	return args.Error(0)
 }
 
@@ -90,8 +97,8 @@ func createTestManager() *entity.Manager {
 	}
 }
 
-func createManagerSyncEvent() ([]byte, error) {
-	managerEvent := event.ManagerSyncEvent{
+func createManagerSyncEvent() *event.ManagerSyncEvent {
+	return &event.ManagerSyncEvent{
 		GlobalMerchantID: "FATCAT-MERCHANT-1",
 		Manager: event.ManagerData{
 			ID:              1,
@@ -100,20 +107,6 @@ func createManagerSyncEvent() ([]byte, error) {
 			Email:           "manager@example.com",
 		},
 	}
-
-	cloudEvent := event.CloudEvent{
-		SpecVersion:     "1.0",
-		Type:            "tw.jvd.fatidentitycat.manager.sync.v1",
-		Source:          "/fatidentitycat/FATCAT",
-		Subject:         "manager_sync",
-		ID:              uuid.New().String(),
-		Time:            time.Now(),
-		DataContentType: "application/json",
-		TraceParent:     "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-		Data:            managerEvent,
-	}
-
-	return json.Marshal(cloudEvent)
 }
 
 // Tests
@@ -149,11 +142,9 @@ func TestManagerUseCase_SyncManager_CreateNew(t *testing.T) {
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Create test event data
-	eventData, err := createManagerSyncEvent()
-	require.NoError(t, err)
-
+	eventData := createManagerSyncEvent()
 	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
+	err := useCase.SyncManager(ctx, eventData)
 
 	// Verify results
 	assert.NoError(t, err)
@@ -185,35 +176,16 @@ func TestManagerUseCase_SyncManager_UpdateExisting(t *testing.T) {
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Create test event data
-	eventData, err := createManagerSyncEvent()
-	require.NoError(t, err)
+	eventData := createManagerSyncEvent()
 
 	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
+	err := useCase.SyncManager(ctx, eventData)
 
 	// Verify results
 	assert.NoError(t, err)
 	managerRepo.AssertExpectations(t)
 	merchantRepo.AssertExpectations(t)
 	eventProducer.AssertExpectations(t)
-}
-
-func TestManagerUseCase_SyncManager_UnmarshalError(t *testing.T) {
-	ctx := createTestContext()
-	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
-
-	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
-
-	// Invalid JSON data
-	invalidData := []byte(`{"invalid json`)
-
-	// Execute the function
-	err := useCase.SyncManager(ctx, invalidData)
-
-	// Verify results
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unmarshal cloud event")
 }
 
 func TestManagerUseCase_SyncManager_MerchantNotFound(t *testing.T) {
@@ -228,11 +200,10 @@ func TestManagerUseCase_SyncManager_MerchantNotFound(t *testing.T) {
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Create test event data
-	eventData, err := createManagerSyncEvent()
-	require.NoError(t, err)
+	eventData := createManagerSyncEvent()
 
 	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
+	err := useCase.SyncManager(ctx, eventData)
 
 	// Verify results
 	assert.Error(t, err)
@@ -256,11 +227,10 @@ func TestManagerUseCase_SyncManager_FindManagerError(t *testing.T) {
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Create test event data
-	eventData, err := createManagerSyncEvent()
-	require.NoError(t, err)
+	eventData := createManagerSyncEvent()
 
 	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
+	err := useCase.SyncManager(ctx, eventData)
 
 	// Verify results
 	assert.Error(t, err)
@@ -289,11 +259,10 @@ func TestManagerUseCase_SyncManager_CreateError(t *testing.T) {
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Create test event data
-	eventData, err := createManagerSyncEvent()
-	require.NoError(t, err)
+	eventData := createManagerSyncEvent()
 
 	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
+	err := useCase.SyncManager(ctx, eventData)
 
 	// Verify results
 	assert.Error(t, err)
@@ -322,11 +291,10 @@ func TestManagerUseCase_SyncManager_UpdateError(t *testing.T) {
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Create test event data
-	eventData, err := createManagerSyncEvent()
-	require.NoError(t, err)
+	eventData := createManagerSyncEvent()
 
 	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
+	err := useCase.SyncManager(ctx, eventData)
 
 	// Verify results
 	assert.Error(t, err)
@@ -358,11 +326,10 @@ func TestManagerUseCase_SyncManager_PublishError(t *testing.T) {
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Create test event data
-	eventData, err := createManagerSyncEvent()
-	require.NoError(t, err)
+	eventData := createManagerSyncEvent()
 
 	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
+	err := useCase.SyncManager(ctx, eventData)
 
 	// Verify results
 	assert.Error(t, err)
@@ -473,7 +440,6 @@ func TestManagerUseCase_publishManagerSyncEvent(t *testing.T) {
 		ctx,
 		manager,
 		"FATCAT-MERCHANT-1",
-		"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
 	)
 
 	// Verify results
@@ -500,7 +466,6 @@ func TestManagerUseCase_publishManagerSyncEvent_Error(t *testing.T) {
 		ctx,
 		manager,
 		"FATCAT-MERCHANT-1",
-		"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
 	)
 
 	// Verify results
@@ -524,22 +489,6 @@ func TestManagerUseCase_SyncManager_MarshalError(t *testing.T) {
 		},
 	}
 
-	cloudEvent := event.CloudEvent{
-		SpecVersion:     "1.0",
-		Type:            "tw.jvd.fatidentitycat.manager.sync.v1",
-		Source:          "/fatidentitycat/FATCAT",
-		Subject:         "manager_sync",
-		ID:              uuid.New().String(),
-		Time:            time.Now(),
-		DataContentType: "application/json",
-		TraceParent:     "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-		Data:            managerEvent,
-	}
-
-	// Marshal the cloud event to JSON
-	eventData, err := json.Marshal(cloudEvent)
-	require.NoError(t, err)
-
 	// Setup mocks
 	merchant := createTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
@@ -561,40 +510,9 @@ func TestManagerUseCase_SyncManager_MarshalError(t *testing.T) {
 	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
 
 	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
+	err := useCase.SyncManager(ctx, &managerEvent)
 
 	// Verify results
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "publish manager sync event")
-}
-
-func TestManagerUseCase_SyncManager_UnmarshalManagerEventError(t *testing.T) {
-	ctx := createTestContext()
-	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
-
-	// Create a CloudEvent with invalid manager event data
-	invalidManagerEvent := event.CloudEvent{
-		SpecVersion:     "1.0",
-		Type:            "tw.jvd.fatidentitycat.manager.sync.v1",
-		Source:          "/fatidentitycat/FATCAT",
-		Subject:         "manager_sync",
-		ID:              uuid.New().String(),
-		Time:            time.Now(),
-		DataContentType: "application/json",
-		TraceParent:     "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-		Data:            "invalid data that can't be unmarshaled to ManagerSyncEvent",
-	}
-
-	eventData, err := json.Marshal(invalidManagerEvent)
-	require.NoError(t, err)
-
-	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger)
-
-	// Execute the function
-	err = useCase.SyncManager(ctx, eventData)
-
-	// Verify results
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unmarshal manager event")
 }

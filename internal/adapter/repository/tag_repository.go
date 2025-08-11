@@ -25,11 +25,14 @@ func (r *TagRepository) Upsert(ctx context.Context, tag *entity.Tag) error {
 		Columns: []clause.Column{{Name: "global_tag_id"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"name": gorm.Expr(
-				"CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END"),
+				"CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END",
+			),
 			"updated_at": gorm.Expr(
-				"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END"),
+				"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END",
+			),
 			"deleted_at": gorm.Expr(
-				"CASE WHEN VALUES(updated_at) > updated_at AND deleted_at IS NULL THEN VALUES(deleted_at) ELSE deleted_at END"),
+				"CASE WHEN VALUES(updated_at) > updated_at AND deleted_at IS NULL THEN VALUES(deleted_at) ELSE deleted_at END",
+			),
 		}),
 	}).Create(&tagModel)
 
@@ -53,9 +56,11 @@ func (r *TagRepository) BatchUpsert(ctx context.Context, tags []*entity.Tag) err
 		Columns: []clause.Column{{Name: "global_tag_id"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"name": gorm.Expr(
-				"CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END"),
+				"CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END",
+			),
 			"updated_at": gorm.Expr(
-				"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END"),
+				"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END",
+			),
 		}),
 	}).Create(&tagModels)
 

@@ -18,21 +18,17 @@ type MockTagUseCase struct {
 	mock.Mock
 }
 
-func (m *MockTagUseCase) SyncTag(
-	ctx context.Context,
-	data []event.TagData,
-	globalMerchantID string,
-) error {
-	args := m.Called(ctx, data, globalMerchantID)
+func (m *MockTagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) error {
+	args := m.Called(ctx, data)
 	return args.Error(0)
 }
 
 func (m *MockTagUseCase) SyncPlayerTag(
 	ctx context.Context,
-	globalPlayerID string,
 	data []event.TagData,
+	globalMerchantID, globalPlayerID string,
 ) error {
-	args := m.Called(ctx, globalPlayerID, data)
+	args := m.Called(ctx, data, globalMerchantID, globalPlayerID)
 	return args.Error(0)
 }
 
@@ -40,13 +36,9 @@ type MockLevelUseCase struct {
 	mock.Mock
 }
 
-func (m *MockLevelUseCase) SyncPlayerLevel(
-	ctx context.Context,
-	data *event.LevelData,
-	globalMerchantID string,
-) (uint64, error) {
-	args := m.Called(ctx, data, globalMerchantID)
-	return args.Get(0).(uint64), args.Error(1)
+func (m *MockLevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
 }
 
 // Setup function for tests

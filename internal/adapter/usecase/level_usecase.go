@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
-	"go.opentelemetry.io/otel/attribute"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type LevelUseCase struct {
@@ -37,52 +37,6 @@ func NewLevelUseCase(
 		eventProducer: eventProducer,
 		logger:        logger,
 	}
-}
-
-func (u *LevelUseCase) SyncPlayerLevel(
-	ctx context.Context,
-	data *event.LevelData,
-	globalMerchantID string,
-) (uint64, error) {
-	ctx, span := tracing.StartSpan(ctx, "LevelUseCase.SyncPlayerLevel")
-	defer tracing.SpanEnd(span)
-
-	tracing.TraceEvent(span, "Checking if merchant exists")
-	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
-	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
-		tracing.RecordSpanError(span, err)
-		return 0, fmt.Errorf("find merchant: %w", err)
-	}
-	levelToInsert := &entity.Level{
-		GlobalPlayerLevelID: data.GlobalPlayerLevelID,
-		GlobalMerchantID:    globalMerchantID,
-		Name:                data.Name,
-		MerchantID:          merchant.ID,
-		CreatedAt:           time.Now(),
-		UpdatedAt:           time.Now(),
-	}
-	err = u.levelRepo.Upsert(ctx, levelToInsert)
-	if err != nil {
-		tracing.RecordSpanError(span, err)
-		return 0, fmt.Errorf("upsert player level: %w", err)
-	}
-	u.logger.InfoWithContext(ctx, "Upsert player level completed", u.logger.Any("level", data))
-	tracing.TraceEvent(span, "Upsert completed")
-
-	tracing.TraceEvent(span, "Publishing player level sync event to KDS")
-	if err = u.publishPlayerLevelSyncEvent(ctx, levelToInsert); err != nil {
-		tracing.RecordSpanError(span, err)
-		return 0, fmt.Errorf("publish player level sync event: %w", err)
-	}
-
-	level, err := u.levelRepo.FindByGlobalID(ctx, levelToInsert.GlobalPlayerLevelID)
-	if err != nil {
-		tracing.RecordSpanError(span, err)
-		return 0, fmt.Errorf("find player level: %w", err)
-	}
-
-	tracing.TraceEvent(span, "Player level sync completed successfully")
-	return level.ID, nil
 }
 
 func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent) error {

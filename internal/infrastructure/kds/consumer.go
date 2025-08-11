@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"net"
 	"runtime/debug"
 	"sync"
@@ -19,6 +18,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-redsync/redsync/v4"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
@@ -126,10 +126,13 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 					return
 				default:
 					// 獲取記錄
-					recordsOutput, getRecordsErr := k.client.GetRecords(shardCtx, &kinesis.GetRecordsInput{
-						ShardIterator: aws.String(currentIterator),
-						Limit:         aws.Int32(1000),
-					})
+					recordsOutput, getRecordsErr := k.client.GetRecords(
+						shardCtx,
+						&kinesis.GetRecordsInput{
+							ShardIterator: aws.String(currentIterator),
+							Limit:         aws.Int32(1000),
+						},
+					)
 					if getRecordsErr != nil {
 						k.logger.ErrorWithContext(
 							shardCtx,
@@ -476,12 +479,15 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 					k.logger.Error("err", checkpointErr))
 			}
 
-			iterOutput, iteratorErr := k.client.GetShardIterator(ctx, &kinesis.GetShardIteratorInput{
-				StreamName:             aws.String(k.consumeStream),
-				ShardId:                shard.ShardId,
-				ShardIteratorType:      iteratorType,
-				StartingSequenceNumber: sequenceNumber,
-			})
+			iterOutput, iteratorErr := k.client.GetShardIterator(
+				ctx,
+				&kinesis.GetShardIteratorInput{
+					StreamName:             aws.String(k.consumeStream),
+					ShardId:                shard.ShardId,
+					ShardIteratorType:      iteratorType,
+					StartingSequenceNumber: sequenceNumber,
+				},
+			)
 			if iteratorErr != nil {
 				k.logger.ErrorLog("Failed to get shard iterator",
 					k.logger.String("shard_id", *shard.ShardId),

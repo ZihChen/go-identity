@@ -2,6 +2,7 @@ package kds
 
 import (
 	"context"
+
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 )
 

@@ -3,6 +3,7 @@ package kds
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
