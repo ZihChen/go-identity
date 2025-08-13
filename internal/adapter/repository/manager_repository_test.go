@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"regexp"
 	"testing"
 	"time"
 
@@ -14,7 +16,31 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestManagerRepository_FindByID_Unit(t *testing.T) {
+type ManagerTestCase struct {
+	name            string
+	setupMock       func(sqlmock.Sqlmock)
+	expectedManager *entity.Manager
+	expectedError   error
+}
+
+func setupManagerMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, *sql.DB) {
+	// Create a new SQL mock
+	mockDB, mock, err := sqlmock.New()
+	require.NoError(t, err)
+
+	// Create a GORM DB instance using the mock database
+	dialector := mysql.New(mysql.Config{
+		Conn:                      mockDB,
+		SkipInitializeWithVersion: true,
+	})
+
+	db, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	return db, mock, mockDB
+}
+
+func TestManagerRepository_FindByID(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer func() {
@@ -66,7 +92,7 @@ func TestManagerRepository_FindByID_Unit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestManagerRepository_FindByGlobalID_Unit(t *testing.T) {
+func TestManagerRepository_FindByGlobalID(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -120,7 +146,7 @@ func TestManagerRepository_FindByGlobalID_Unit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestManagerRepository_Create_Unit(t *testing.T) {
+func TestManagerRepository_Create(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -176,7 +202,7 @@ func TestManagerRepository_Create_Unit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestManagerRepository_Update_Unit(t *testing.T) {
+func TestManagerRepository_Update(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -223,7 +249,7 @@ func TestManagerRepository_Update_Unit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestManagerRepository_Delete_Unit(t *testing.T) {
+func TestManagerRepository_Delete(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -258,4 +284,103 @@ func TestManagerRepository_Delete_Unit(t *testing.T) {
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
 	assert.NoError(t, err)
+}
+
+func TestManagerRepository_Upsert(t *testing.T) {
+	// Setup test cases
+	now := time.Now()
+	email := "test@example.com"
+	testCases := []ManagerTestCase{
+		{
+			name: "successful upsert",
+			expectedManager: &entity.Manager{
+				MerchantID:      100,
+				GlobalManagerID: "global-manager-1",
+				Account:         "testaccount",
+				Email:           &email,
+				CreatedAt:       now,
+				UpdatedAt:       now,
+			},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				// Expect upsert
+				mock.ExpectBegin()
+				pattern := regexp.QuoteMeta(
+					"INSERT INTO `managers`",
+				) + ".*" + regexp.QuoteMeta(
+					"ON DUPLICATE KEY UPDATE",
+				)
+				mock.ExpectExec(pattern).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setup mock DB
+			db, mock, sqlDB := setupManagerMockDB(t)
+			defer func() {
+				_ = sqlDB.Close()
+			}()
+
+			tc.setupMock(mock)
+
+			repo := NewManagerRepository(db)
+
+			err := repo.Upsert(context.Background(), tc.expectedManager)
+
+			if tc.expectedError != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestManagerRepository_FirstOrCreate(t *testing.T) {
+	now := time.Now()
+	email := "test@example.com"
+	testCases := ManagerTestCase{
+		name: "manager first or create",
+		setupMock: func(mock sqlmock.Sqlmock) {
+			rows := sqlmock.NewRows([]string{"id", "merchant_id", "global_manager_id", "account", "email", "created_at", "updated_at", "deleted_at"}).
+				AddRow(1, 100, "global-manager-1", "testaccount", email, now, now, nil)
+
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `managers`")).
+				WithArgs("global-manager-1", 1, 1).
+				WillReturnRows(rows)
+		},
+		expectedManager: &entity.Manager{
+			ID:              1,
+			MerchantID:      100,
+			GlobalManagerID: "global-manager-1",
+			Account:         "testaccount",
+			Email:           &email,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+			DeletedAt:       nil,
+		},
+		expectedError: nil,
+	}
+
+	db, mock, sqlDB := setupManagerMockDB(t)
+	defer func() {
+		_ = sqlDB.Close()
+	}()
+
+	testCases.setupMock(mock)
+	repo := NewManagerRepository(db)
+
+	err := repo.FirstOrCreate(context.Background(), testCases.expectedManager)
+	if testCases.expectedError != nil {
+		assert.Error(t, err)
+	} else {
+		assert.NoError(t, err)
+	}
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

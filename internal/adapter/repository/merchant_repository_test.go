@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"regexp"
 	"testing"
 	"time"
 
@@ -14,7 +16,32 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestMerchantRepository_FindByID_Unit(t *testing.T) {
+type MerchantTestCase struct {
+	name             string
+	id               uint64
+	setupMock        func(sqlmock.Sqlmock)
+	expectedMerchant *entity.Merchant
+	expectedError    error
+}
+
+func setupMerchantMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, *sql.DB) {
+	// Create a new SQL mock
+	mockDB, mock, err := sqlmock.New()
+	require.NoError(t, err)
+
+	// Create a GORM DB instance using the mock database
+	dialector := mysql.New(mysql.Config{
+		Conn:                      mockDB,
+		SkipInitializeWithVersion: true,
+	})
+
+	db, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	return db, mock, mockDB
+}
+
+func TestMerchantRepository_FindByID(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -66,7 +93,7 @@ func TestMerchantRepository_FindByID_Unit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMerchantRepository_FindByGlobalID_Unit(t *testing.T) {
+func TestMerchantRepository_FindByGlobalID(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -119,7 +146,7 @@ func TestMerchantRepository_FindByGlobalID_Unit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMerchantRepository_Create_Unit(t *testing.T) {
+func TestMerchantRepository_Create(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -174,7 +201,7 @@ func TestMerchantRepository_Create_Unit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMerchantRepository_Update_Unit(t *testing.T) {
+func TestMerchantRepository_Update(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -220,7 +247,7 @@ func TestMerchantRepository_Update_Unit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMerchantRepository_Delete_Unit(t *testing.T) {
+func TestMerchantRepository_Delete(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -255,4 +282,99 @@ func TestMerchantRepository_Delete_Unit(t *testing.T) {
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
 	assert.NoError(t, err)
+}
+
+func TestMerchantRepository_FirstOrCreate(t *testing.T) {
+	now := time.Now()
+	testCases := MerchantTestCase{
+		name: "merchant first or create",
+		id:   1,
+		setupMock: func(mock sqlmock.Sqlmock) {
+			rows := sqlmock.NewRows([]string{"id", "global_merchant_id", "name", "display_name", "api_key", "created_at", "updated_at", "deleted_at"}).
+				AddRow(1, "Test-Merchant-01", "Merchant-01", "Merchant-Nickname", "123", now, now, nil)
+
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `merchants`")).
+				WithArgs("Test-Merchant-01", 1, 1).
+				WillReturnRows(rows)
+		},
+		expectedMerchant: &entity.Merchant{
+			ID:               1,
+			GlobalMerchantID: "Test-Merchant-01",
+			Name:             "Merchant-01",
+			DisplayName:      "Merchant-Nickname",
+			CreatedAt:        now,
+			UpdatedAt:        now,
+			DeletedAt:        nil,
+		},
+		expectedError: nil,
+	}
+
+	db, mock, sqlDB := setupMerchantMockDB(t)
+	defer func() {
+		_ = sqlDB.Close()
+	}()
+
+	testCases.setupMock(mock)
+	repo := NewMerchantRepository(db)
+
+	err := repo.FirstOrCreate(context.Background(), testCases.expectedMerchant)
+	if testCases.expectedError != nil {
+		assert.Error(t, err)
+	} else {
+		assert.NoError(t, err)
+	}
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMerchantRepository_Upsert(t *testing.T) {
+	now := time.Now()
+	testCases := []MerchantTestCase{
+		{
+			name: "merchant update",
+			id:   1,
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				pattern := regexp.QuoteMeta(
+					"INSERT INTO `merchants`",
+				) + ".*" + regexp.QuoteMeta(
+					"ON DUPLICATE KEY UPDATE",
+				)
+				mock.ExpectExec(pattern).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+			},
+			expectedMerchant: &entity.Merchant{
+				ID:               1,
+				GlobalMerchantID: "Test-Merchant-01",
+				Name:             "Merchant-01",
+				DisplayName:      "Merchant-Nickname",
+				CreatedAt:        now,
+				UpdatedAt:        now,
+				DeletedAt:        nil,
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock, sqlDB := setupMerchantMockDB(t)
+			defer func() {
+				_ = sqlDB.Close()
+			}()
+
+			tc.setupMock(mock)
+
+			repo := NewMerchantRepository(db)
+
+			err := repo.Upsert(context.Background(), tc.expectedMerchant)
+
+			if tc.expectedError != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }

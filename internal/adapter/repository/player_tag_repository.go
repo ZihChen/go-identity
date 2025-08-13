@@ -15,7 +15,7 @@ type PlayerTagRepository struct {
 	db *gorm.DB
 }
 
-func NewPlayerLevelRepository(db *gorm.DB) repositoryport.PlayerTagRepository {
+func NewPlayerTagRepository(db *gorm.DB) repositoryport.PlayerTagRepository {
 	return &PlayerTagRepository{db: db}
 }
 
@@ -52,7 +52,7 @@ func (r *PlayerTagRepository) BatchUpdate(
 	})
 }
 
-func (r *PlayerTagRepository) BatchDeleteByPlayerID(ctx context.Context, playerID uint64) error {
+func (r *PlayerTagRepository) DeleteByPlayerID(ctx context.Context, playerID uint64) error {
 	result := r.db.WithContext(ctx).
 		Where("player_id = ?", playerID).
 		Delete(&models.PlayerTag{})

@@ -36,7 +36,7 @@ var baseSet = wire.NewSet(
 	repository.NewManagerRepository,
 	repository.NewTagRepository,
 	repository.NewLevelRepository,
-	repository.NewPlayerLevelRepository,
+	repository.NewPlayerTagRepository,
 
 	// 服務
 	provideEventProducer,
