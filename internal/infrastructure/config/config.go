@@ -55,6 +55,7 @@ type RedisConfig struct {
 type AWSConfig struct {
 	AccessKeyID     string
 	SecretAccessKey string
+	SessionToken    string
 	Region          string
 	KinesisStream   string
 	ConsumeStream   string
@@ -129,6 +130,7 @@ func LoadConfig() (*Config, error) {
 		AWS: AWSConfig{
 			AccessKeyID:     viper.GetString("AWS_ACCESS_KEY_ID"),
 			SecretAccessKey: viper.GetString("AWS_SECRET_ACCESS_KEY"),
+			SessionToken:    viper.GetString("AWS_SESSION_TOKEN"),
 			Region:          viper.GetString("AWS_REGION"),
 			KinesisStream:   viper.GetString("KINESIS_STREAM_ARN"),
 			ConsumeStream:   viper.GetString("KINESIS_CONSUME_STREAM_NAME"),
@@ -164,17 +166,11 @@ func LoadConfig() (*Config, error) {
 
 // LoadAWSConfig 加載AWS配置
 func (c *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
-	return awsconfig.LoadDefaultConfig(ctx,
+	var opts []func(*awsconfig.LoadOptions) error
+
+	opts = append(
+		opts,
 		awsconfig.WithRegion(c.AWS.Region),
-		awsconfig.WithCredentialsProvider(
-			aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
-				return aws.Credentials{
-					AccessKeyID:     c.AWS.AccessKeyID,
-					SecretAccessKey: c.AWS.SecretAccessKey,
-					SessionToken:    viper.GetString("AWS_SESSION_TOKEN"),
-				}, nil
-			}),
-		),
 		awsconfig.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
 				o.MaxAttempts = 3               // 最大重試次數
@@ -182,4 +178,17 @@ func (c *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 			})
 		}),
 	)
+
+	if c.App.Env == "local" {
+		opts = append(opts, awsconfig.WithCredentialsProvider(
+			aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
+				return aws.Credentials{
+					AccessKeyID:     c.AWS.AccessKeyID,
+					SecretAccessKey: c.AWS.SecretAccessKey,
+					SessionToken:    c.AWS.SessionToken,
+				}, nil
+			}),
+		))
+	}
+	return awsconfig.LoadDefaultConfig(ctx, opts...)
 }
