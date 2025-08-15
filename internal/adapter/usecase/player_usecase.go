@@ -273,10 +273,6 @@ func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.P
 		attribute.String("player.account", player.Account),
 	)
 
-	if err = u.publishPlayerSyncEvent(ctx, player, "123"); err != nil {
-		return nil, err
-	}
-
 	return player, nil
 }
 

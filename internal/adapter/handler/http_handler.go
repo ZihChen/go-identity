@@ -1,17 +1,15 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -83,13 +81,6 @@ func (h *HTTPHandler) RegisterRoutes(router *gin.Engine) {
 		managers.GET("/global/:global_id", h.GetManagerByGlobalID)
 	}
 
-	// 調試接口
-	debugger := api.Group("/debugger")
-	{
-		debugger.GET("/", h.DebuggerForDev)
-		debugger.GET("/publish", h.DebuggerForPublish)
-	}
-
 	// 健康檢查
 	router.GET("/health", h.HealthCheck)
 }
@@ -130,7 +121,7 @@ func (h *HTTPHandler) GetMerchantByID(c *gin.Context) {
 
 	merchant, err := h.merchantUseCase.GetMerchantByID(c.Request.Context(), id)
 	if err != nil {
-		if err.Error() == "record not found" {
+		if errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Merchant not found",
 			})
@@ -173,7 +164,7 @@ func (h *HTTPHandler) GetMerchantByGlobalID(c *gin.Context) {
 
 	merchant, err := h.merchantUseCase.GetMerchantByGlobalID(c.Request.Context(), globalID)
 	if err != nil {
-		if err.Error() == "record not found" {
+		if errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Merchant not found",
 			})
@@ -216,7 +207,7 @@ func (h *HTTPHandler) GetPlayerByID(c *gin.Context) {
 
 	player, err := h.playerUseCase.GetPlayerByID(c.Request.Context(), id)
 	if err != nil {
-		if err.Error() == "record not found" {
+		if errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Player not found",
 			})
@@ -259,7 +250,7 @@ func (h *HTTPHandler) GetPlayerByGlobalID(c *gin.Context) {
 
 	player, err := h.playerUseCase.GetPlayerByGlobalID(c.Request.Context(), globalID)
 	if err != nil {
-		if err.Error() == "record not found" {
+		if errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Player not found",
 			})
@@ -300,7 +291,7 @@ func (h *HTTPHandler) UpdatePlayerLastActive(c *gin.Context) {
 	}
 
 	if err := h.playerUseCase.UpdatePlayerLastActive(c.Request.Context(), id); err != nil {
-		if err.Error() == "record not found" {
+		if errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Player not found",
 			})
@@ -345,7 +336,7 @@ func (h *HTTPHandler) GetManagerByID(c *gin.Context) {
 
 	manager, err := h.managerUseCase.GetManagerByID(c.Request.Context(), id)
 	if err != nil {
-		if err.Error() == "record not found" {
+		if errors.Is(err, errmsg.ErrRepoManagerNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Manager not found",
 			})
@@ -388,7 +379,7 @@ func (h *HTTPHandler) GetManagerByGlobalID(c *gin.Context) {
 
 	manager, err := h.managerUseCase.GetManagerByGlobalID(c.Request.Context(), globalID)
 	if err != nil {
-		if err.Error() == "record not found" {
+		if errors.Is(err, errmsg.ErrRepoManagerNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Manager not found",
 			})
@@ -406,41 +397,4 @@ func (h *HTTPHandler) GetManagerByGlobalID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, manager)
-}
-
-func (h *HTTPHandler) DebuggerForDev(c *gin.Context) {
-	cfg := cmd.GetConfig()
-	logger := cmd.GetLogger()
-	queueService, _ := queue.NewQueueService(cfg, logger)
-	redisManager := redis.NewRedisManager(cfg)
-	defer func() {
-		_ = redisManager.Close()
-	}()
-	if err := redisManager.Connect(c.Request.Context()); err != nil {
-		logger.FatalLog("Failed to connect to Redis after retry", logger.Error("err", err))
-	}
-
-	ks, _ := kds.NewKDSService(cfg, queueService, redisManager, logger)
-	_ = ks.ConsumeAllEvents(c.Request.Context())
-}
-
-func (h *HTTPHandler) DebuggerForPublish(c *gin.Context) {
-	player, err := h.playerUseCase.GetPlayerByID(c.Request.Context(), 1)
-	if err != nil {
-		if err.Error() == "record not found" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Player not found",
-			})
-			return
-		}
-
-		h.logger.ErrorLog("Failed to get player by ID",
-			h.logger.Error("err", err))
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get player",
-		})
-		return
-	}
-	c.JSON(http.StatusOK, player)
 }

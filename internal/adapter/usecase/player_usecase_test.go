@@ -383,10 +383,6 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 	player := createTestPlayer()
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 
-	// Expect PublishPlayerSync to be called
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
-		Return(nil)
-
 	// Create the use case
 	useCase := NewPlayerUseCase(
 		playerRepo,
@@ -404,7 +400,6 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, player, result)
 	playerRepo.AssertExpectations(t)
-	eventProducer.AssertExpectations(t)
 }
 
 func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
@@ -435,40 +430,6 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "find player")
 	playerRepo.AssertExpectations(t)
-}
-
-func TestPlayerUseCase_GetPlayerByID_PublishError(t *testing.T) {
-	ctx := createTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
-		t,
-	)
-
-	// Setup mocks
-	player := createTestPlayer()
-	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
-
-	// PublishPlayerSync fails
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
-		Return(errors.New("publish error"))
-
-	// Create the use case
-	useCase := NewPlayerUseCase(
-		playerRepo,
-		merchantRepo,
-		levelRepo,
-		eventProducer,
-		logger,
-		redisClient,
-	)
-
-	// Execute the function
-	result, err := useCase.GetPlayerByID(ctx, 1)
-
-	// Verify results
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	playerRepo.AssertExpectations(t)
-	eventProducer.AssertExpectations(t)
 }
 
 func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
@@ -338,7 +339,7 @@ func TestHTTPHandler_GetMerchantByID_NotFound(t *testing.T) {
 
 	// Setup mock to return not found error
 	merchantUseCase.On("GetMerchantByID", mock.Anything, uint64(999)).
-		Return(nil, errors.New("record not found"))
+		Return(nil, errmsg.ErrRepoMerchantNotFound)
 
 	// Execute
 	handler.GetMerchantByID(c)
@@ -440,7 +441,7 @@ func TestHTTPHandler_GetMerchantByGlobalID_NotFound(t *testing.T) {
 
 	// Setup mock to return not found error
 	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "NONEXISTENT").
-		Return(nil, errors.New("record not found"))
+		Return(nil, errmsg.ErrRepoMerchantNotFound)
 
 	// Execute
 	handler.GetMerchantByGlobalID(c)
@@ -541,7 +542,7 @@ func TestHTTPHandler_GetPlayerByID_NotFound(t *testing.T) {
 
 	// Setup mock to return not found error
 	playerUseCase.On("GetPlayerByID", mock.Anything, uint64(999)).
-		Return(nil, errors.New("record not found"))
+		Return(nil, errmsg.ErrRepoPlayerNotFound)
 
 	// Execute
 	handler.GetPlayerByID(c)
@@ -642,7 +643,7 @@ func TestHTTPHandler_GetPlayerByGlobalID_NotFound(t *testing.T) {
 
 	// Setup mock to return not found error
 	playerUseCase.On("GetPlayerByGlobalID", mock.Anything, "NONEXISTENT").
-		Return(nil, errors.New("record not found"))
+		Return(nil, errmsg.ErrRepoPlayerNotFound)
 
 	// Execute
 	handler.GetPlayerByGlobalID(c)
@@ -739,7 +740,7 @@ func TestHTTPHandler_UpdatePlayerLastActive_NotFound(t *testing.T) {
 
 	// Setup mock to return not found error
 	playerUseCase.On("UpdatePlayerLastActive", mock.Anything, uint64(999)).
-		Return(errors.New("record not found"))
+		Return(errmsg.ErrRepoPlayerNotFound)
 
 	// Execute
 	handler.UpdatePlayerLastActive(c)
@@ -840,7 +841,7 @@ func TestHTTPHandler_GetManagerByID_NotFound(t *testing.T) {
 
 	// Setup mock to return not found error
 	managerUseCase.On("GetManagerByID", mock.Anything, uint64(999)).
-		Return(nil, errors.New("record not found"))
+		Return(nil, errmsg.ErrRepoManagerNotFound)
 
 	// Execute
 	handler.GetManagerByID(c)
@@ -942,7 +943,7 @@ func TestHTTPHandler_GetManagerByGlobalID_NotFound(t *testing.T) {
 
 	// Setup mock to return not found error
 	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "NONEXISTENT").
-		Return(nil, errors.New("record not found"))
+		Return(nil, errmsg.ErrRepoManagerNotFound)
 
 	// Execute
 	handler.GetManagerByGlobalID(c)
