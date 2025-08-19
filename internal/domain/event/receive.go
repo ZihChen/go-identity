@@ -47,6 +47,7 @@ type PlayerData struct {
 	LevelID             uint64    `json:"level_id"`
 	GlobalPlayerLevelID string    `json:"global_player_level_id"`
 	DeletedAt           string    `json:"deleted_at,omitempty"`
+	LastActiveAt        time.Time `json:"last_active_at,omitempty"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 

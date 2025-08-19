@@ -77,6 +77,12 @@ func (u *PlayerUseCase) SyncPlayer(
 	if data.Player.Email != "" {
 		email = &data.Player.Email
 	}
+
+	var lastActiveAt *time.Time
+	if !data.Player.LastActiveAt.IsZero() {
+		lastActiveAt = &data.Player.LastActiveAt
+	}
+
 	player := entity.Player{
 		MerchantID:     merchant.ID,
 		GlobalPlayerID: data.Player.GlobalPlayerID,
@@ -86,6 +92,7 @@ func (u *PlayerUseCase) SyncPlayer(
 		Email:          email,
 		CreatedAt:      data.Player.UpdatedAt,
 		UpdatedAt:      data.Player.UpdatedAt,
+		LastActiveAt:   lastActiveAt,
 		DeletedAt: func() *time.Time {
 			if data.Player.DeletedAt == "" {
 				return nil
@@ -210,7 +217,7 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 		},
 	}
 
-	if player.LastActiveAt != nil {
+	if player.LastActiveAt != nil && !player.LastActiveAt.IsZero() {
 		syncEvent.LastActiveAt = player.LastActiveAt.Format(time.RFC3339)
 	}
 
@@ -334,7 +341,7 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 
 	u.logger.InfoLog("Player last active time updated",
 		u.logger.String("global_id", player.GlobalPlayerID),
-		u.logger.String("last_active_at", player.LastActiveAt.String()))
+		u.logger.String("last_active_at", now.String()))
 
 	return nil
 }

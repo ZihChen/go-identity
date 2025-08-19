@@ -110,31 +110,33 @@ func (r *PlayerRepository) Delete(ctx context.Context, id uint64) error {
 func (r *PlayerRepository) Upsert(ctx context.Context, player *entity.Player) error {
 	playerModel := mapToDBPlayer(player)
 
+	updates := map[string]interface{}{
+		"account": gorm.Expr(
+			"CASE WHEN ? > updated_at AND account != ? THEN ? ELSE account END",
+			playerModel.UpdatedAt, playerModel.Account, playerModel.Account),
+		"api_key": gorm.Expr(
+			"CASE WHEN ? > updated_at AND api_key != ? THEN ? ELSE api_key END",
+			playerModel.UpdatedAt, playerModel.APIKey, playerModel.APIKey),
+		"level_id": gorm.Expr(
+			"CASE WHEN ? > updated_at AND level_id != ? THEN ? ELSE level_id END",
+			playerModel.UpdatedAt, playerModel.LevelID, playerModel.LevelID),
+		"email": gorm.Expr(
+			"CASE WHEN ? > updated_at THEN ? ELSE email END",
+			playerModel.UpdatedAt, playerModel.Email),
+		"last_active_at": gorm.Expr(
+			"CASE WHEN ? > updated_at THEN ? ELSE last_active_at END",
+			playerModel.LastActiveAt, playerModel.LastActiveAt),
+		"updated_at": gorm.Expr(
+			"CASE WHEN VALUES(updated_at) >= updated_at THEN VALUES(updated_at) ELSE updated_at END",
+		),
+		"deleted_at": gorm.Expr(
+			"CASE WHEN ? > updated_at AND deleted_at IS NULL THEN ? ELSE deleted_at END",
+			playerModel.UpdatedAt, playerModel.DeletedAt),
+	}
+
 	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "global_player_id"}},
-		DoUpdates: clause.Assignments(map[string]interface{}{
-			"account": gorm.Expr(
-				"CASE WHEN ? > updated_at AND account != ? THEN ? ELSE account END",
-				playerModel.UpdatedAt, playerModel.Account, playerModel.Account),
-			"api_key": gorm.Expr(
-				"CASE WHEN ? > updated_at AND api_key != ? THEN ? ELSE api_key END",
-				playerModel.UpdatedAt, playerModel.APIKey, playerModel.APIKey),
-			"level_id": gorm.Expr(
-				"CASE WHEN ? > updated_at AND level_id != ? THEN ? ELSE level_id END",
-				playerModel.UpdatedAt, playerModel.LevelID, playerModel.LevelID),
-			"email": gorm.Expr(
-				"CASE WHEN ? > updated_at AND email != ? THEN ? ELSE email END",
-				playerModel.UpdatedAt, playerModel.Email, playerModel.Email),
-			"last_active_at": gorm.Expr(
-				"CASE WHEN ? > updated_at AND last_active_at != ? THEN ? ELSE last_active_at END",
-				playerModel.UpdatedAt, playerModel.LastActiveAt, playerModel.LastActiveAt),
-			"updated_at": gorm.Expr(
-				"CASE WHEN ? > updated_at THEN ? ELSE updated_at END",
-				playerModel.UpdatedAt, playerModel.UpdatedAt),
-			"deleted_at": gorm.Expr(
-				"CASE WHEN ? > updated_at AND deleted_at IS NULL THEN ? ELSE deleted_at END",
-				playerModel.UpdatedAt, playerModel.DeletedAt),
-		}),
+		Columns:   []clause.Column{{Name: "global_player_id"}},
+		DoUpdates: clause.Assignments(updates),
 	}).Create(playerModel)
 
 	if result.Error != nil {
