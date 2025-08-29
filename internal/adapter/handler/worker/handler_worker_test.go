@@ -1,4 +1,4 @@
-package handler
+package worker
 
 import (
 	"context"
@@ -15,43 +15,15 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockTagUseCase is a mock implementation of the TagUseCase interface
-type MockTagUseCase struct {
-	mock.Mock
-}
-
-func (m *MockTagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) error {
-	args := m.Called(ctx, data)
-	return args.Error(0)
-}
-
-func (m *MockTagUseCase) SyncPlayerTag(
-	ctx context.Context,
-	data []event.TagData,
-	globalMerchantID, globalPlayerID string,
-) error {
-	args := m.Called(ctx, data, globalMerchantID, globalPlayerID)
-	return args.Error(0)
-}
-
-type MockLevelUseCase struct {
-	mock.Mock
-}
-
-func (m *MockLevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent) error {
-	args := m.Called(ctx, data)
-	return args.Error(0)
-}
-
 // Setup function for tests
 func setupWorkerTest(
 	t *testing.T,
-) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *MockTagUseCase, *WorkerHandler) {
-	merchantUseCase := new(MockMerchantUseCase)
-	playerUseCase := new(MockPlayerUseCase)
-	managerUseCase := new(MockManagerUseCase)
-	tagUseCase := new(MockTagUseCase)
-	mockLevelUseCase := new(MockLevelUseCase)
+) (*helper.MockMerchantUseCase, *helper.MockPlayerUseCase, *helper.MockManagerUseCase, *helper.MockTagUseCase, *WorkerHandler) {
+	merchantUseCase := new(helper.MockMerchantUseCase)
+	playerUseCase := new(helper.MockPlayerUseCase)
+	managerUseCase := new(helper.MockManagerUseCase)
+	tagUseCase := new(helper.MockTagUseCase)
+	mockLevelUseCase := new(helper.MockLevelUseCase)
 	logger := helper.SetupLoggerMock(t)
 
 	handler := NewWorkerHandler(
@@ -209,7 +181,7 @@ func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 	// Setup
 	_, playerUseCase, _, tagUseCase, handler := setupWorkerTest(t)
-	mockLevelUseCase := new(MockLevelUseCase)
+	mockLevelUseCase := new(helper.MockLevelUseCase)
 	handler.levelUseCase = mockLevelUseCase
 
 	// Create task with player, tags, and level data
@@ -260,7 +232,7 @@ func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 	// Setup
 	_, playerUseCase, _, _, handler := setupWorkerTest(t)
-	mockLevelUseCase := new(MockLevelUseCase)
+	mockLevelUseCase := new(helper.MockLevelUseCase)
 	handler.levelUseCase = mockLevelUseCase
 
 	// Setup expectations

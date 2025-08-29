@@ -1,7 +1,6 @@
-package handler
+package api
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -11,232 +10,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-// Mock implementations of the use cases
-type MockMerchantUseCase struct {
-	mock.Mock
-}
-
-func (m *MockMerchantUseCase) GetMerchantByID(
-	ctx context.Context,
-	id uint64,
-) (*entity.Merchant, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Merchant), args.Error(1)
-}
-
-func (m *MockMerchantUseCase) GetMerchantByGlobalID(
-	ctx context.Context,
-	globalID string,
-) (*entity.Merchant, error) {
-	args := m.Called(ctx, globalID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Merchant), args.Error(1)
-}
-
-func (m *MockMerchantUseCase) SyncMerchant(
-	ctx context.Context,
-	eventData *event.MerchantSyncEvent,
-) error {
-	args := m.Called(ctx, eventData)
-	return args.Error(0)
-}
-
-type MockPlayerUseCase struct {
-	mock.Mock
-}
-
-func (m *MockPlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.Player, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Player), args.Error(1)
-}
-
-func (m *MockPlayerUseCase) GetPlayerByGlobalID(
-	ctx context.Context,
-	globalID string,
-) (*entity.Player, error) {
-	args := m.Called(ctx, globalID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Player), args.Error(1)
-}
-
-func (m *MockPlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockPlayerUseCase) SyncPlayer(
-	ctx context.Context,
-	data *event.PlayerSyncEvent,
-) error {
-	args := m.Called(ctx, data)
-	return args.Error(0)
-}
-
-type MockManagerUseCase struct {
-	mock.Mock
-}
-
-func (m *MockManagerUseCase) GetManagerByID(
-	ctx context.Context,
-	id uint64,
-) (*entity.Manager, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Manager), args.Error(1)
-}
-
-func (m *MockManagerUseCase) GetManagerByGlobalID(
-	ctx context.Context,
-	globalID string,
-) (*entity.Manager, error) {
-	args := m.Called(ctx, globalID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Manager), args.Error(1)
-}
-
-func (m *MockManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyncEvent) error {
-	args := m.Called(ctx, data)
-	return args.Error(0)
-}
-
-type MockLogger struct {
-	mock.Mock
-}
-
-func (m *MockLogger) DebugWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) InfoWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) ErrorWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) WarnWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) FatalWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) DebugLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) InfoLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) ErrorLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) WarnLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) FatalLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) Error(key string, value error) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) String(key string, value string) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Int(key string, value int) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Int64(key string, value int64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) UInt64(key string, value uint64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Float64(key string, value float64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Bool(key string, value bool) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Any(key string, value interface{}) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Close() {
-	m.Called()
-}
-
 // Helper functions
 func setupTest(
 	t *testing.T,
-) (*MockMerchantUseCase, *MockPlayerUseCase, *MockManagerUseCase, *helper.MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
+) (*helper.MockMerchantUseCase, *helper.MockPlayerUseCase, *helper.MockManagerUseCase, *helper.MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 
-	merchantUseCase := new(MockMerchantUseCase)
-	playerUseCase := new(MockPlayerUseCase)
-	managerUseCase := new(MockManagerUseCase)
+	merchantUseCase := new(helper.MockMerchantUseCase)
+	playerUseCase := new(helper.MockPlayerUseCase)
+	managerUseCase := new(helper.MockManagerUseCase)
 	mockLogger := helper.SetupLoggerMock(t)
 
 	handler := &HTTPHandler{

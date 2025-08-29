@@ -9,7 +9,8 @@ package di
 import (
 	"github.com/google/wire"
 	"github.com/hibiken/asynq"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler/api"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler/worker"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
@@ -25,7 +26,7 @@ import (
 // Injectors from wire.go:
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger infraport.Logger, redisManager *redis.Manager, db *gorm.DB) (*handler.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger infraport.Logger, redisManager *redis.Manager, db *gorm.DB) (*api.HTTPHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	queueService, err := queue.NewQueueService(cfg, logger)
 	if err != nil {
@@ -46,12 +47,12 @@ func InitializeWebServer(cfg *config.Config, logger infraport.Logger, redisManag
 	playerUseCase := usecase.NewPlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client)
 	managerRepository := repository.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger)
-	httpHandler := handler.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger)
+	httpHandler := api.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger)
 	return httpHandler, nil
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger infraport.Logger, redisManager *redis.Manager, db *gorm.DB) (*handler.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger infraport.Logger, redisManager *redis.Manager, db *gorm.DB) (*worker.WorkerHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	queueService, err := queue.NewQueueService(cfg, logger)
 	if err != nil {
@@ -76,7 +77,7 @@ func InitializeWorkerServer(cfg *config.Config, logger infraport.Logger, redisMa
 	playerTagRepository := repository.NewPlayerTagRepository(db)
 	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, redisManager)
 	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger)
-	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
+	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
 	return workerHandler, nil
 }
 
@@ -106,7 +107,7 @@ func InitializeWorkerComponents(cfg *config.Config, logger infraport.Logger, red
 	playerTagRepository := repository.NewPlayerTagRepository(db)
 	tagUseCase := usecase.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, redisManager)
 	playerLevelUseCase := usecase.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger)
-	workerHandler := handler.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
+	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger)
 	server, err := provideWorkerServer(cfg, logger)
 	if err != nil {
 		return nil, err
@@ -135,7 +136,7 @@ func InitializeConsumer(cfg *config.Config, logger infraport.Logger, redisManage
 
 // WorkerComponents 包含 worker 所需的所有組件
 type WorkerComponents struct {
-	Handler *handler.WorkerHandler
+	Handler *worker.WorkerHandler
 	Server  *asynq.Server
 }
 
