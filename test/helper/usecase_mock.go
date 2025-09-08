@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/stretchr/testify/mock"

@@ -9,7 +9,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
@@ -29,21 +29,21 @@ func getTaskID(task *asynq.Task) string {
 
 // WorkerHandler Worker Handler
 type WorkerHandler struct {
-	merchantUseCase usecaseport.MerchantUseCase
-	playerUseCase   usecaseport.PlayerUseCase
-	managerUseCase  usecaseport.ManagerUseCase
-	tagUseCase      usecaseport.TagUseCase
-	levelUseCase    usecaseport.PlayerLevelUseCase
+	merchantUseCase inbound.MerchantUseCase
+	playerUseCase   inbound.PlayerUseCase
+	managerUseCase  inbound.ManagerUseCase
+	tagUseCase      inbound.TagUseCase
+	levelUseCase    inbound.PlayerLevelUseCase
 	logger          infraport.Logger
 }
 
 // NewWorkerHandler 創建Worker Handler
 func NewWorkerHandler(
-	merchantUseCase usecaseport.MerchantUseCase,
-	playerUseCase usecaseport.PlayerUseCase,
-	managerUseCase usecaseport.ManagerUseCase,
-	tagUseCase usecaseport.TagUseCase,
-	levelUseCase usecaseport.PlayerLevelUseCase,
+	merchantUseCase inbound.MerchantUseCase,
+	playerUseCase inbound.PlayerUseCase,
+	managerUseCase inbound.ManagerUseCase,
+	tagUseCase inbound.TagUseCase,
+	levelUseCase inbound.PlayerLevelUseCase,
 	logger infraport.Logger,
 ) *WorkerHandler {
 	return &WorkerHandler{

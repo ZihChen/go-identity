@@ -9,7 +9,7 @@ import (
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -31,17 +31,17 @@ type SuccessResponse struct {
 
 // HTTPHandler HTTP接口處理器
 type HTTPHandler struct {
-	merchantUseCase usecaseport.MerchantUseCase
-	playerUseCase   usecaseport.PlayerUseCase
-	managerUseCase  usecaseport.ManagerUseCase
+	merchantUseCase inbound.MerchantUseCase
+	playerUseCase   inbound.PlayerUseCase
+	managerUseCase  inbound.ManagerUseCase
 	logger          infraport.Logger
 }
 
 // NewHTTPHandler 創建HTTP處理器
 func NewHTTPHandler(
-	merchantUseCase usecaseport.MerchantUseCase,
-	playerUseCase usecaseport.PlayerUseCase,
-	managerUseCase usecaseport.ManagerUseCase,
+	merchantUseCase inbound.MerchantUseCase,
+	playerUseCase inbound.PlayerUseCase,
+	managerUseCase inbound.ManagerUseCase,
 	logger infraport.Logger,
 ) *HTTPHandler {
 	return &HTTPHandler{

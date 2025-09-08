@@ -203,7 +203,8 @@ fat_identity_cat/
 │   │   ├── infraport/      # 基礎設施接口
 │   │   ├── repositoryport/ # 存儲庫接口
 │   │   ├── serviceport/    # 服務接口
-│   │   └── usecaseport/    # 用例接口
+│   │   └── ports/
+│   │       └── inbound/    # 入站端口接口 (用例接口)
 │   └── infrastructure/     # 基礎設施層
 │       ├── cache/          # 快取相關元件
 │       │   └── redis/      # Redis元件

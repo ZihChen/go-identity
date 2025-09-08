@@ -11,9 +11,9 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -32,7 +32,7 @@ func NewManagerUseCase(
 	merchantRepo repositoryport.MerchantRepository,
 	eventProducer serviceport.EventProducer,
 	logger infraport.Logger,
-) usecaseport.ManagerUseCase {
+) inbound.ManagerUseCase {
 	return &ManagerUseCase{
 		managerRepo:   managerRepo,
 		merchantRepo:  merchantRepo,

@@ -11,9 +11,9 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/usecaseport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
@@ -38,7 +38,7 @@ func NewPlayerUseCase(
 	eventProducer serviceport.EventProducer,
 	logger infraport.Logger,
 	redis *redis.Client,
-) usecaseport.PlayerUseCase {
+) inbound.PlayerUseCase {
 	return &PlayerUseCase{
 		playerRepo:    playerRepo,
 		merchantRepo:  merchantRepo,
