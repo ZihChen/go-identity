@@ -14,7 +14,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
@@ -22,20 +22,20 @@ import (
 )
 
 type TagUseCase struct {
-	tagRepo       repositoryport.TagRepository
-	merchantRepo  repositoryport.MerchantRepository
-	playerRepo    repositoryport.PlayerRepository
-	playerTagRepo repositoryport.PlayerTagRepository
+	tagRepo       repository.TagRepository
+	merchantRepo  repository.MerchantRepository
+	playerRepo    repository.PlayerRepository
+	playerTagRepo repository.PlayerTagRepository
 	eventProducer serviceport.EventProducer
 	logger        infraport.Logger
 	redisManager  *redisCache.Manager
 }
 
 func NewTagUseCase(
-	tagRepo repositoryport.TagRepository,
-	merchantRepo repositoryport.MerchantRepository,
-	playerRepo repositoryport.PlayerRepository,
-	playerTagRepo repositoryport.PlayerTagRepository,
+	tagRepo repository.TagRepository,
+	merchantRepo repository.MerchantRepository,
+	playerRepo repository.PlayerRepository,
+	playerTagRepo repository.PlayerTagRepository,
 	eventProducer serviceport.EventProducer,
 	logger infraport.Logger,
 	redisManager *redisCache.Manager,

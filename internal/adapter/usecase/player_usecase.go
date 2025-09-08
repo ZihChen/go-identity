@@ -12,7 +12,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/redis/go-redis/v9"
@@ -22,9 +22,9 @@ import (
 
 // PlayerUseCase 玩家用例
 type PlayerUseCase struct {
-	playerRepo    repositoryport.PlayerRepository
-	merchantRepo  repositoryport.MerchantRepository
-	levelRepo     repositoryport.LevelRepository
+	playerRepo    repository.PlayerRepository
+	merchantRepo  repository.MerchantRepository
+	levelRepo     repository.LevelRepository
 	eventProducer serviceport.EventProducer
 	logger        infraport.Logger
 	redis         *redis.Client
@@ -32,9 +32,9 @@ type PlayerUseCase struct {
 
 // NewPlayerUseCase 創建玩家用例
 func NewPlayerUseCase(
-	playerRepo repositoryport.PlayerRepository,
-	merchantRepo repositoryport.MerchantRepository,
-	levelRepo repositoryport.LevelRepository,
+	playerRepo repository.PlayerRepository,
+	merchantRepo repository.MerchantRepository,
+	levelRepo repository.LevelRepository,
 	eventProducer serviceport.EventProducer,
 	logger infraport.Logger,
 	redis *redis.Client,

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -15,7 +15,7 @@ type TagRepository struct {
 	db *gorm.DB
 }
 
-func NewTagRepository(db *gorm.DB) repositoryport.TagRepository {
+func NewTagRepository(db *gorm.DB) repository.TagRepository {
 	return &TagRepository{db: db}
 }
 

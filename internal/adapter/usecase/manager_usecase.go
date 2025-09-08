@@ -12,7 +12,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
@@ -20,16 +20,16 @@ import (
 
 // ManagerUseCase 管理員用例
 type ManagerUseCase struct {
-	managerRepo   repositoryport.ManagerRepository
-	merchantRepo  repositoryport.MerchantRepository
+	managerRepo   repository.ManagerRepository
+	merchantRepo  repository.MerchantRepository
 	eventProducer serviceport.EventProducer
 	logger        infraport.Logger
 }
 
 // NewManagerUseCase 創建管理員用例
 func NewManagerUseCase(
-	managerRepo repositoryport.ManagerRepository,
-	merchantRepo repositoryport.MerchantRepository,
+	managerRepo repository.ManagerRepository,
+	merchantRepo repository.MerchantRepository,
 	eventProducer serviceport.EventProducer,
 	logger infraport.Logger,
 ) inbound.ManagerUseCase {

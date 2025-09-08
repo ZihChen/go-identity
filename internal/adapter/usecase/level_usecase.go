@@ -12,22 +12,22 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 type LevelUseCase struct {
-	levelRepo     repositoryport.LevelRepository
-	merchantRepo  repositoryport.MerchantRepository
+	levelRepo     repository.LevelRepository
+	merchantRepo  repository.MerchantRepository
 	eventProducer serviceport.EventProducer
 	logger        infraport.Logger
 }
 
 func NewLevelUseCase(
-	levelRepo repositoryport.LevelRepository,
-	merchantRepo repositoryport.MerchantRepository,
+	levelRepo repository.LevelRepository,
+	merchantRepo repository.MerchantRepository,
 	eventProducer serviceport.EventProducer,
 	logger infraport.Logger,
 ) inbound.PlayerLevelUseCase {

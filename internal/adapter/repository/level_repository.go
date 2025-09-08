@@ -8,7 +8,7 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -18,7 +18,7 @@ type LevelRepository struct {
 	db *gorm.DB
 }
 
-func NewLevelRepository(db *gorm.DB) repositoryport.LevelRepository {
+func NewLevelRepository(db *gorm.DB) repository.LevelRepository {
 	return &LevelRepository{db: db}
 }
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -74,7 +74,7 @@ func createManagerMockDependencies(
 	// Explicitly use imports to avoid "unused import" errors
 	var _ context.Context
 	var _ entity.Manager
-	var _ repositoryport.ManagerRepository
+	var _ repository.ManagerRepository
 
 	managerRepo := new(MockManagerRepository)
 	merchantRepo := new(MockMerchantRepository)

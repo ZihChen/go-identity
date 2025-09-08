@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/repositoryport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"gorm.io/gorm"
 )
@@ -15,7 +15,7 @@ type PlayerTagRepository struct {
 	db *gorm.DB
 }
 
-func NewPlayerTagRepository(db *gorm.DB) repositoryport.PlayerTagRepository {
+func NewPlayerTagRepository(db *gorm.DB) repository.PlayerTagRepository {
 	return &PlayerTagRepository{db: db}
 }
 
