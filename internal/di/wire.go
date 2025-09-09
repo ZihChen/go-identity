@@ -13,7 +13,11 @@ import (
 	merchantRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/merchant"
 	playerRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/player"
 	tagRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/tag"
-	adapterUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
+	levelUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/level"
+	managerUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/manager"
+	merchantUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/merchant"
+	playerUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/player"
+	tagUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/tag"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
@@ -47,11 +51,11 @@ var baseSet = wire.NewSet(
 	provideEventProducer,
 
 	// 用例層
-	adapterUsecase.NewMerchantUseCase,
-	adapterUsecase.NewPlayerUseCase,
-	adapterUsecase.NewManagerUseCase,
-	adapterUsecase.NewTagUseCase,
-	adapterUsecase.NewLevelUseCase,
+	merchantUsecase.NewMerchantUseCase,
+	playerUsecase.NewPlayerUseCase,
+	managerUsecase.NewManagerUseCase,
+	tagUsecase.NewTagUseCase,
+	levelUsecase.NewLevelUseCase,
 )
 
 // 事件生產者提供者
