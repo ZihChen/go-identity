@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler/worker"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"

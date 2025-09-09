@@ -9,8 +9,8 @@ package di
 import (
 	"github.com/google/wire"
 	"github.com/hibiken/asynq"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler/api"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler/worker"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
