@@ -137,6 +137,15 @@ REDIS_DOMAIN=localhost
 REDIS_PORT=6379
 REDIS_PWD=
 REDIS_DB=0
+REDIS_POOL_SIZE=20            # 連線池大小（預設：20）
+REDIS_MIN_IDLE_CONNS=5        # 最小空閒連線數（預設：5）
+REDIS_MAX_RETRIES=3           # 最大重試次數（預設：3）
+REDIS_DIAL_TIMEOUT=5s         # 連線超時（預設：5秒）
+REDIS_READ_TIMEOUT=3s         # 讀取超時（預設：3秒）
+REDIS_WRITE_TIMEOUT=3s        # 寫入超時（預設：3秒）
+REDIS_POOL_TIMEOUT=4s         # 連線池等待超時（預設：4秒）
+REDIS_IDLE_TIMEOUT=5m         # 連線最大空閒時間（預設：5分鐘）
+REDIS_MAX_CONN_AGE=30m        # 連線最大生命週期（預設：30分鐘）
 ```
 
 ### AWS 配置

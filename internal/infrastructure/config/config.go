@@ -47,10 +47,19 @@ type DatabaseConfig struct {
 
 // RedisConfig Redis配置
 type RedisConfig struct {
-	Domain   string
-	Port     int
-	Password string
-	DB       int
+	Domain       string
+	Port         int
+	Password     string
+	DB           int
+	PoolSize     int           // 連線池大小
+	MinIdleConns int           // 最小空閒連線數
+	MaxRetries   int           // 最大重試次數
+	DialTimeout  time.Duration // 連線超時
+	ReadTimeout  time.Duration // 讀取超時
+	WriteTimeout time.Duration // 寫入超時
+	PoolTimeout  time.Duration // 連線池等待超時
+	IdleTimeout  time.Duration // 連線最大空閒時間
+	MaxConnAge   time.Duration // 連線最大生命週期
 }
 
 // AWSConfig AWS配置
@@ -126,10 +135,19 @@ func LoadConfig() (*Config, error) {
 			MaxIdleTime: getDurationWithDefault("DB_MAX_IDLE_TIME", 30*time.Minute),
 		},
 		Redis: RedisConfig{
-			Domain:   viper.GetString("REDIS_DOMAIN"),
-			Port:     viper.GetInt("REDIS_PORT"),
-			Password: viper.GetString("REDIS_PWD"),
-			DB:       viper.GetInt("REDIS_DB"),
+			Domain:       viper.GetString("REDIS_DOMAIN"),
+			Port:         viper.GetInt("REDIS_PORT"),
+			Password:     viper.GetString("REDIS_PWD"),
+			DB:           viper.GetInt("REDIS_DB"),
+			PoolSize:     getIntWithDefault("REDIS_POOL_SIZE", 20),
+			MinIdleConns: getIntWithDefault("REDIS_MIN_IDLE_CONNS", 5),
+			MaxRetries:   getIntWithDefault("REDIS_MAX_RETRIES", 3),
+			DialTimeout:  getDurationWithDefault("REDIS_DIAL_TIMEOUT", 5*time.Second),
+			ReadTimeout:  getDurationWithDefault("REDIS_READ_TIMEOUT", 3*time.Second),
+			WriteTimeout: getDurationWithDefault("REDIS_WRITE_TIMEOUT", 3*time.Second),
+			PoolTimeout:  getDurationWithDefault("REDIS_POOL_TIMEOUT", 4*time.Second),
+			IdleTimeout:  getDurationWithDefault("REDIS_IDLE_TIMEOUT", 5*time.Minute),
+			MaxConnAge:   getDurationWithDefault("REDIS_MAX_CONN_AGE", 30*time.Minute),
 		},
 		AWS: AWSConfig{
 			AccessKeyID:     viper.GetString("AWS_ACCESS_KEY_ID"),

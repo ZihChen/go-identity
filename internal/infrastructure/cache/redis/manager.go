@@ -42,9 +42,18 @@ func (m *Manager) Connect(ctx context.Context) error {
 			return fmt.Errorf("context cancelled while trying to connect to Redis: %w", ctx.Err())
 		default:
 			client := redis.NewClient(&redis.Options{
-				Addr:     fmt.Sprintf("%s:%d", m.config.Redis.Domain, m.config.Redis.Port),
-				Password: m.config.Redis.Password,
-				DB:       m.config.Redis.DB,
+				Addr:            fmt.Sprintf("%s:%d", m.config.Redis.Domain, m.config.Redis.Port),
+				Password:        m.config.Redis.Password,
+				DB:              m.config.Redis.DB,
+				PoolSize:        m.config.Redis.PoolSize,     // 連線池大小
+				MinIdleConns:    m.config.Redis.MinIdleConns, // 最小空閒連線數
+				MaxRetries:      m.config.Redis.MaxRetries,   // 最大重試次數
+				DialTimeout:     m.config.Redis.DialTimeout,  // 連線超時
+				ReadTimeout:     m.config.Redis.ReadTimeout,  // 讀取超時
+				WriteTimeout:    m.config.Redis.WriteTimeout, // 寫入超時
+				PoolTimeout:     m.config.Redis.PoolTimeout,  // 連線池等待超時
+				ConnMaxIdleTime: m.config.Redis.IdleTimeout,  // 連線最大空閒時間
+				ConnMaxLifetime: m.config.Redis.MaxConnAge,   // 連線最大生命週期
 			})
 
 			// 初始化 redsync 互斥鎖
