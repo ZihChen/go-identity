@@ -80,3 +80,14 @@ func NewKDSService(
 		logger:        logger,
 	}, nil
 }
+
+// Close 釋放 KDSService 持有的所有資源
+func (k *KDSService) Close() error {
+	if err := k.queueService.Close(); err != nil {
+		k.logger.ErrorLog("Failed to close queue service",
+			k.logger.Error("error", err))
+		return fmt.Errorf("failed to close queue service: %w", err)
+	}
+	k.logger.InfoLog("KDS service and queue service closed successfully")
+	return nil
+}

@@ -53,6 +53,11 @@ func (m *MockQueueService) EnqueueTagSync(ctx context.Context, data []byte) erro
 	return args.Error(0)
 }
 
+func (m *MockQueueService) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 // MockRedisClient is a mock implementation of redis.Client
 type MockRedisClient struct {
 	mock.Mock

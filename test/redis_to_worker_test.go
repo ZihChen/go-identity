@@ -118,6 +118,10 @@ func setupRedisClient(t *testing.T) (*asynq.Client, *config.Config, func()) {
 
 	// 測試 Redis 連接
 	inspector := asynq.NewInspector(redisOpt)
+	defer func() {
+		_ = inspector.Close()
+	}()
+
 	_, err = inspector.Queues()
 	require.NoError(t, err, "Should connect to Redis without error")
 

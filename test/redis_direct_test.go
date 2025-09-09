@@ -51,6 +51,10 @@ func TestRedisDirectManagerSync(t *testing.T) {
 
 	// 驗證任務是否在隊列中
 	inspector := asynq.NewInspector(redisOpt)
+	defer func() {
+		_ = inspector.Close()
+	}()
+
 	tasks, err := inspector.ListPendingTasks(info.Queue)
 	require.NoError(t, err, "Should list pending tasks without error")
 
@@ -105,6 +109,10 @@ func TestRedisDirectPlayerSync(t *testing.T) {
 
 	// 驗證任務是否在隊列中
 	inspector := asynq.NewInspector(redisOpt)
+	defer func() {
+		_ = inspector.Close()
+	}()
+
 	tasks, err := inspector.ListPendingTasks(info.Queue)
 	require.NoError(t, err, "Should list pending tasks without error")
 
@@ -159,6 +167,10 @@ func TestRedisDirectMerchantSync(t *testing.T) {
 
 	// 驗證任務是否在隊列中
 	inspector := asynq.NewInspector(redisOpt)
+	defer func() {
+		_ = inspector.Close()
+	}()
+
 	tasks, err := inspector.ListPendingTasks(info.Queue)
 	require.NoError(t, err, "Should list pending tasks without error")
 

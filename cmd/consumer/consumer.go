@@ -150,6 +150,13 @@ func initializeServices(
 }
 
 func (s *services) cleanup(ctx context.Context, logger infrastructure.Logger) {
+	// 關閉 KDS 服務 (包含 queue service 資源釋放)
+	if err := s.kdsService.Close(); err != nil {
+		logger.ErrorLog("Failed to close Queue service", logger.Error("error", err))
+	} else {
+		logger.InfoWithContext(ctx, "Queue connection closed successfully")
+	}
+
 	// 關閉追蹤器
 	if err := s.tracer.Shutdown(ctx); err != nil {
 		logger.ErrorLog("Failed to shutdown tracer", logger.Error("err", err))

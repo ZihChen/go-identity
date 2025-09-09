@@ -51,14 +51,7 @@ func NewQueueService(
 
 	client := asynq.NewClient(redisOpt)
 
-	// 測試Redis連接
-	inspector := asynq.NewInspector(redisOpt)
-	_, err := inspector.Queues()
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
-	}
-
-	logger.InfoLog("Successfully connected to Redis queue")
+	logger.InfoLog("Redis queue service created successfully")
 
 	return &QueueService{
 		client: client,
@@ -305,13 +298,6 @@ func NewWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asynq.S
 			),
 		},
 	)
-
-	// 測試Redis連接
-	inspector := asynq.NewInspector(redisOpt)
-	_, err := inspector.Queues()
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
-	}
 
 	logger.InfoLog("Worker server created successfully")
 	return server, nil
