@@ -16,14 +16,14 @@ import (
 // Helper function specific to merchant tests
 func createMerchantMockDependencies(
 	t *testing.T,
-) (*MockMerchantRepository, *MockEventProducer, *helper.MockLogger) {
+) (*helper.MockMerchantRepository, *helper.MockEventProducer, *helper.MockLogger) {
 	// Explicitly use imports to avoid "unused import" errors
 	var _ context.Context
 	var _ entity.Merchant
 	var _ repository.MerchantRepository
 
-	merchantRepo := new(MockMerchantRepository)
-	eventProducer := new(MockEventProducer)
+	merchantRepo := new(helper.MockMerchantRepository)
+	eventProducer := new(helper.MockEventProducer)
 	logger := helper.SetupLoggerMock(t)
 	return merchantRepo, eventProducer, logger
 }
@@ -49,7 +49,7 @@ func TestNewMerchantUseCase(t *testing.T) {
 }
 
 func TestMerchantUseCase_SyncMerchant_CreateNew(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks
@@ -76,7 +76,7 @@ func TestMerchantUseCase_SyncMerchant_CreateNew(t *testing.T) {
 }
 
 func TestMerchantUseCase_SyncMerchant_UpdateExisting(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks
@@ -103,7 +103,7 @@ func TestMerchantUseCase_SyncMerchant_UpdateExisting(t *testing.T) {
 }
 
 func TestMerchantUseCase_SyncMerchant_UpsertError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	// Setup mocks
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
@@ -127,7 +127,7 @@ func TestMerchantUseCase_SyncMerchant_UpsertError(t *testing.T) {
 }
 
 func TestMerchantUseCase_SyncMerchant_PublishError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	// Setup mocks
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
@@ -156,11 +156,11 @@ func TestMerchantUseCase_SyncMerchant_PublishError(t *testing.T) {
 }
 
 func TestMerchantUseCase_GetMerchantByID(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByID", mock.Anything, uint64(1)).Return(merchant, nil)
 
 	// Create the use case
@@ -176,7 +176,7 @@ func TestMerchantUseCase_GetMerchantByID(t *testing.T) {
 }
 
 func TestMerchantUseCase_GetMerchantByID_NotFound(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks - merchant not found
@@ -197,11 +197,11 @@ func TestMerchantUseCase_GetMerchantByID_NotFound(t *testing.T) {
 }
 
 func TestMerchantUseCase_GetMerchantByGlobalID(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Create the use case
@@ -217,7 +217,7 @@ func TestMerchantUseCase_GetMerchantByGlobalID(t *testing.T) {
 }
 
 func TestMerchantUseCase_GetMerchantByGlobalID_NotFound(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks - merchant not found
@@ -238,11 +238,11 @@ func TestMerchantUseCase_GetMerchantByGlobalID_NotFound(t *testing.T) {
 }
 
 func TestMerchantUseCase_publishMerchantSyncEvent(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 
 	// Expect PublishMerchantSync to be called
 	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
@@ -263,11 +263,11 @@ func TestMerchantUseCase_publishMerchantSyncEvent(t *testing.T) {
 }
 
 func TestMerchantUseCase_publishMerchantSyncEvent_Error(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 
 	// PublishMerchantSync fails
 	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).

@@ -1,7 +1,6 @@
 package usecase
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -9,7 +8,6 @@ import (
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/redis/go-redis/v9"
@@ -17,221 +15,19 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Mock implementations
-type MockPlayerRepository struct {
-	mock.Mock
-}
-
-func (m *MockPlayerRepository) FindByID(ctx context.Context, id uint64) (*entity.Player, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Player), args.Error(1)
-}
-
-func (m *MockPlayerRepository) FindByGlobalID(
-	ctx context.Context,
-	globalID string,
-) (*entity.Player, error) {
-	args := m.Called(ctx, globalID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Player), args.Error(1)
-}
-
-func (m *MockPlayerRepository) FirstOrCreate(ctx context.Context, player *entity.Player) error {
-	args := m.Called(ctx, player)
-	return args.Error(0)
-}
-
-func (m *MockPlayerRepository) Create(ctx context.Context, player *entity.Player) error {
-	args := m.Called(ctx, player)
-	// Simulate ID assignment like a real database would
-	if player.ID == 0 {
-		player.ID = 1
-	}
-	return args.Error(0)
-}
-
-func (m *MockPlayerRepository) Update(ctx context.Context, player *entity.Player) error {
-	args := m.Called(ctx, player)
-	return args.Error(0)
-}
-
-func (m *MockPlayerRepository) Delete(ctx context.Context, id uint64) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockPlayerRepository) Upsert(ctx context.Context, player *entity.Player) error {
-	args := m.Called(ctx, player)
-	return args.Error(0)
-}
-
-type MockLevelRepository struct {
-	mock.Mock
-}
-
-func (m *MockLevelRepository) Upsert(ctx context.Context, level *entity.Level) error {
-	args := m.Called(ctx, level)
-	return args.Error(0)
-}
-
-func (m *MockLevelRepository) FindByGlobalID(
-	ctx context.Context,
-	globalID string,
-) (*entity.Level, error) {
-	args := m.Called(ctx, globalID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Level), args.Error(1)
-}
-
-type MockMerchantRepository struct {
-	mock.Mock
-}
-
-func (m *MockMerchantRepository) FindByID(
-	ctx context.Context,
-	id uint64,
-) (*entity.Merchant, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Merchant), args.Error(1)
-}
-
-func (m *MockMerchantRepository) FindByGlobalID(
-	ctx context.Context,
-	globalID string,
-) (*entity.Merchant, error) {
-	args := m.Called(ctx, globalID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.Merchant), args.Error(1)
-}
-
-func (m *MockMerchantRepository) FirstOrCreate(
-	ctx context.Context,
-	merchant *entity.Merchant,
-) error {
-	args := m.Called(ctx, merchant)
-	return args.Error(0)
-}
-
-func (m *MockMerchantRepository) Create(ctx context.Context, merchant *entity.Merchant) error {
-	args := m.Called(ctx, merchant)
-	return args.Error(0)
-}
-
-func (m *MockMerchantRepository) Update(ctx context.Context, merchant *entity.Merchant) error {
-	args := m.Called(ctx, merchant)
-	return args.Error(0)
-}
-
-func (m *MockMerchantRepository) Delete(ctx context.Context, id uint64) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockMerchantRepository) Upsert(ctx context.Context, merchant *entity.Merchant) error {
-	args := m.Called(ctx, merchant)
-	return args.Error(0)
-}
-
-type MockEventProducer struct {
-	mock.Mock
-}
-
-func (m *MockEventProducer) PublishMerchantSync(
-	ctx context.Context,
-	event *event.CloudEvent,
-) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
-}
-
-func (m *MockEventProducer) PublishPlayerSync(ctx context.Context, event *event.CloudEvent) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
-}
-
-func (m *MockEventProducer) PublishManagerSync(ctx context.Context, event *event.CloudEvent) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
-}
-
-func (m *MockEventProducer) PublishPlayerLevelSync(
-	ctx context.Context,
-	event *event.CloudEvent,
-) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
-}
-
-func (m *MockEventProducer) PublishPlayerTagsSync(
-	ctx context.Context,
-	event *event.CloudEvent,
-) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
-}
-
-func (m *MockEventProducer) PublishTagSync(ctx context.Context, event *event.CloudEvent) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
-}
+// Mock implementations are now in test/helper/repository_mock.go
 
 // Helper functions
-func createTestContext() context.Context {
-	return context.Background()
-}
-
 func createMockDependencies(
 	t *testing.T,
-) (*MockPlayerRepository, *MockMerchantRepository, *MockLevelRepository, *MockEventProducer, *helper.MockLogger, *redis.Client) {
-	playerRepo := new(MockPlayerRepository)
-	merchantRepo := new(MockMerchantRepository)
-	levelRepo := new(MockLevelRepository)
-	eventProducer := new(MockEventProducer)
+) (*helper.MockPlayerRepository, *helper.MockMerchantRepository, *helper.MockLevelRepository, *helper.MockEventProducer, *helper.MockLogger, *redis.Client) {
+	playerRepo := new(helper.MockPlayerRepository)
+	merchantRepo := new(helper.MockMerchantRepository)
+	levelRepo := new(helper.MockLevelRepository)
+	eventProducer := new(helper.MockEventProducer)
 	logger := helper.SetupLoggerMock(t)
 	redisClient, _ := redismock.NewClientMock()
 	return playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient
-}
-
-func createTestPlayer() *entity.Player {
-	email := "test@example.com"
-	now := time.Now()
-	lastActive := now.Add(-1 * time.Hour)
-	return &entity.Player{
-		ID:             1,
-		MerchantID:     2,
-		GlobalPlayerID: "FATCAT-PLAYER-1",
-		APIKey:         "player-api-key",
-		Account:        "TestPlayer",
-		Email:          &email,
-		LastActiveAt:   &lastActive,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}
-}
-
-func createTestMerchant() *entity.Merchant {
-	now := time.Now()
-	return &entity.Merchant{
-		ID:               2,
-		GlobalMerchantID: "FATCAT-MERCHANT-1",
-		Name:             "TestMerchant",
-		DisplayName:      "Test Merchant",
-		APIKey:           "merchant-api-key",
-		CreatedAt:        now,
-		UpdatedAt:        now,
-	}
 }
 
 func createPlayerSyncEvent() *event.CloudEvent {
@@ -280,13 +76,13 @@ func TestNewPlayerUseCase(t *testing.T) {
 }
 
 func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Player doesn't exist yet
@@ -329,13 +125,13 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 }
 
 func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Player doesn't exist yet
@@ -374,13 +170,13 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 }
 
 func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	player := createTestPlayer()
+	player := helper.CreateTestPlayer()
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// Create the use case
@@ -403,7 +199,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 }
 
 func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
@@ -433,13 +229,13 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 }
 
 func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	player := createTestPlayer()
+	player := helper.CreateTestPlayer()
 	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(player, nil)
 
 	// Create the use case
@@ -462,7 +258,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 }
 
 func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
@@ -492,13 +288,13 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 }
 
 func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	player := createTestPlayer()
+	player := helper.CreateTestPlayer()
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
 
@@ -521,7 +317,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 }
 
 func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
@@ -550,13 +346,13 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 }
 
 func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	player := createTestPlayer()
+	player := helper.CreateTestPlayer()
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// Update fails

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
@@ -70,32 +69,19 @@ func (m *MockManagerRepository) Upsert(ctx context.Context, manager *entity.Mana
 // Helper functions
 func createManagerMockDependencies(
 	t *testing.T,
-) (*MockManagerRepository, *MockMerchantRepository, *MockEventProducer, *helper.MockLogger) {
+) (*helper.MockManagerRepository, *helper.MockMerchantRepository, *helper.MockEventProducer, *helper.MockLogger) {
 	// Explicitly use imports to avoid "unused import" errors
 	var _ context.Context
 	var _ entity.Manager
 	var _ repository.ManagerRepository
 
-	managerRepo := new(MockManagerRepository)
-	merchantRepo := new(MockMerchantRepository)
-	eventProducer := new(MockEventProducer)
+	managerRepo := new(helper.MockManagerRepository)
+	merchantRepo := new(helper.MockMerchantRepository)
+	eventProducer := new(helper.MockEventProducer)
 	logger := helper.SetupLoggerMock(t)
 	return managerRepo, merchantRepo, eventProducer, logger
 }
 
-func createTestManager() *entity.Manager {
-	email := "manager@example.com"
-	now := time.Now()
-	return &entity.Manager{
-		ID:              1,
-		MerchantID:      2,
-		GlobalManagerID: "FATCAT-MANAGER-1",
-		Account:         "TestManager",
-		Email:           &email,
-		CreatedAt:       now,
-		UpdatedAt:       now,
-	}
-}
 
 func createManagerSyncEvent() *event.ManagerSyncEvent {
 	return &event.ManagerSyncEvent{
@@ -120,11 +106,11 @@ func TestNewManagerUseCase(t *testing.T) {
 }
 
 func TestManagerUseCase_SyncManager_CreateNew(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Expect Upsert to be called
@@ -150,11 +136,11 @@ func TestManagerUseCase_SyncManager_CreateNew(t *testing.T) {
 }
 
 func TestManagerUseCase_SyncManager_UpdateExisting(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Expect Upsert to be called
@@ -181,7 +167,7 @@ func TestManagerUseCase_SyncManager_UpdateExisting(t *testing.T) {
 }
 
 func TestManagerUseCase_SyncManager_MerchantNotFound(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks - merchant not found
@@ -204,11 +190,11 @@ func TestManagerUseCase_SyncManager_MerchantNotFound(t *testing.T) {
 }
 
 func TestManagerUseCase_SyncManager_FindManagerError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Upsert fails with a database error
@@ -232,11 +218,11 @@ func TestManagerUseCase_SyncManager_FindManagerError(t *testing.T) {
 }
 
 func TestManagerUseCase_SyncManager_CreateError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Upsert fails
@@ -260,11 +246,11 @@ func TestManagerUseCase_SyncManager_CreateError(t *testing.T) {
 }
 
 func TestManagerUseCase_SyncManager_UpdateError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Upsert fails
@@ -288,11 +274,11 @@ func TestManagerUseCase_SyncManager_UpdateError(t *testing.T) {
 }
 
 func TestManagerUseCase_SyncManager_PublishError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Expect Upsert to be called
@@ -320,11 +306,11 @@ func TestManagerUseCase_SyncManager_PublishError(t *testing.T) {
 }
 
 func TestManagerUseCase_GetManagerByID(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	manager := createTestManager()
+	manager := helper.CreateTestManager()
 	managerRepo.On("FindByID", mock.Anything, uint64(1)).Return(manager, nil)
 
 	// Create the use case
@@ -340,7 +326,7 @@ func TestManagerUseCase_GetManagerByID(t *testing.T) {
 }
 
 func TestManagerUseCase_GetManagerByID_NotFound(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks - manager not found
@@ -361,11 +347,11 @@ func TestManagerUseCase_GetManagerByID_NotFound(t *testing.T) {
 }
 
 func TestManagerUseCase_GetManagerByGlobalID(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	manager := createTestManager()
+	manager := helper.CreateTestManager()
 	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(manager, nil)
 
 	// Create the use case
@@ -381,7 +367,7 @@ func TestManagerUseCase_GetManagerByGlobalID(t *testing.T) {
 }
 
 func TestManagerUseCase_GetManagerByGlobalID_NotFound(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks - manager not found
@@ -402,11 +388,11 @@ func TestManagerUseCase_GetManagerByGlobalID_NotFound(t *testing.T) {
 }
 
 func TestManagerUseCase_publishManagerSyncEvent(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	manager := createTestManager()
+	manager := helper.CreateTestManager()
 
 	// Expect PublishManagerSync to be called
 	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
@@ -428,11 +414,11 @@ func TestManagerUseCase_publishManagerSyncEvent(t *testing.T) {
 }
 
 func TestManagerUseCase_publishManagerSyncEvent_Error(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Setup mocks
-	manager := createTestManager()
+	manager := helper.CreateTestManager()
 
 	// PublishManagerSync fails
 	eventProducer.On("PublishManagerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
@@ -455,7 +441,7 @@ func TestManagerUseCase_publishManagerSyncEvent_Error(t *testing.T) {
 }
 
 func TestManagerUseCase_SyncManager_MarshalError(t *testing.T) {
-	ctx := createTestContext()
+	ctx := helper.CreateTestContext()
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
 	// Create a CloudEvent with valid data
@@ -470,7 +456,7 @@ func TestManagerUseCase_SyncManager_MarshalError(t *testing.T) {
 	}
 
 	// Setup mocks
-	merchant := createTestMerchant()
+	merchant := helper.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Expect Upsert to be called
