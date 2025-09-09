@@ -123,9 +123,11 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=identity_cat
 DB_OPTIONS=
-DB_MAX_IDLE=10
-DB_MAX_OPEN=100
-DB_TIMEOUT=5s
+DB_MAX_IDLE=25              # 最大閒置連線數（預設：25）
+DB_MAX_OPEN=100             # 最大開啟連線數（預設：100）
+DB_TIMEOUT=5s               # 連接超時時間（預設：5s）
+DB_MAX_LIFETIME=1h          # 連線最大生命週期（預設：1小時）
+DB_MAX_IDLE_TIME=30m        # 連線最大空閒時間（預設：30分鐘）
 ```
 
 ### Redis 配置

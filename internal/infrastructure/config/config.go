@@ -32,15 +32,17 @@ type AppConfig struct {
 
 // DatabaseConfig 資料庫配置
 type DatabaseConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	DBName   string
-	Options  string
-	MaxIdle  int
-	MaxOpen  int
-	Timeout  time.Duration
+	Host        string
+	Port        int
+	User        string
+	Password    string
+	DBName      string
+	Options     string
+	MaxIdle     int
+	MaxOpen     int
+	Timeout     time.Duration
+	MaxLifetime time.Duration // 連線最大生命週期
+	MaxIdleTime time.Duration // 連線最大空閒時間
 }
 
 // RedisConfig Redis配置
@@ -111,15 +113,17 @@ func LoadConfig() (*Config, error) {
 			Debug: viper.GetBool("APP_DEBUG"),
 		},
 		Database: DatabaseConfig{
-			Host:     viper.GetString("DB_HOST"),
-			Port:     viper.GetInt("DB_PORT"),
-			User:     viper.GetString("DB_USER"),
-			Password: viper.GetString("DB_PASSWORD"),
-			DBName:   viper.GetString("DB_NAME"),
-			Options:  viper.GetString("DB_OPTIONS"),
-			MaxIdle:  viper.GetInt("DB_MAX_IDLE"),
-			MaxOpen:  viper.GetInt("DB_MAX_OPEN"),
-			Timeout:  viper.GetDuration("DB_TIMEOUT"),
+			Host:        viper.GetString("DB_HOST"),
+			Port:        viper.GetInt("DB_PORT"),
+			User:        viper.GetString("DB_USER"),
+			Password:    viper.GetString("DB_PASSWORD"),
+			DBName:      viper.GetString("DB_NAME"),
+			Options:     viper.GetString("DB_OPTIONS"),
+			MaxIdle:     getIntWithDefault("DB_MAX_IDLE", 25),
+			MaxOpen:     getIntWithDefault("DB_MAX_OPEN", 100),
+			Timeout:     getDurationWithDefault("DB_TIMEOUT", 5*time.Second),
+			MaxLifetime: getDurationWithDefault("DB_MAX_LIFETIME", 1*time.Hour),
+			MaxIdleTime: getDurationWithDefault("DB_MAX_IDLE_TIME", 30*time.Minute),
 		},
 		Redis: RedisConfig{
 			Domain:   viper.GetString("REDIS_DOMAIN"),
@@ -191,4 +195,20 @@ func (c *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 		))
 	}
 	return awsconfig.LoadDefaultConfig(ctx, opts...)
+}
+
+// getIntWithDefault 獲取 int 配置值，如果不存在則使用預設值
+func getIntWithDefault(key string, defaultValue int) int {
+	if viper.IsSet(key) {
+		return viper.GetInt(key)
+	}
+	return defaultValue
+}
+
+// getDurationWithDefault 獲取 duration 配置值，如果不存在則使用預設值
+func getDurationWithDefault(key string, defaultValue time.Duration) time.Duration {
+	if viper.IsSet(key) {
+		return viper.GetDuration(key)
+	}
+	return defaultValue
 }

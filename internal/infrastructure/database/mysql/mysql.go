@@ -59,10 +59,11 @@ func (d *Database) connect() error {
 		return fmt.Errorf("failed to get database connection pool: %w", err)
 	}
 
-	sqlDB.SetMaxIdleConns(50)           // 限制最大開啟的連線數
-	sqlDB.SetMaxOpenConns(500)          // 限制最大閒置連線數
-	sqlDB.SetConnMaxLifetime(time.Hour) // 連接最大生命週期
-	sqlDB.SetConnMaxIdleTime(time.Hour) // 空閒連接最大生命週期
+	// 使用配置文件中的連接池設置
+	sqlDB.SetMaxIdleConns(d.cfg.Database.MaxIdle)        // 限制最大閒置連線數
+	sqlDB.SetMaxOpenConns(d.cfg.Database.MaxOpen)        // 限制最大開啟的連線數
+	sqlDB.SetConnMaxLifetime(d.cfg.Database.MaxLifetime) // 連線最大生命週期
+	sqlDB.SetConnMaxIdleTime(d.cfg.Database.MaxIdleTime) // 連線最大空閒時間
 	d.dbInstance = db
 	return nil
 
