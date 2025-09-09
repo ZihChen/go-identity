@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/redis/go-redis/v9"
@@ -19,11 +19,11 @@ import (
 
 // TestKDSServiceImplementsInterfaces tests that KDSService implements the required interfaces
 func TestKDSServiceImplementsInterfaces(t *testing.T) {
-	// This test will fail to compile if KDSService doesn't implement serviceport.EventProducer
-	var _ serviceport.EventProducer = (*KDSService)(nil)
+	// This test will fail to compile if KDSService doesn't implement service.EventProducer
+	var _ service.EventProducer = (*KDSService)(nil)
 }
 
-// MockQueueService is a mock implementation of serviceport.QueueService
+// MockQueueService is a mock implementation of service.QueueService
 type MockQueueService struct {
 	mock.Mock
 }

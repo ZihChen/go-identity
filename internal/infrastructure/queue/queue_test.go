@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/hibiken/asynq"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-// MockQueueService is a mock implementation of serviceport.QueueService
+// MockQueueService is a mock implementation of service.QueueService
 type MockQueueService struct {
 	mock.Mock
 }
@@ -52,7 +52,7 @@ func (m *MockQueueService) Close() error {
 }
 
 // NewMockQueueService creates a new mock queue service that returns no errors
-func NewMockQueueService(cfg *config.Config, logger *zap.Logger) (serviceport.QueueService, error) {
+func NewMockQueueService(cfg *config.Config, logger *zap.Logger) (service.QueueService, error) {
 	mockService := new(MockQueueService)
 
 	// Setup default behavior to return nil error for all methods
@@ -64,10 +64,10 @@ func NewMockQueueService(cfg *config.Config, logger *zap.Logger) (serviceport.Qu
 	return mockService, nil
 }
 
-// TestQueueServiceImplementsInterface tests that QueueService implements the serviceport.QueueService interface
+// TestQueueServiceImplementsInterface tests that QueueService implements the service.QueueService interface
 func TestQueueServiceImplementsInterface(t *testing.T) {
-	// This test will fail to compile if QueueService doesn't implement serviceport.QueueService
-	var _ serviceport.QueueService = (*QueueService)(nil)
+	// This test will fail to compile if QueueService doesn't implement service.QueueService
+	var _ service.QueueService = (*QueueService)(nil)
 }
 
 // TestEnqueueMethods tests all enqueue methods
@@ -242,7 +242,7 @@ func TestNewQueueServiceWithInvalidConfig(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 
 	// Create a custom mock function that returns an error
-	mockErrorFunc := func(cfg *config.Config, logger *zap.Logger) (serviceport.QueueService, error) {
+	mockErrorFunc := func(cfg *config.Config, logger *zap.Logger) (service.QueueService, error) {
 		return nil, fmt.Errorf("failed to connect to Redis: connection refused")
 	}
 

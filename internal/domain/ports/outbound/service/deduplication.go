@@ -1,4 +1,4 @@
-package serviceport
+package service
 
 import (
 	"context"

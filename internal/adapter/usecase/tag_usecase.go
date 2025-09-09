@@ -15,7 +15,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
@@ -26,7 +26,7 @@ type TagUseCase struct {
 	merchantRepo  repository.MerchantRepository
 	playerRepo    repository.PlayerRepository
 	playerTagRepo repository.PlayerTagRepository
-	eventProducer serviceport.EventProducer
+	eventProducer service.EventProducer
 	logger        infraport.Logger
 	redisManager  *redisCache.Manager
 }
@@ -36,7 +36,7 @@ func NewTagUseCase(
 	merchantRepo repository.MerchantRepository,
 	playerRepo repository.PlayerRepository,
 	playerTagRepo repository.PlayerTagRepository,
-	eventProducer serviceport.EventProducer,
+	eventProducer service.EventProducer,
 	logger infraport.Logger,
 	redisManager *redisCache.Manager,
 ) inbound.TagUseCase {

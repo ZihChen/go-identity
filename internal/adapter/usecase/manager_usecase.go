@@ -13,7 +13,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -22,7 +22,7 @@ import (
 type ManagerUseCase struct {
 	managerRepo   repository.ManagerRepository
 	merchantRepo  repository.MerchantRepository
-	eventProducer serviceport.EventProducer
+	eventProducer service.EventProducer
 	logger        infraport.Logger
 }
 
@@ -30,7 +30,7 @@ type ManagerUseCase struct {
 func NewManagerUseCase(
 	managerRepo repository.ManagerRepository,
 	merchantRepo repository.MerchantRepository,
-	eventProducer serviceport.EventProducer,
+	eventProducer service.EventProducer,
 	logger infraport.Logger,
 ) inbound.ManagerUseCase {
 	return &ManagerUseCase{

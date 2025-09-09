@@ -11,7 +11,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
 	adapterUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
@@ -51,7 +51,7 @@ var baseSet = wire.NewSet(
 )
 
 // 事件生產者提供者
-func provideEventProducer(kdsService *kds.KDSService, logger infraport.Logger) serviceport.EventProducer {
+func provideEventProducer(kdsService *kds.KDSService, logger infraport.Logger) service.EventProducer {
 	return kdsService
 }
 

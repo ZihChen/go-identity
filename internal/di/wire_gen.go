@@ -14,7 +14,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/serviceport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
@@ -143,7 +143,7 @@ type WorkerComponents struct {
 var baseSet = wire.NewSet(queue.NewQueueService, provideRedisClient, repository.NewMerchantRepository, repository.NewPlayerRepository, repository.NewManagerRepository, repository.NewTagRepository, repository.NewLevelRepository, repository.NewPlayerTagRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase.NewPlayerUseCase, usecase.NewManagerUseCase, usecase.NewTagUseCase, usecase.NewLevelUseCase)
 
 // 事件生產者提供者
-func provideEventProducer(kdsService *kds.KDSService, logger infraport.Logger) serviceport.EventProducer {
+func provideEventProducer(kdsService *kds.KDSService, logger infraport.Logger) service.EventProducer {
 	return kdsService
 }
 
