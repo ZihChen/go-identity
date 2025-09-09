@@ -14,7 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/router"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/middleware"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
@@ -93,12 +92,9 @@ func runWebServer(_ *cobra.Command, _ []string) {
 	// 創建 Gin 路由
 	ginRouter := gin.Default()
 
-	// 加入Middleware
-	ginRouter.Use(middleware.TracingMiddleware())
-
-	// 創建路由管理器並註冊路由
+	// 創建路由管理器並統一配置中間件和路由
 	routerManager := router.NewRouterManager(svc.httpHandler)
-	routerManager.RegisterRoutes(ginRouter)
+	routerManager.SetupRoutersWithMiddleware(ginRouter, cfg)
 
 	// 創建HTTP服務器
 	server := &http.Server{

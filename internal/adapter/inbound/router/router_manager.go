@@ -3,9 +3,14 @@ package router
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/middleware"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 )
 
 // Manager 路由管理器，協調所有路由器
+// 提供多種配置方式：
+// 1. RegisterRoutes - 僅註冊路由，需手動配置中間件
+// 2. SetupRoutersWithMiddleware - 自動配置所有中間件並註冊基本路由
 type Manager struct {
 	apiRouter     *APIRouter
 	swaggerRouter *SwaggerRouter
@@ -21,8 +26,21 @@ func NewRouterManager(handler *api.HTTPHandler) *Manager {
 	}
 }
 
-// RegisterRoutes 註冊所有路由
-func (rm *Manager) RegisterRoutes(router *gin.Engine) {
+// SetupRoutersWithMiddleware 配置所有中間件並註冊路由
+func (rm *Manager) SetupRoutersWithMiddleware(router *gin.Engine, cfg *config.Config) {
+	// 加入全局Middleware
+	router.Use(
+		middleware.TracingMiddleware(),
+	)
+
+	// 註冊所有路由
+	rm.registerRoutes(router)
+}
+
+// registerRoutes 註冊所有路由，每個路由器使用各自的中間件
+func (rm *Manager) registerRoutes(
+	router *gin.Engine,
+) {
 	// 註冊 API 路由
 	rm.apiRouter.RegisterRoutes(router)
 
