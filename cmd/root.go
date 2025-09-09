@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/logger"
 	"github.com/spf13/cobra"
@@ -13,7 +13,7 @@ import (
 var (
 	cfgFile       string
 	cfg           *config.Config
-	serviceLogger infraport.Logger
+	serviceLogger infrastructure.Logger
 )
 
 // rootCmd 表示基礎命令，沒有調用其他命令時運行
@@ -55,7 +55,7 @@ func initConfig() {
 }
 
 // initLogger 初始化日誌
-func initLogger(cfg *config.Config) infraport.Logger {
+func initLogger(cfg *config.Config) infrastructure.Logger {
 	return logger.NewServiceLogger(cfg)
 }
 
@@ -65,7 +65,7 @@ func GetConfig() *config.Config {
 }
 
 // GetLogger 獲取日誌
-func GetLogger() infraport.Logger {
+func GetLogger() infrastructure.Logger {
 	return serviceLogger
 }
 

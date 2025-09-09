@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -33,7 +33,7 @@ type ServiceLogger struct {
 }
 
 // NewServiceLogger creates a new ServiceLogger
-func NewServiceLogger(cfg *config.Config) infraport.Logger {
+func NewServiceLogger(cfg *config.Config) infrastructure.Logger {
 	config := createZapConfig(cfg.App.Debug)
 	logger, err := config.Build()
 	if err != nil {

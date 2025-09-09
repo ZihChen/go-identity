@@ -10,7 +10,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
@@ -23,7 +23,7 @@ type ManagerUseCase struct {
 	managerRepo   repository.ManagerRepository
 	merchantRepo  repository.MerchantRepository
 	eventProducer service.EventProducer
-	logger        infraport.Logger
+	logger        infrastructure.Logger
 }
 
 // NewManagerUseCase 創建管理員用例
@@ -31,7 +31,7 @@ func NewManagerUseCase(
 	managerRepo repository.ManagerRepository,
 	merchantRepo repository.MerchantRepository,
 	eventProducer service.EventProducer,
-	logger infraport.Logger,
+	logger infrastructure.Logger,
 ) inbound.ManagerUseCase {
 	return &ManagerUseCase{
 		managerRepo:   managerRepo,

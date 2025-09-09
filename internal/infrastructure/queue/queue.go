@@ -9,7 +9,7 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
@@ -29,13 +29,13 @@ const (
 // QueueService 佇列服務實現
 type QueueService struct {
 	client *asynq.Client
-	logger infraport.Logger
+	logger infrastructure.Logger
 }
 
 // NewQueueService 創建佇列服務
 func NewQueueService(
 	cfg *config.Config,
-	logger infraport.Logger,
+	logger infrastructure.Logger,
 ) (service.QueueService, error) {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Domain, cfg.Redis.Port)
 
@@ -237,7 +237,7 @@ func (q *QueueService) Close() error {
 }
 
 // NewWorkerServer 創建Worker服務器
-func NewWorkerServer(cfg *config.Config, logger infraport.Logger) (*asynq.Server, error) {
+func NewWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asynq.Server, error) {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Domain, cfg.Redis.Port)
 
 	logger.InfoLog("Creating worker server",

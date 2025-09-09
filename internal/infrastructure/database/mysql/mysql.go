@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -16,11 +16,11 @@ import (
 type Database struct {
 	dbInstance *gorm.DB
 	cfg        *config.Config
-	logger     infraport.Logger
+	logger     infrastructure.Logger
 	isClose    chan struct{}
 }
 
-func NewDatabase(cfg *config.Config, logger infraport.Logger) (*Database, error) {
+func NewDatabase(cfg *config.Config, logger infrastructure.Logger) (*Database, error) {
 	db := &Database{
 		cfg:    cfg,
 		logger: logger,

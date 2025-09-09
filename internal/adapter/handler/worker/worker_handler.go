@@ -8,7 +8,7 @@ import (
 	"github.com/hibiken/asynq"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
@@ -34,7 +34,7 @@ type WorkerHandler struct {
 	managerUseCase  inbound.ManagerUseCase
 	tagUseCase      inbound.TagUseCase
 	levelUseCase    inbound.PlayerLevelUseCase
-	logger          infraport.Logger
+	logger          infrastructure.Logger
 }
 
 // NewWorkerHandler 創建Worker Handler
@@ -44,7 +44,7 @@ func NewWorkerHandler(
 	managerUseCase inbound.ManagerUseCase,
 	tagUseCase inbound.TagUseCase,
 	levelUseCase inbound.PlayerLevelUseCase,
-	logger infraport.Logger,
+	logger infrastructure.Logger,
 ) *WorkerHandler {
 	return &WorkerHandler{
 		merchantUseCase: merchantUseCase,

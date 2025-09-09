@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	cfg "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
@@ -25,7 +25,7 @@ type KDSService struct {
 	sortKey       string
 	config        *cfg.Config
 	queueService  service.QueueService
-	logger        infraport.Logger
+	logger        infrastructure.Logger
 }
 
 // NewKDSService 創建KDS服務
@@ -33,7 +33,7 @@ func NewKDSService(
 	config *cfg.Config,
 	queueService service.QueueService,
 	redisManager *redisCache.Manager,
-	logger infraport.Logger,
+	logger infrastructure.Logger,
 ) (*KDSService, error) {
 	// 創建AWS配置
 	awsConfig, err := config.LoadAWSConfig(context.Background())

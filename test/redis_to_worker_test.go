@@ -15,7 +15,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/handler/worker"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database"
@@ -57,7 +57,7 @@ func processTaskDirectly(
 
 func setupWorkerComponents(
 	t *testing.T,
-) (*di.WorkerComponents, *config.Config, infraport.Logger, func()) {
+) (*di.WorkerComponents, *config.Config, infrastructure.Logger, func()) {
 	// 讀取配置
 	cfg, err := config.LoadConfig()
 	require.NoError(t, err, "Should load config without error")

@@ -10,7 +10,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
@@ -26,7 +26,7 @@ type PlayerUseCase struct {
 	merchantRepo  repository.MerchantRepository
 	levelRepo     repository.LevelRepository
 	eventProducer service.EventProducer
-	logger        infraport.Logger
+	logger        infrastructure.Logger
 	redis         *redis.Client
 }
 
@@ -36,7 +36,7 @@ func NewPlayerUseCase(
 	merchantRepo repository.MerchantRepository,
 	levelRepo repository.LevelRepository,
 	eventProducer service.EventProducer,
-	logger infraport.Logger,
+	logger infrastructure.Logger,
 	redis *redis.Client,
 ) inbound.PlayerUseCase {
 	return &PlayerUseCase{

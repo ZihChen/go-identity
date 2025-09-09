@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/infraport"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
@@ -20,14 +20,14 @@ import (
 type MerchantUseCase struct {
 	merchantRepo  repository.MerchantRepository
 	eventProducer service.EventProducer
-	logger        infraport.Logger
+	logger        infrastructure.Logger
 }
 
 // NewMerchantUseCase 創建商戶用例
 func NewMerchantUseCase(
 	merchantRepo repository.MerchantRepository,
 	eventProducer service.EventProducer,
-	logger infraport.Logger,
+	logger infrastructure.Logger,
 ) inbound.MerchantUseCase {
 	return &MerchantUseCase{
 		merchantRepo:  merchantRepo,

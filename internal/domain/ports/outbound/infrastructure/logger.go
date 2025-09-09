@@ -1,4 +1,4 @@
-package infraport
+package infrastructure
 
 import (
 	"context"
