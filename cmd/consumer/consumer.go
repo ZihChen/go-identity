@@ -160,7 +160,11 @@ func (s *services) cleanup(ctx context.Context, logger infrastructure.Logger) {
 	}
 }
 
-func runConsumerLoop(rootCtx context.Context, kdsService *kds.KDSService, logger infrastructure.Logger) {
+func runConsumerLoop(
+	rootCtx context.Context,
+	kdsService *kds.KDSService,
+	logger infrastructure.Logger,
+) {
 	logger.InfoWithContext(rootCtx, "Starting Consumer for all event listening")
 
 	for {

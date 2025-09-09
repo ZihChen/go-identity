@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
