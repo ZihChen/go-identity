@@ -63,6 +63,9 @@ func runWebServer(_ *cobra.Command, _ []string) {
 	cfg := cmd.GetConfig()
 	logger := cmd.GetLogger()
 
+	// 輸出配置資訊用於除錯追蹤
+	cfg.PrintConfig()
+
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	defer rootCancel()
 
@@ -100,9 +103,9 @@ func runWebServer(_ *cobra.Command, _ []string) {
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", serverPort),
 		Handler:      ginRouter,
-		ReadTimeout:  30 * time.Second,  // 讀取請求的超時時間
-		WriteTimeout: 30 * time.Second,  // 寫入響應的超時時間
-		IdleTimeout:  120 * time.Second, // 空閒連接的超時時間
+		ReadTimeout:  cfg.Server.ReadTimeout,  // 讀取請求的超時時間
+		WriteTimeout: cfg.Server.WriteTimeout, // 寫入響應的超時時間
+		IdleTimeout:  cfg.Server.IdleTimeout,  // 空閒連接的超時時間
 	}
 	server.SetKeepAlivesEnabled(true)
 

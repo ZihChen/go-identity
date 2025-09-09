@@ -161,8 +161,9 @@ go vet ./...
 
 The application uses Viper for configuration management. Configuration is loaded from environment variables and `.env` files. Key configuration areas include:
 
-- **Database connection (MySQL)** - GORM with connection pooling for identity data storage
-- **Redis connection** - Used for caching and background job queuing
+- **HTTP Server configuration** - Configurable timeouts (ReadTimeout, WriteTimeout, IdleTimeout) for optimal performance
+- **Database connection (MySQL)** - GORM with advanced connection pooling (MaxIdle, MaxOpen, MaxLifetime, MaxIdleTime)
+- **Redis connection** - Comprehensive connection pool management with timeout controls and connection lifecycle management
 - **AWS credentials and Kinesis settings** - Event streaming for identity synchronization
 - **OpenTelemetry tracing endpoints** - Distributed tracing across services
 - **Service-specific ports and settings** - Multi-service architecture support

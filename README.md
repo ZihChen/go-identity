@@ -114,6 +114,15 @@ APP_PORT=8080
 APP_DEBUG=true
 ```
 
+### HTTP 服務器配置
+
+```
+SERVER_HTTP_DOMAIN=                  # HTTP 服務器域名（選用）
+SERVER_READ_TIMEOUT=30s              # 讀取請求超時時間（預設：30秒）
+SERVER_WRITE_TIMEOUT=30s             # 寫入響應超時時間（預設：30秒）
+SERVER_IDLE_TIMEOUT=120s             # 空閒連接超時時間（預設：120秒）
+```
+
 ### 數據庫配置
 
 ```
