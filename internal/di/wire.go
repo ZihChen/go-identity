@@ -8,7 +8,11 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/repository"
+	levelRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/level"
+	managerRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/manager"
+	merchantRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/merchant"
+	playerRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/player"
+	tagRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/tag"
 	adapterUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/usecase"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
@@ -32,12 +36,12 @@ var baseSet = wire.NewSet(
 	provideRedisClient,
 
 	// 資料庫
-	repository.NewMerchantRepository,
-	repository.NewPlayerRepository,
-	repository.NewManagerRepository,
-	repository.NewTagRepository,
-	repository.NewLevelRepository,
-	repository.NewPlayerTagRepository,
+	merchantRepo.NewMerchantRepository,
+	playerRepo.NewPlayerRepository,
+	managerRepo.NewManagerRepository,
+	tagRepo.NewTagRepository,
+	levelRepo.NewLevelRepository,
+	playerRepo.NewPlayerTagRepository,
 
 	// 服務
 	provideEventProducer,
