@@ -6,54 +6,74 @@ metadata:
     {{- include "fatidentitycat.labels" . | nindent 4 }}
 data:
   # 應用程序設置
-  APP_NAME: fat-identity-cat
-  APP_ENV: development
+  APP_NAME: "fat-identity-cat"
+  APP_ENV: "development"
   APP_PORT: "8080"
   APP_DEBUG: "true"
 
+  # HTTP Server 設置
+  SERVER_HTTP_DOMAIN: ""
+  SERVER_READ_TIMEOUT: "30s"
+  SERVER_WRITE_TIMEOUT: "30s"
+  SERVER_IDLE_TIMEOUT: "120s"
+
   # 資料庫設置
-  DB_HOST: REDACTED_DB_HOST
+  DB_HOST: "REDACTED_DB_HOST"
   DB_PORT: "3306"
-  DB_USER: REDACTED_DB_USER_PROD
+  DB_USER: "REDACTED_DB_USER_PROD"
   # DB_PASSWORD: <secret>
-  DB_NAME: ms_fatidentitycat
-  DB_MAX_IDLE: "10"
-  DB_MAX_OPEN: "50"
-  DB_TIMEOUT: 5s
+  DB_NAME: "ms_fatidentitycat"
+
+  # 資料庫連線池設置
+  DB_MAX_IDLE: "25"
+  DB_MAX_OPEN: "100"
+  DB_MAX_LIFETIME: "1h"
+  DB_MAX_IDLE_TIME: "30m"
 
   # Redis設置
-  REDIS_DOMAIN: qcat-bonuscat-dev.zlvgen.0001.apne1.cache.amazonaws.com
+  REDIS_DOMAIN: "qcat-bonuscat-dev.zlvgen.0001.apne1.cache.amazonaws.com"
   REDIS_PORT: "6379"
   REDIS_DB: "9"
 
+  # Redis Pool 設置
+  REDIS_POOL_SIZE: "20"
+  REDIS_MIN_IDLE_CONNS: "5"
+  REDIS_MAX_RETRIES: "3"
+  REDIS_DIAL_TIMEOUT: "5s"
+  REDIS_READ_TIMEOUT: "3s"
+  REDIS_WRITE_TIMEOUT: "3s"
+  REDIS_POOL_TIMEOUT: "4s"
+  REDIS_IDLE_TIMEOUT: "5m"
+  REDIS_MAX_CONN_AGE: "30m"
+
   # AWS KDS設置
-  AWS_REGION: ap-northeast-1
+  AWS_REGION: "ap-northeast-1"
 
   # Consumer 接收事件用
-  KINESIS_CONSUME_STREAM_NAME: qcat-bonuscat-dev-kds-stream
+  KINESIS_CONSUME_STREAM_NAME: "qcat-bonuscat-dev-kds-stream"
 
   # Producer 發送事件用
-  KINESIS_PRODUCE_STREAM_NAME: ms-identity-lab
-  KINESIS_STREAM_ARN: arn:aws:kinesis:ap-northeast-1:REDACTED_AWS_ACCOUNT_DEMO:stream/qcat-bonuscat-dev-kds-stream
-  DYNAMODB_TABLE: fat-identity-cat
-  DYNAMODB_PARTITION_KEY: partition_key
+  KINESIS_PRODUCE_STREAM_NAME: "ms-identity-lab"
+  KINESIS_STREAM_ARN: "arn:aws:kinesis:ap-northeast-1:REDACTED_AWS_ACCOUNT_DEMO:stream/qcat-bonuscat-dev-kds-stream"
+  DYNAMODB_TABLE: "fat-identity-cat"
+  DYNAMODB_PARTITION_KEY: "partition_key"
 
   # OpenObserve設置
-  OPENOBSERVE_TRACE_API_ENDPOINT: https://REDACTED_OO_HOST/api/jvd-dev/traces
+  OPENOBSERVE_TRACE_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-dev/traces"
   # OPENOBSERVE_TRACE_API_KEY: <secret>
-  OPENOBSERVE_TRACE_STREAM_NAME: fat_identity_cat
+  OPENOBSERVE_TRACE_STREAM_NAME: "fat_identity_cat"
 
   # OpenObserve logs設置
-  OPENOBSERVE_LOGS_API_ENDPOINT: https://REDACTED_OO_HOST/api/jvd-dev/default/_json
-  OPENOBSERVE_LOGS_USERNAME: REDACTED_OO_USERNAME
+  OPENOBSERVE_LOGS_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-dev/default/_json"
+  OPENOBSERVE_LOGS_USERNAME: "REDACTED_OO_USERNAME"
   # OPENOBSERVE_LOGS_PASSWORD: <secret>
 
   # KDS Events
-  EVENT_MERCHANT_SYNC: tw.jvd.fatcat.merchant.sync.v1
-  EVENT_PLAYER_SYNC: tw.jvd.fatcat.player.sync.v1
-  EVENT_MANAGER_SYNC: tw.jvd.fatcat.manager.sync.v1
-  EVENT_LEVEL_SYNC: tw.jvd.fatcat.player.level.sync.v1
-  EVENT_TAG_SYNC: tw.jvd.fatcat.tag.sync.v1
-  EVENT_IDENTITY_MERCHANT_SYNC: tw.jvd.fatidentitycat.merchant.sync.v1
-  EVENT_IDENTITY_PLAYER_SYNC: tw.jvd.fatidentitycat.player.sync.v1
-  EVENT_IDENTITY_MANAGER_SYNC: tw.jvd.fatidentitycat.manager.sync.v1
+  EVENT_MERCHANT_SYNC: "tw.jvd.fatcat.merchant.sync.v1"
+  EVENT_PLAYER_SYNC: "tw.jvd.fatcat.player.sync.v1"
+  EVENT_MANAGER_SYNC: "tw.jvd.fatcat.manager.sync.v1"
+  EVENT_LEVEL_SYNC: "tw.jvd.fatcat.player.level.sync.v1"
+  EVENT_TAG_SYNC: "tw.jvd.fatcat.tag.sync.v1"
+  EVENT_IDENTITY_MERCHANT_SYNC: "tw.jvd.fatidentitycat.merchant.sync.v1"
+  EVENT_IDENTITY_PLAYER_SYNC: "tw.jvd.fatidentitycat.player.sync.v1"
+  EVENT_IDENTITY_MANAGER_SYNC: "tw.jvd.fatidentitycat.manager.sync.v1"
