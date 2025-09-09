@@ -10,8 +10,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // 為 Swagger 提供的類型別名
@@ -52,38 +50,6 @@ func NewHTTPHandler(
 	}
 }
 
-// RegisterRoutes 註冊路由
-func (h *HTTPHandler) RegisterRoutes(router *gin.Engine) {
-	// Swagger 文檔路由
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	api := router.Group("/api/v1")
-
-	// 商戶相關路由
-	merchants := api.Group("/merchants")
-	{
-		merchants.GET("/:id", h.GetMerchantByID)
-		merchants.GET("/global/:global_id", h.GetMerchantByGlobalID)
-	}
-
-	// 玩家相關路由
-	players := api.Group("/players")
-	{
-		players.GET("/:id", h.GetPlayerByID)
-		players.GET("/global/:global_id", h.GetPlayerByGlobalID)
-		players.PUT("/:id/active", h.UpdatePlayerLastActive)
-	}
-
-	// 管理員相關路由
-	managers := api.Group("/managers")
-	{
-		managers.GET("/:id", h.GetManagerByID)
-		managers.GET("/global/:global_id", h.GetManagerByGlobalID)
-	}
-
-	// 健康檢查
-	router.GET("/health", h.HealthCheck)
-}
 
 // HealthCheck 健康檢查
 // @Summary 健康檢查

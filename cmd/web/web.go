@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/router"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/middleware"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/di"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
@@ -90,18 +91,19 @@ func runWebServer(_ *cobra.Command, _ []string) {
 	}
 
 	// 創建 Gin 路由
-	router := gin.Default()
+	ginRouter := gin.Default()
 
 	// 加入Middleware
-	router.Use(middleware.TracingMiddleware())
+	ginRouter.Use(middleware.TracingMiddleware())
 
-	// 註冊路由
-	svc.httpHandler.RegisterRoutes(router)
+	// 創建路由管理器並註冊路由
+	routerManager := router.NewRouterManager(svc.httpHandler)
+	routerManager.RegisterRoutes(ginRouter)
 
 	// 創建HTTP服務器
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", serverPort),
-		Handler:      router,
+		Handler:      ginRouter,
 		ReadTimeout:  30 * time.Second,  // 讀取請求的超時時間
 		WriteTimeout: 30 * time.Second,  // 寫入響應的超時時間
 		IdleTimeout:  120 * time.Second, // 空閒連接的超時時間
