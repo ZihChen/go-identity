@@ -2,11 +2,11 @@
 package tests
 
 import (
-	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"testing"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 )
 

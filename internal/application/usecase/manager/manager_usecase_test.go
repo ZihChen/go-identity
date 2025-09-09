@@ -82,7 +82,6 @@ func createManagerMockDependencies(
 	return managerRepo, merchantRepo, eventProducer, logger
 }
 
-
 func createManagerSyncEvent() *event.ManagerSyncEvent {
 	return &event.ManagerSyncEvent{
 		GlobalMerchantID: "FATCAT-MERCHANT-1",

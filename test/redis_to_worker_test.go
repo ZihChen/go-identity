@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"testing"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	database "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -236,7 +236,9 @@ func TestMerchantRedisToWorker(t *testing.T) {
 	db, err := database.NewDatabase(cfg, mockLogger)
 	require.NoError(t, err, "Should connect to database without error")
 	var merchant models.Merchant
-	result := db.GetDBConnection().Where("global_merchant_id = ?", globalMerchantID).First(&merchant)
+	result := db.GetDBConnection().
+		Where("global_merchant_id = ?", globalMerchantID).
+		First(&merchant)
 	assert.NoError(t, result.Error, "Should find merchant in database")
 	assert.Equal(t, globalMerchantID, merchant.GlobalMerchantID, "Global merchant ID should match")
 	assert.Equal(t, merchantName, merchant.Name, "Merchant name should match")

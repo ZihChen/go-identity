@@ -50,7 +50,6 @@ func NewHTTPHandler(
 	}
 }
 
-
 // HealthCheck 健康檢查
 // @Summary 健康檢查
 // @Description 檢查服務是否正常運行
