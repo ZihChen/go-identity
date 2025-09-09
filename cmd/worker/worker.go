@@ -48,9 +48,6 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	cfg := cmd.GetConfig()
 	logger := cmd.GetLogger()
 
-	// 輸出配置資訊用於除錯追蹤
-	cfg.PrintConfig()
-
 	// 主程序的Context
 	rootCtx := context.Background()
 

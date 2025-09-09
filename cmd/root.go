@@ -50,6 +50,9 @@ func initConfig() {
 		os.Exit(1)
 	}
 
+	// 輸出配置資訊用於除錯追蹤
+	cfg.PrintConfig()
+
 	// 初始化日誌
 	serviceLogger = initLogger(cfg)
 }
