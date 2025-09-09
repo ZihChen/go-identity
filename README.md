@@ -65,15 +65,28 @@ Fat Identity Cat 服務有三種運行模式：
 啟動 Web 服務以處理 HTTP API 請求：
 
 ```bash
+# 使用 Docker Compose
 docker-compose up -d fat_identity_web
+
+# 或直接使用 Go 命令
+go run main.go web --port 8080
 ```
+
+Web 服務使用統一的 RouterManager 管理所有路由和中間件：
+- 自動配置追蹤中間件
+- 統一管理 API、健康檢查、Swagger 路由
+- 支援優雅關機和資源清理
 
 ### Consumer 服務
 
 啟動 Consumer 服務以從 KDS 消費事件：
 
 ```bash
+# 使用 Docker Compose
 docker-compose up -d fat-identity-consumer
+
+# 或直接使用 Go 命令
+go run main.go consumer
 ```
 
 ### Worker 服務
@@ -81,7 +94,11 @@ docker-compose up -d fat-identity-consumer
 啟動 Worker 服務以處理隊列中的任務：
 
 ```bash
+# 使用 Docker Compose
 docker-compose up -d fat-identity-worker
+
+# 或直接使用 Go 命令
+go run main.go worker
 ```
 
 ## 🔧 設定與環境變數
@@ -188,11 +205,14 @@ fat_identity_cat/
 ├── docs/                   # Swagger 文檔
 ├── internal/               # 內部包
 │   ├── adapter/            # 適配器層 (實作層)
-│   │   ├── handler/        # HTTP 和 Worker 處理器
-│   │   ├── middleware/     # HTTP 中間件
-│   │   ├── repository/     # 資料庫操作實作層
-│   │   ├── service/        # 服務實作層
-│   │   └── usecase/        # 用例實作層
+│   │   ├── inbound/        # 入站適配器
+│   │   │   ├── handler/    # HTTP 和 Worker 處理器
+│   │   │   │   ├── api/    # API 處理器
+│   │   │   │   └── worker/ # Worker 處理器
+│   │   │   ├── middleware/ # HTTP 中間件 (統一管理)
+│   │   │   └── router/     # 路由管理器 (統一封裝)
+│   │   └── outbound/       # 出站適配器
+│   │       └── repository/ # 資料庫操作實作層
 │   ├── di/                 # 依賴注入
 │   ├── domain/             # 領域層 (定義接口、參數、結構體)
 │   │   ├── consts/         # 常數定義
@@ -240,4 +260,21 @@ fat_identity_cat/
 - **領域層(Domain)**：包含業務邏輯和實體
 - **用例層(Usecase)**：實現業務用例
 - **適配器層(Adaptor)**：連接用例和基礎設施
+  - **入站適配器(Inbound)**：處理來自外部的請求
+    - **Handler**：分為 API 和 Worker 兩個模組，處理不同類型的請求
+    - **Middleware**：統一管理 HTTP 中間件，包含追蹤、認證等功能
+    - **Router**：路由管理器統一封裝所有路由配置，支援自動中間件配置
+  - **出站適配器(Outbound)**：連接外部服務和資源
 - **基礎設施層(Infra)**：提供技術實現
+
+### 最新架構特點
+
+1. **統一路由管理**：RouterManager 統一封裝所有路由配置，提供兩種使用方式：
+   - `SetupRoutersWithMiddleware`：自動配置中間件並註冊路由
+   - `RegisterRoutes`：僅註冊路由（向後兼容）
+
+2. **中間件集中管理**：所有中間件統一在 `internal/adapter/inbound/middleware` 目錄管理
+
+3. **處理器模組化**：Handler 分為 API 和 Worker 兩個獨立模組，各自負責不同的業務處理
+
+4. **清晰的責任分離**：入站和出站適配器明確分離，提高代碼可維護性
