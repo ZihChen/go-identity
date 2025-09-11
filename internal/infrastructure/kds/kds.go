@@ -26,6 +26,9 @@ type KDSService struct {
 	config        *cfg.Config
 	queueService  service.QueueService
 	logger        infrastructure.Logger
+	
+	// 新增：錯誤分類器用於批次處理
+	errorClassifier *ErrorClassifier
 }
 
 // NewKDSService 創建KDS服務
@@ -65,19 +68,23 @@ func NewKDSService(
 		logger.String("stream_arn", streamARN),
 		logger.String("dynamodb_table", config.AWS.DynamoDBTable))
 
+	// 創建錯誤分類器
+	errorClassifier := NewErrorClassifier()
+	
 	return &KDSService{
-		client:        kinesisClient,
-		dynamoClient:  dynamoClient,
-		redisManager:  redisManager,
-		streamName:    streamName,
-		consumeStream: config.AWS.ConsumeStream,
-		produceStream: config.AWS.ProduceStream,
-		tableName:     config.AWS.DynamoDBTable,
-		partitionKey:  config.AWS.PartitionKey,
-		sortKey:       config.AWS.SortKey,
-		config:        config,
-		queueService:  queueService,
-		logger:        logger,
+		client:          kinesisClient,
+		dynamoClient:    dynamoClient,
+		redisManager:    redisManager,
+		streamName:      streamName,
+		consumeStream:   config.AWS.ConsumeStream,
+		produceStream:   config.AWS.ProduceStream,
+		tableName:       config.AWS.DynamoDBTable,
+		partitionKey:    config.AWS.PartitionKey,
+		sortKey:         config.AWS.SortKey,
+		config:          config,
+		queueService:    queueService,
+		logger:          logger,
+		errorClassifier: errorClassifier,
 	}, nil
 }
 
@@ -90,4 +97,33 @@ func (k *KDSService) Close() error {
 	}
 	k.logger.InfoLog("KDS service and queue service closed successfully")
 	return nil
+}
+
+// CreateEnhancedConsumer 創建增強版消費者
+func (k *KDSService) CreateEnhancedConsumer() (*EnhancedConsumer, error) {
+	opts := EnhancedConsumerOptions{
+		KDSService: k,
+		Logger:     k.logger,
+		Config:     &k.config.Consumer,
+	}
+	
+	return NewEnhancedConsumer(opts)
+}
+
+// ConsumeAllEventsEnhanced 使用增強版消費者消費所有事件
+func (k *KDSService) ConsumeAllEventsEnhanced(ctx context.Context) error {
+	enhancedConsumer, err := k.CreateEnhancedConsumer()
+	if err != nil {
+		return fmt.Errorf("failed to create enhanced consumer: %w", err)
+	}
+	
+	k.logger.InfoWithContext(
+		ctx,
+		"Starting enhanced event consumption",
+		k.logger.String("stream", k.consumeStream),
+		k.logger.Int("batch_size", k.config.Consumer.BatchSize),
+		k.logger.Int("worker_pool_size", k.config.Consumer.WorkerPoolSize),
+	)
+	
+	return enhancedConsumer.ConsumeAllEventsEnhanced(ctx)
 }
