@@ -21,6 +21,7 @@ type Config struct {
 	Tracing  TracingConfig
 	Logs     LogsConfig
 	Events   EventsConfig
+	Consumer ConsumerConfig
 }
 
 // AppConfig 應用程序基本配置
@@ -110,6 +111,38 @@ type EventsConfig struct {
 	IdentityManagerSync  string
 }
 
+// ConsumerConfig Consumer 服務配置
+type ConsumerConfig struct {
+	// 批次處理配置
+	BatchSize        int           `json:"batch_size"`          // 每批次記錄數
+	MaxBatchWaitTime time.Duration `json:"max_batch_wait_time"` // 批次最大等待時間
+
+	// Worker Pool 配置
+	WorkerPoolSize   int `json:"worker_pool_size"`   // Worker 數量
+	WorkerBufferSize int `json:"worker_buffer_size"` // Worker 通道緩衝區大小
+
+	// 退避策略配置
+	MinBackoff        time.Duration `json:"min_backoff"`        // 最小退避時間
+	MaxBackoff        time.Duration `json:"max_backoff"`        // 最大退避時間
+	BackoffMultiplier float64       `json:"backoff_multiplier"` // 退避倍數
+
+	// 分片處理配置
+	MaxShardConcurrency int           `json:"max_shard_concurrency"` // 最大並行分片數
+	ShardLockTimeout    time.Duration `json:"shard_lock_timeout"`    // 分片鎖超時時間
+
+	// 監控配置
+	MetricsInterval     time.Duration `json:"metrics_interval"`      // 指標收集間隔
+	HealthCheckInterval time.Duration `json:"health_check_interval"` // 健康檢查間隔
+
+	// 恢復機制配置
+	EnablePanicRecovery bool `json:"enable_panic_recovery"` // 是否啟用 Panic 恢復
+	MaxRecoveryAttempts int  `json:"max_recovery_attempts"` // 最大恢復嘗試次數
+
+	// 分散式鎖配置
+	LockRetryInterval time.Duration `json:"lock_retry_interval"` // 鎖重試間隔
+	LockMaxRetries    int           `json:"lock_max_retries"`    // 鎖最大重試次數
+}
+
 // LoadConfig 加載配置
 func LoadConfig() (*Config, error) {
 	viper.SetConfigName(".env")
@@ -196,6 +229,36 @@ func LoadConfig() (*Config, error) {
 			IdentityPlayerSync:   viper.GetString("EVENT_IDENTITY_PLAYER_SYNC"),
 			IdentityManagerSync:  viper.GetString("EVENT_IDENTITY_MANAGER_SYNC"),
 		},
+		Consumer: ConsumerConfig{
+			// 批次處理配置
+			BatchSize:        getIntWithDefault("CONSUMER_BATCH_SIZE", 100),
+			MaxBatchWaitTime: getDurationWithDefault("CONSUMER_MAX_BATCH_WAIT_TIME", 500*time.Millisecond),
+
+			// Worker Pool 配置
+			WorkerPoolSize:   getIntWithDefault("CONSUMER_WORKER_POOL_SIZE", 10),
+			WorkerBufferSize: getIntWithDefault("CONSUMER_WORKER_BUFFER_SIZE", 1000),
+
+			// 退避策略配置
+			MinBackoff:        getDurationWithDefault("CONSUMER_MIN_BACKOFF", 500*time.Millisecond),
+			MaxBackoff:        getDurationWithDefault("CONSUMER_MAX_BACKOFF", 5*time.Second),
+			BackoffMultiplier: getFloatWithDefault("CONSUMER_BACKOFF_MULTIPLIER", 1.5),
+
+			// 分片處理配置
+			MaxShardConcurrency: getIntWithDefault("CONSUMER_MAX_SHARD_CONCURRENCY", 8),
+			ShardLockTimeout:    getDurationWithDefault("CONSUMER_SHARD_LOCK_TIMEOUT", 1*time.Minute),
+
+			// 監控配置
+			MetricsInterval:     getDurationWithDefault("CONSUMER_METRICS_INTERVAL", 30*time.Second),
+			HealthCheckInterval: getDurationWithDefault("CONSUMER_HEALTH_CHECK_INTERVAL", 10*time.Second),
+
+			// 恢復機制配置
+			EnablePanicRecovery: getBoolWithDefault("CONSUMER_ENABLE_PANIC_RECOVERY", true),
+			MaxRecoveryAttempts: getIntWithDefault("CONSUMER_MAX_RECOVERY_ATTEMPTS", 3),
+
+			// 分散式鎖配置
+			LockRetryInterval: getDurationWithDefault("CONSUMER_LOCK_RETRY_INTERVAL", 1*time.Second),
+			LockMaxRetries:    getIntWithDefault("CONSUMER_LOCK_MAX_RETRIES", 5),
+		},
 	}
 
 	return config, nil
@@ -242,6 +305,22 @@ func getIntWithDefault(key string, defaultValue int) int {
 func getDurationWithDefault(key string, defaultValue time.Duration) time.Duration {
 	if viper.IsSet(key) {
 		return viper.GetDuration(key)
+	}
+	return defaultValue
+}
+
+// getFloatWithDefault 獲取 float64 配置值，如果不存在則使用預設值
+func getFloatWithDefault(key string, defaultValue float64) float64 {
+	if viper.IsSet(key) {
+		return viper.GetFloat64(key)
+	}
+	return defaultValue
+}
+
+// getBoolWithDefault 獲取 bool 配置值，如果不存在則使用預設值
+func getBoolWithDefault(key string, defaultValue bool) bool {
+	if viper.IsSet(key) {
+		return viper.GetBool(key)
 	}
 	return defaultValue
 }
@@ -312,6 +391,23 @@ func (c *Config) PrintConfig() {
 	fmt.Printf("  IdentityMerchantSync: %s\n", c.Events.IdentityMerchantSync)
 	fmt.Printf("  IdentityPlayerSync: %s\n", c.Events.IdentityPlayerSync)
 	fmt.Printf("  IdentityManagerSync: %s\n", c.Events.IdentityManagerSync)
+
+	fmt.Printf("\n[Consumer]\n")
+	fmt.Printf("  BatchSize: %d\n", c.Consumer.BatchSize)
+	fmt.Printf("  MaxBatchWaitTime: %v\n", c.Consumer.MaxBatchWaitTime)
+	fmt.Printf("  WorkerPoolSize: %d\n", c.Consumer.WorkerPoolSize)
+	fmt.Printf("  WorkerBufferSize: %d\n", c.Consumer.WorkerBufferSize)
+	fmt.Printf("  MinBackoff: %v\n", c.Consumer.MinBackoff)
+	fmt.Printf("  MaxBackoff: %v\n", c.Consumer.MaxBackoff)
+	fmt.Printf("  BackoffMultiplier: %.2f\n", c.Consumer.BackoffMultiplier)
+	fmt.Printf("  MaxShardConcurrency: %d\n", c.Consumer.MaxShardConcurrency)
+	fmt.Printf("  ShardLockTimeout: %v\n", c.Consumer.ShardLockTimeout)
+	fmt.Printf("  MetricsInterval: %v\n", c.Consumer.MetricsInterval)
+	fmt.Printf("  HealthCheckInterval: %v\n", c.Consumer.HealthCheckInterval)
+	fmt.Printf("  EnablePanicRecovery: %t\n", c.Consumer.EnablePanicRecovery)
+	fmt.Printf("  MaxRecoveryAttempts: %d\n", c.Consumer.MaxRecoveryAttempts)
+	fmt.Printf("  LockRetryInterval: %v\n", c.Consumer.LockRetryInterval)
+	fmt.Printf("  LockMaxRetries: %d\n", c.Consumer.LockMaxRetries)
 
 	fmt.Println("\n==============================")
 }
