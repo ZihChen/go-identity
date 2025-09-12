@@ -122,13 +122,17 @@ func NewPanicRecovery(maxAttempts int, retryInterval time.Duration) *PanicRecove
 }
 
 // OnRecovery 設置恢復回調
-func (r *PanicRecovery) OnRecovery(callback func(panicValue interface{}, stack []byte)) *PanicRecovery {
+func (r *PanicRecovery) OnRecovery(
+	callback func(panicValue interface{}, stack []byte),
+) *PanicRecovery {
 	r.onRecovery = callback
 	return r
 }
 
 // OnMaxExceeded 設置最大嘗試次數超出回調
-func (r *PanicRecovery) OnMaxExceeded(callback func(attempts int, lastPanic interface{})) *PanicRecovery {
+func (r *PanicRecovery) OnMaxExceeded(
+	callback func(attempts int, lastPanic interface{}),
+) *PanicRecovery {
 	r.onMaxExceeded = callback
 	return r
 }

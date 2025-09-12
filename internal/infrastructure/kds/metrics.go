@@ -242,7 +242,11 @@ func (c *MetricsCollector) UpdateMetrics() {
 
 	// 計算平均批次大小
 	if c.metrics.BatchesProcessedTotal > 0 {
-		c.metrics.AvgBatchSize = float64(c.metrics.RecordsProcessedTotal) / float64(c.metrics.BatchesProcessedTotal)
+		c.metrics.AvgBatchSize = float64(
+			c.metrics.RecordsProcessedTotal,
+		) / float64(
+			c.metrics.BatchesProcessedTotal,
+		)
 	}
 
 	// 更新實時狀態
@@ -255,7 +259,11 @@ func (c *MetricsCollector) UpdateMetrics() {
 	if c.metrics.ActiveWorkers > 0 {
 		// 這裡需要知道最大 Worker 數，可以從配置中獲取
 		// 暫時使用活躍 Worker 數作為基準
-		c.metrics.WorkerUtilization = float64(c.metrics.ActiveWorkers) / float64(c.metrics.ActiveWorkers) * 100
+		c.metrics.WorkerUtilization = float64(
+			c.metrics.ActiveWorkers,
+		) / float64(
+			c.metrics.ActiveWorkers,
+		) * 100
 	}
 
 	// 更新時間相關指標
@@ -364,7 +372,10 @@ type HealthThresholds struct {
 }
 
 // NewHealthChecker 創建健康檢查器
-func NewHealthChecker(metricsCollector *MetricsCollector, checkInterval time.Duration) *HealthChecker {
+func NewHealthChecker(
+	metricsCollector *MetricsCollector,
+	checkInterval time.Duration,
+) *HealthChecker {
 	return &HealthChecker{
 		metricsCollector: metricsCollector,
 		checkInterval:    checkInterval,
@@ -391,13 +402,19 @@ func (h *HealthChecker) CheckHealth() *HealthStatus {
 
 	// 檢查處理延遲
 	if metrics.ProcessingLatency > h.thresholds.MaxProcessingLatency {
-		issues = append(issues, fmt.Sprintf("High processing latency: %v", metrics.ProcessingLatency))
+		issues = append(
+			issues,
+			fmt.Sprintf("High processing latency: %v", metrics.ProcessingLatency),
+		)
 	}
 	details["processing_latency"] = metrics.ProcessingLatency.String()
 
 	// 檢查 Worker 利用率
 	if metrics.WorkerUtilization < h.thresholds.MinWorkerUtilization {
-		issues = append(issues, fmt.Sprintf("Low worker utilization: %.2f%%", metrics.WorkerUtilization))
+		issues = append(
+			issues,
+			fmt.Sprintf("Low worker utilization: %.2f%%", metrics.WorkerUtilization),
+		)
 	}
 	details["worker_utilization"] = fmt.Sprintf("%.2f%%", metrics.WorkerUtilization)
 

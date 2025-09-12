@@ -36,7 +36,10 @@ type AdaptiveBackoffStrategy struct {
 }
 
 // NewAdaptiveBackoffStrategy 創建自適應退避策略
-func NewAdaptiveBackoffStrategy(minBackoff, maxBackoff time.Duration, multiplier float64) *AdaptiveBackoffStrategy {
+func NewAdaptiveBackoffStrategy(
+	minBackoff, maxBackoff time.Duration,
+	multiplier float64,
+) *AdaptiveBackoffStrategy {
 	return &AdaptiveBackoffStrategy{
 		minBackoff:   minBackoff,
 		maxBackoff:   maxBackoff,
@@ -146,7 +149,10 @@ type ExponentialBackoffStrategy struct {
 }
 
 // NewExponentialBackoffStrategy 創建指數退避策略
-func NewExponentialBackoffStrategy(minBackoff, maxBackoff time.Duration, multiplier float64) *ExponentialBackoffStrategy {
+func NewExponentialBackoffStrategy(
+	minBackoff, maxBackoff time.Duration,
+	multiplier float64,
+) *ExponentialBackoffStrategy {
 	return &ExponentialBackoffStrategy{
 		minBackoff:   minBackoff,
 		maxBackoff:   maxBackoff,
@@ -161,7 +167,9 @@ func (s *ExponentialBackoffStrategy) NextBackoff() time.Duration {
 	defer s.mu.Unlock()
 
 	s.attempt++
-	s.currentDelay = time.Duration(float64(s.minBackoff) * math.Pow(s.multiplier, float64(s.attempt-1)))
+	s.currentDelay = time.Duration(
+		float64(s.minBackoff) * math.Pow(s.multiplier, float64(s.attempt-1)),
+	)
 
 	if s.currentDelay > s.maxBackoff {
 		s.currentDelay = s.maxBackoff

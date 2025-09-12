@@ -231,8 +231,11 @@ func LoadConfig() (*Config, error) {
 		},
 		Consumer: ConsumerConfig{
 			// 批次處理配置
-			BatchSize:        getIntWithDefault("CONSUMER_BATCH_SIZE", 100),
-			MaxBatchWaitTime: getDurationWithDefault("CONSUMER_MAX_BATCH_WAIT_TIME", 500*time.Millisecond),
+			BatchSize: getIntWithDefault("CONSUMER_BATCH_SIZE", 100),
+			MaxBatchWaitTime: getDurationWithDefault(
+				"CONSUMER_MAX_BATCH_WAIT_TIME",
+				500*time.Millisecond,
+			),
 
 			// Worker Pool 配置
 			WorkerPoolSize:   getIntWithDefault("CONSUMER_WORKER_POOL_SIZE", 10),
@@ -245,19 +248,31 @@ func LoadConfig() (*Config, error) {
 
 			// 分片處理配置
 			MaxShardConcurrency: getIntWithDefault("CONSUMER_MAX_SHARD_CONCURRENCY", 8),
-			ShardLockTimeout:    getDurationWithDefault("CONSUMER_SHARD_LOCK_TIMEOUT", 1*time.Minute),
+			ShardLockTimeout: getDurationWithDefault(
+				"CONSUMER_SHARD_LOCK_TIMEOUT",
+				1*time.Minute,
+			),
 
 			// 監控配置
-			MetricsInterval:     getDurationWithDefault("CONSUMER_METRICS_INTERVAL", 30*time.Second),
-			HealthCheckInterval: getDurationWithDefault("CONSUMER_HEALTH_CHECK_INTERVAL", 10*time.Second),
+			MetricsInterval: getDurationWithDefault(
+				"CONSUMER_METRICS_INTERVAL",
+				30*time.Second,
+			),
+			HealthCheckInterval: getDurationWithDefault(
+				"CONSUMER_HEALTH_CHECK_INTERVAL",
+				10*time.Second,
+			),
 
 			// 恢復機制配置
 			EnablePanicRecovery: getBoolWithDefault("CONSUMER_ENABLE_PANIC_RECOVERY", true),
 			MaxRecoveryAttempts: getIntWithDefault("CONSUMER_MAX_RECOVERY_ATTEMPTS", 3),
 
 			// 分散式鎖配置
-			LockRetryInterval: getDurationWithDefault("CONSUMER_LOCK_RETRY_INTERVAL", 1*time.Second),
-			LockMaxRetries:    getIntWithDefault("CONSUMER_LOCK_MAX_RETRIES", 5),
+			LockRetryInterval: getDurationWithDefault(
+				"CONSUMER_LOCK_RETRY_INTERVAL",
+				1*time.Second,
+			),
+			LockMaxRetries: getIntWithDefault("CONSUMER_LOCK_MAX_RETRIES", 5),
 		},
 	}
 

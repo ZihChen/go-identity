@@ -174,3 +174,21 @@ func (m *Manager) GetMutexWithOption(
 	}
 	return r.NewMutex(key, options...), nil
 }
+
+// Pipeline 返回 Redis Pipeline 用於批次操作
+func (m *Manager) Pipeline() redis.Pipeliner {
+	client, err := m.GetClient()
+	if err != nil {
+		return nil
+	}
+	return client.Pipeline()
+}
+
+// MGet 批次獲取多個 key 的值
+func (m *Manager) MGet(ctx context.Context, keys ...string) ([]interface{}, error) {
+	client, err := m.GetClient()
+	if err != nil {
+		return nil, err
+	}
+	return client.MGet(ctx, keys...).Result()
+}

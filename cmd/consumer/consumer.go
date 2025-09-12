@@ -243,9 +243,19 @@ func executeConsumerWithRecovery(
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				const size = 64 << 10
-				buf := make([]byte, size)
-				buf = buf[:runtime.Stack(buf, false)]
+				// 動態分配 stack buffer，初始 4KB，最大 1MB
+				initialSize := 4 << 10 // 4KB
+				maxSize := 1 << 20     // 1MB
+
+				buf := make([]byte, initialSize)
+				n := runtime.Stack(buf, false)
+
+				// 如果 buffer 不夠大，動態擴展
+				for n >= len(buf) && len(buf) < maxSize {
+					buf = make([]byte, len(buf)*2)
+					n = runtime.Stack(buf, false)
+				}
+				buf = buf[:n]
 
 				if err, ok := r.(error); ok {
 					lastError = fmt.Errorf("panic recovered: %w\n%s", err, buf)
@@ -267,7 +277,7 @@ func executeConsumerWithRecovery(
 			logger.InfoWithContext(consumerCtx, "Using traditional consumer for event processing")
 			err = kdsService.ConsumeAllEvents(consumerCtx)
 		}
-		
+
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(consumerCtx.Err(), context.Canceled) {
 				logger.WarnWithContext(

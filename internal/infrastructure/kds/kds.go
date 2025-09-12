@@ -26,7 +26,7 @@ type KDSService struct {
 	config        *cfg.Config
 	queueService  service.QueueService
 	logger        infrastructure.Logger
-	
+
 	// 新增：錯誤分類器用於批次處理
 	errorClassifier *ErrorClassifier
 }
@@ -70,7 +70,7 @@ func NewKDSService(
 
 	// 創建錯誤分類器
 	errorClassifier := NewErrorClassifier()
-	
+
 	return &KDSService{
 		client:          kinesisClient,
 		dynamoClient:    dynamoClient,
@@ -99,31 +99,18 @@ func (k *KDSService) Close() error {
 	return nil
 }
 
-// CreateEnhancedConsumer 創建增強版消費者
-func (k *KDSService) CreateEnhancedConsumer() (*EnhancedConsumer, error) {
-	opts := EnhancedConsumerOptions{
-		KDSService: k,
-		Logger:     k.logger,
-		Config:     &k.config.Consumer,
-	}
-	
-	return NewEnhancedConsumer(opts)
-}
-
-// ConsumeAllEventsEnhanced 使用增強版消費者消費所有事件
+// ConsumeAllEventsEnhanced 使用簡化版批次處理消費所有事件
+// 這是一個簡化版本，直接使用現有的 ConsumeAllEvents 方法
+// 該方法現在已經包含了批次處理和 worker pool 優化
 func (k *KDSService) ConsumeAllEventsEnhanced(ctx context.Context) error {
-	enhancedConsumer, err := k.CreateEnhancedConsumer()
-	if err != nil {
-		return fmt.Errorf("failed to create enhanced consumer: %w", err)
-	}
-	
 	k.logger.InfoWithContext(
 		ctx,
-		"Starting enhanced event consumption",
+		"Starting enhanced event consumption with batch processing",
 		k.logger.String("stream", k.consumeStream),
-		k.logger.Int("batch_size", k.config.Consumer.BatchSize),
-		k.logger.Int("worker_pool_size", k.config.Consumer.WorkerPoolSize),
+		k.logger.Int("batch_size", BatchSize),
+		k.logger.Int("worker_pool_size", WorkerPoolSize),
 	)
-	
-	return enhancedConsumer.ConsumeAllEventsEnhanced(ctx)
+
+	// 直接調用已經優化的 ConsumeAllEvents 方法
+	return k.ConsumeAllEvents(ctx)
 }

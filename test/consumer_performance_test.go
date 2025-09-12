@@ -62,7 +62,12 @@ func (pts *PerformanceTestSuite) TestConfigurationValidation(t *testing.T) {
 	assert.LessOrEqual(t, pts.config.Consumer.WorkerPoolSize, runtime.NumCPU()*4, "Worker數量不應過多")
 
 	// 測試退避策略配置
-	assert.Less(t, pts.config.Consumer.MinBackoff, pts.config.Consumer.MaxBackoff, "最小退避時間應小於最大退避時間")
+	assert.Less(
+		t,
+		pts.config.Consumer.MinBackoff,
+		pts.config.Consumer.MaxBackoff,
+		"最小退避時間應小於最大退避時間",
+	)
 	assert.Greater(t, pts.config.Consumer.BackoffMultiplier, 1.0, "退避倍數應大於1.0")
 
 	// 測試超時配置
@@ -130,7 +135,7 @@ func (pts *PerformanceTestSuite) TestHealthChecker(t *testing.T) {
 
 	unhealthyStatus := checker.CheckHealth()
 	assert.False(t, unhealthyStatus.Healthy, "高錯誤率時應顯示不健康")
-	
+
 	// 檢查是否包含任何高錯誤率相關的問題
 	hasErrorRateIssue := false
 	for _, issue := range unhealthyStatus.Issues {
@@ -169,7 +174,7 @@ func (pts *PerformanceTestSuite) TestBackoffStrategies(t *testing.T) {
 		decreasedBackoff := strategy.NextBackoff()
 		assert.Less(t, decreasedBackoff, increasedBackoff, "成功後退避時間應減少")
 
-		t.Logf("自適應退避測試通過: 初始=%v, 增加=%v, 減少=%v", 
+		t.Logf("自適應退避測試通過: 初始=%v, 增加=%v, 減少=%v",
 			initialBackoff, increasedBackoff, decreasedBackoff)
 	})
 
@@ -187,7 +192,7 @@ func (pts *PerformanceTestSuite) TestBackoffStrategies(t *testing.T) {
 
 		// 驗證指數增長
 		for i := 1; i < len(backoffs); i++ {
-			assert.GreaterOrEqual(t, backoffs[i], backoffs[i-1], 
+			assert.GreaterOrEqual(t, backoffs[i], backoffs[i-1],
 				fmt.Sprintf("退避時間應遞增: %v >= %v", backoffs[i], backoffs[i-1]))
 		}
 
@@ -205,12 +210,12 @@ func (pts *PerformanceTestSuite) TestErrorClassification(t *testing.T) {
 	classifier := kds.NewErrorClassifier()
 
 	testCases := []struct {
-		err      error
-		retryable bool
-		temporary bool
-		permanent bool
+		err        error
+		retryable  bool
+		temporary  bool
+		permanent  bool
 		throttling bool
-		category string
+		category   string
 	}{
 		{kds.ErrKDSConnectionFailed, true, false, false, false, "retryable"},
 		{kds.ErrKDSThrottling, false, true, false, true, "throttling"},
@@ -265,7 +270,7 @@ func (pts *PerformanceTestSuite) TestRetryExecutor(t *testing.T) {
 		time.Millisecond*100,
 		1.5,
 	)
-	
+
 	executor := kds.NewRetryExecutor(strategy, 3)
 	ctx := context.Background()
 
@@ -326,7 +331,10 @@ func (pts *PerformanceTestSuite) TestPerformanceBaseline(t *testing.T) {
 		time.Sleep(processingTime)
 
 		pts.collector.BatchProcessed(actualBatchSize, processingTime)
-		pts.collector.RecordProcessed(int64(actualBatchSize), processingTime/time.Duration(actualBatchSize))
+		pts.collector.RecordProcessed(
+			int64(actualBatchSize),
+			processingTime/time.Duration(actualBatchSize),
+		)
 
 		// 模擬偶發錯誤
 		if i%1000 == 0 {
@@ -352,13 +360,13 @@ func (pts *PerformanceTestSuite) TestPerformanceBaseline(t *testing.T) {
 	// 驗證效能目標
 	expectedMinThroughput := float64(1000) // 每秒至少1000條記錄
 	actualThroughput := float64(metrics.RecordsProcessedTotal) / totalTime.Seconds()
-	
-	assert.GreaterOrEqual(t, actualThroughput, expectedMinThroughput, 
+
+	assert.GreaterOrEqual(t, actualThroughput, expectedMinThroughput,
 		fmt.Sprintf("吞吐量應不低於 %.0f records/sec，實際: %.0f", expectedMinThroughput, actualThroughput))
 
 	// 驗證錯誤率
 	maxErrorRate := 1.0 // 最多1%錯誤率
-	assert.LessOrEqual(t, metrics.ErrorRate, maxErrorRate, 
+	assert.LessOrEqual(t, metrics.ErrorRate, maxErrorRate,
 		fmt.Sprintf("錯誤率應不超過 %.1f%%，實際: %.2f%%", maxErrorRate, metrics.ErrorRate))
 }
 

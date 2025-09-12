@@ -35,11 +35,35 @@ const (
 	maxBackoff           = 5 * time.Second
 )
 
+// 批次處理相關配置
+const (
+	BatchSize        = 100                    // 每批次處理的記錄數
+	WorkerPoolSize   = 10                     // 並行處理的 worker 數量
+	MaxBatchWaitTime = 500 * time.Millisecond // 批次等待時間
+)
+
 type EventPayload struct {
 	ID               string
 	Type             string
 	GlobalMerchantID string
 	Data             map[string]interface{}
+}
+
+// RecordBatch 批次處理的記錄
+type RecordBatch struct {
+	Records        []types.Record
+	ShardID        string
+	ProcessedCount int
+	Errors         []error
+}
+
+// ProcessResult 處理結果
+type ProcessResult struct {
+	EventID        string
+	EventType      string
+	SequenceNumber string
+	Success        bool
+	Error          error
 }
 
 // ConsumeAllEvents 消費所有事件類型
@@ -193,156 +217,78 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						}
 					}
 
-					// 批量處理記錄，減少重複解析JSON
-					for _, record := range recordsOutput.Records {
-						// 從資料中取得上層traceparent作為事件追蹤用
-						ctxWithTrace := tracing.ExtractTraceContext(ctx, record.Data)
-						// 根據事件類型創建追踪
-						eventCtx, eventSpan := tracing.StartSpan(
-							ctxWithTrace,
-							"KDS.EventRecord.StartProcessing",
-						)
+					// 批次處理記錄
+					batch := RecordBatch{
+						Records: recordsOutput.Records,
+						ShardID: shardId,
+					}
 
-						sequenceNumber := *record.SequenceNumber
-
-						parseEvent, parseErr := k.parseEvent(record.Data)
-						if parseErr != nil {
-							k.logger.WarnWithContext(
-								eventCtx,
-								"Failed to parse event, skipping",
-								k.logger.String("sequence_number", sequenceNumber),
-								k.logger.Error("err", parseErr),
-							)
-							tracing.SpanEnd(eventSpan)
-							continue
+					// 批次去重檢查
+					eventIDs := make([]string, 0, len(batch.Records))
+					for _, record := range batch.Records {
+						if parseEvent, err := k.parseEvent(record.Data); err == nil {
+							eventIDs = append(eventIDs, parseEvent.ID)
 						}
+					}
 
-						eventID, eventType, globalMerchantID := parseEvent.ID, parseEvent.Type, parseEvent.GlobalMerchantID
+					// 批次檢查已處理的事件
+					processedMap := k.batchCheckEventsProcessed(shardCtx, eventIDs)
 
-						// 如果無法確定事件類型，則跳過
-						if parseEvent.Type == "" {
-							k.logger.WarnWithContext(
-								eventCtx,
-								"Skipping event with unknown type",
-								k.logger.String("sequence_number", sequenceNumber),
-								k.logger.String("event_id", eventID),
-							)
-							continue
+					// 過濾未處理的記錄
+					unprocessedRecords := make([]types.Record, 0, len(batch.Records))
+					for i, record := range batch.Records {
+						if i < len(eventIDs) && !processedMap[eventIDs[i]] {
+							unprocessedRecords = append(unprocessedRecords, record)
 						}
+					}
 
-						// 記錄消息數據
-						tracing.RecordSpanAttributes(eventSpan,
-							attribute.String("messaging.shard_id", shardId),
-							attribute.String("messaging.sequence_number", sequenceNumber),
-							attribute.String("messaging.event_id", eventID),
-							attribute.String("messaging.event_type", eventType),
-						)
+					if len(unprocessedRecords) > 0 {
+						batch.Records = unprocessedRecords
 
-						// 檢查該事件是否已處理過（去重)
-						processed, processedErr := k.isEventProcessed(eventCtx, eventID)
-						if processedErr != nil {
-							k.logger.WarnWithContext(
-								eventCtx,
-								"Failed to check if event is processed, will process anyway",
-								k.logger.String("sequence_number", sequenceNumber),
-								k.logger.String("event_id", eventID),
-								k.logger.Error("err", processedErr),
-							)
-						}
+						// 批次處理
+						results := k.processBatch(shardCtx, batch)
 
-						// 事件已被處理則跳過
-						if processed {
-							k.logger.WarnWithContext(
-								eventCtx,
-								"Skipping already processed event",
-								k.logger.String("sequence_number", sequenceNumber),
-								k.logger.String("event_id", eventID),
-								k.logger.String("event_type", eventType),
-							)
-							tracing.SpanEnd(eventSpan)
-							continue
-						}
+						// 批次標記已處理和更新檢查點
+						successfulEvents := make([]string, 0, len(results))
+						var lastSuccessSequence string
 
-						// 將事件ID添加到上下文中，避免隊列服務重複解析JSON
-						msgCtxWithID := context.WithValue(eventCtx, consts.EventIDKey, eventID)
+						for _, result := range results {
+							if result.Success {
+								successfulEvents = append(successfulEvents, result.EventID)
+								lastSuccessSequence = result.SequenceNumber
 
-						// 根據事件類型選擇合適的處理函數
-						enqueueErr := k.eventEnqueueProcess(msgCtxWithID, eventType, record.Data)
-						if errors.Is(enqueueErr, errmsg.ErrUnknownEventType) {
-							if updateErr := k.updateCheckpoint(eventCtx, shardId, sequenceNumber); updateErr != nil {
-								k.logger.WarnWithContext(
-									eventCtx,
-									"Unknown event type, Failed to update checkpoint",
-									k.logger.String("shard_id", shardId),
-									k.logger.String("sequence_number", sequenceNumber),
-									k.logger.Error("err", updateErr),
-								)
-								tracing.RecordSpanError(eventSpan, updateErr)
-							} else {
-								k.logger.WarnWithContext(
-									eventCtx,
-									"Unknown event type, skipping",
-									k.logger.String("event_id", eventID),
-									k.logger.String("event_type", eventType),
-								)
+								k.logger.InfoWithContext(shardCtx,
+									"Processed event successfully",
+									k.logger.String("event_type", result.EventType),
+									k.logger.String("event_id", result.EventID),
+									k.logger.String("sequence_number", result.SequenceNumber))
+							} else if result.Error != nil {
+								if errors.Is(result.Error, errmsg.ErrUnknownEventType) {
+									// 未知事件類型仍需要更新檢查點
+									lastSuccessSequence = result.SequenceNumber
+								}
+								k.logger.ErrorWithContext(shardCtx,
+									"Failed to process event",
+									k.logger.String("event_id", result.EventID),
+									k.logger.Error("err", result.Error))
 							}
-							tracing.SpanEnd(eventSpan)
-							continue
 						}
 
-						// 檢查入隊錯誤
-						if enqueueErr != nil {
-							k.logger.ErrorWithContext(
-								eventCtx,
-								"Failed to enqueue message",
-								k.logger.String("event_type", eventType),
-								k.logger.String("event_id", eventID),
-								k.logger.String("sequence_number", sequenceNumber),
-								k.logger.Error("error", enqueueErr),
-							)
-							tracing.RecordSpanError(eventSpan, enqueueErr)
-							tracing.SpanEnd(eventSpan)
-							continue
+						// 批次標記事件為已處理
+						if len(successfulEvents) > 0 {
+							k.batchMarkEventsProcessed(shardCtx, successfulEvents)
 						}
 
-						// 標記事件為已處理
-						if markErr := k.markEventProcessed(eventCtx, eventID); err != nil {
-							k.logger.WarnWithContext(
-								eventCtx,
-								"Failed to mark event as processed",
-								k.logger.String("event_id", eventID),
-								k.logger.String("sequence_number", sequenceNumber),
-								k.logger.Error("err", markErr),
-							)
+						// 更新檢查點到最後成功的序列號
+						if lastSuccessSequence != "" {
+							if checkpointErr := k.updateCheckpoint(shardCtx, shardId, lastSuccessSequence); checkpointErr != nil {
+								k.logger.WarnWithContext(shardCtx,
+									"Failed to update checkpoint",
+									k.logger.String("shard_id", shardId),
+									k.logger.String("sequence_number", lastSuccessSequence),
+									k.logger.Error("err", checkpointErr))
+							}
 						}
-
-						// 記錄成功事件
-						tracing.TraceEvent(eventSpan, "Message enqueued to Redis successfully")
-
-						k.logger.InfoWithContext(
-							eventCtx,
-							"Consumed event from KDS and enqueued to Redis",
-							k.logger.String("event_type", eventType),
-							k.logger.String("event_id", eventID),
-							k.logger.String("sequence_number", sequenceNumber),
-						)
-
-						// 更新檢查點
-						if checkpointErr := k.updateCheckpoint(eventCtx, shardId, sequenceNumber); err != nil {
-							k.logger.WarnWithContext(
-								eventCtx,
-								"Failed to update checkpoint",
-								k.logger.String("shard_id", shardId),
-								k.logger.String("sequence_number", sequenceNumber),
-								k.logger.Error("err", checkpointErr),
-							)
-						} else {
-							k.logger.InfoWithContext(eventCtx, "Updated checkpoint",
-								k.logger.String("shard_id", shardId),
-								k.logger.String("sequence_number", sequenceNumber),
-								k.logger.String("global_merchant_id", globalMerchantID))
-						}
-						tracing.SpanEnd(eventSpan)
 					}
 
 					// 獲取下一個迭代器
@@ -590,6 +536,190 @@ func (k *KDSService) markEventProcessed(ctx context.Context, eventId string) err
 	key := processedEventKeyPrefix + eventId
 	_, err := k.redisManager.Set(ctx, key, "1", eventProcessedTTL)
 	return err
+}
+
+// batchCheckEventsProcessed 批次檢查事件是否已處理
+func (k *KDSService) batchCheckEventsProcessed(
+	ctx context.Context,
+	eventIDs []string,
+) map[string]bool {
+	processedMap := make(map[string]bool)
+	if len(eventIDs) == 0 {
+		return processedMap
+	}
+
+	// 使用 Pipeline 批次執行 EXISTS 命令
+	keys := make([]string, 0, len(eventIDs))
+	for _, eventID := range eventIDs {
+		if eventID != "" {
+			keys = append(keys, processedEventKeyPrefix+eventID)
+		}
+	}
+
+	if len(keys) == 0 {
+		return processedMap
+	}
+
+	// 批次檢查 keys 是否存在
+	results, err := k.redisManager.MGet(ctx, keys...)
+	if err != nil {
+		k.logger.WarnWithContext(ctx, "Failed to batch check events processed",
+			k.logger.Error("err", err))
+		// 錯誤時返回空map，視為都未處理
+		return processedMap
+	}
+
+	// 建立結果映射
+	for i, result := range results {
+		if i < len(eventIDs) {
+			processedMap[eventIDs[i]] = result != nil
+		}
+	}
+
+	return processedMap
+}
+
+// batchMarkEventsProcessed 批次標記事件為已處理
+func (k *KDSService) batchMarkEventsProcessed(ctx context.Context, eventIDs []string) {
+	if len(eventIDs) == 0 {
+		return
+	}
+
+	// 使用 Pipeline 批次設置
+	pipeline := k.redisManager.Pipeline()
+
+	for _, eventID := range eventIDs {
+		if eventID != "" {
+			key := processedEventKeyPrefix + eventID
+			pipeline.Set(ctx, key, "1", eventProcessedTTL)
+		}
+	}
+
+	// 執行 pipeline
+	if _, err := pipeline.Exec(ctx); err != nil {
+		k.logger.WarnWithContext(ctx, "Failed to batch mark events as processed",
+			k.logger.Error("err", err))
+	}
+}
+
+// processBatch 批次處理記錄
+func (k *KDSService) processBatch(ctx context.Context, batch RecordBatch) []ProcessResult {
+	results := make([]ProcessResult, 0, len(batch.Records))
+	resultChan := make(chan ProcessResult, len(batch.Records))
+
+	// 使用 worker pool 並行處理
+	var wg sync.WaitGroup
+	workerChan := make(chan types.Record, len(batch.Records))
+
+	// 啟動 workers
+	numWorkers := WorkerPoolSize
+	if len(batch.Records) < numWorkers {
+		numWorkers = len(batch.Records)
+	}
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for record := range workerChan {
+				result := k.processRecord(ctx, record, batch.ShardID)
+				resultChan <- result
+			}
+		}(i)
+	}
+
+	// 分發工作
+	go func() {
+		for _, record := range batch.Records {
+			workerChan <- record
+		}
+		close(workerChan)
+	}()
+
+	// 等待所有 workers 完成
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// 收集結果
+	for result := range resultChan {
+		results = append(results, result)
+	}
+
+	return results
+}
+
+// processRecord 處理單個記錄
+func (k *KDSService) processRecord(
+	ctx context.Context,
+	record types.Record,
+	shardID string,
+) ProcessResult {
+	sequenceNumber := *record.SequenceNumber
+
+	// 解析事件
+	parseEvent, parseErr := k.parseEvent(record.Data)
+	if parseErr != nil {
+		k.logger.WarnWithContext(ctx, "Failed to parse event",
+			k.logger.String("sequence_number", sequenceNumber),
+			k.logger.Error("err", parseErr))
+		return ProcessResult{
+			SequenceNumber: sequenceNumber,
+			Success:        false,
+			Error:          parseErr,
+		}
+	}
+
+	eventID := parseEvent.ID
+	eventType := parseEvent.Type
+
+	// 檢查事件類型
+	if eventType == "" {
+		return ProcessResult{
+			EventID:        eventID,
+			SequenceNumber: sequenceNumber,
+			Success:        false,
+			Error:          errors.New("unknown event type"),
+		}
+	}
+
+	// 從資料中取得追蹤上下文
+	ctxWithTrace := tracing.ExtractTraceContext(ctx, record.Data)
+	eventCtx, eventSpan := tracing.StartSpan(ctxWithTrace, "KDS.EventRecord.Processing")
+	defer tracing.SpanEnd(eventSpan)
+
+	// 記錄 span 屬性
+	tracing.RecordSpanAttributes(eventSpan,
+		attribute.String("messaging.shard_id", shardID),
+		attribute.String("messaging.sequence_number", sequenceNumber),
+		attribute.String("messaging.event_id", eventID),
+		attribute.String("messaging.event_type", eventType),
+	)
+
+	// 將事件ID添加到上下文
+	msgCtxWithID := context.WithValue(eventCtx, consts.EventIDKey, eventID)
+
+	// 處理事件
+	enqueueErr := k.eventEnqueueProcess(msgCtxWithID, eventType, record.Data)
+	if enqueueErr != nil {
+		tracing.RecordSpanError(eventSpan, enqueueErr)
+		return ProcessResult{
+			EventID:        eventID,
+			EventType:      eventType,
+			SequenceNumber: sequenceNumber,
+			Success:        false,
+			Error:          enqueueErr,
+		}
+	}
+
+	tracing.TraceEvent(eventSpan, "Event processed successfully")
+	return ProcessResult{
+		EventID:        eventID,
+		EventType:      eventType,
+		SequenceNumber: sequenceNumber,
+		Success:        true,
+	}
 }
 
 // extractMerchantID 從事件中提取商戶 ID
