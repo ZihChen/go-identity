@@ -29,7 +29,6 @@ func NewPerformanceTestSuite() *PerformanceTestSuite {
 			WorkerBufferSize:    1000,
 			MinBackoff:          500 * time.Millisecond,
 			MaxBackoff:          5 * time.Second,
-			BackoffMultiplier:   1.5,
 			MaxShardConcurrency: 8,
 			ShardLockTimeout:    1 * time.Minute,
 			MetricsInterval:     30 * time.Second,
@@ -68,7 +67,6 @@ func (pts *PerformanceTestSuite) TestConfigurationValidation(t *testing.T) {
 		pts.config.Consumer.MaxBackoff,
 		"最小退避時間應小於最大退避時間",
 	)
-	assert.Greater(t, pts.config.Consumer.BackoffMultiplier, 1.0, "退避倍數應大於1.0")
 
 	// 測試超時配置
 	assert.Greater(t, int64(pts.config.Consumer.MaxBatchWaitTime), int64(0), "批次等待時間必須大於0")
@@ -155,7 +153,7 @@ func (pts *PerformanceTestSuite) TestBackoffStrategies(t *testing.T) {
 		strategy := kds.NewAdaptiveBackoffStrategy(
 			pts.config.Consumer.MinBackoff,
 			pts.config.Consumer.MaxBackoff,
-			pts.config.Consumer.BackoffMultiplier,
+			1.5,
 		)
 
 		// 測試初始退避時間
@@ -182,7 +180,7 @@ func (pts *PerformanceTestSuite) TestBackoffStrategies(t *testing.T) {
 		strategy := kds.NewExponentialBackoffStrategy(
 			pts.config.Consumer.MinBackoff,
 			pts.config.Consumer.MaxBackoff,
-			pts.config.Consumer.BackoffMultiplier,
+			1.5,
 		)
 
 		backoffs := make([]time.Duration, 5)

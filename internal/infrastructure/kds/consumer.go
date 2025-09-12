@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -15,7 +14,6 @@ import (
 	dynamodbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
-	"github.com/cenkalti/backoff/v4"
 	"github.com/go-redsync/redsync/v4"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
@@ -31,15 +29,6 @@ const (
 	processedEventKeyPrefix = "kds:processed:"
 	// 分佈式鎖Timeout時長
 	consumerProcessedTTL = 1 * time.Minute
-	minBackoff           = 500 * time.Millisecond
-	maxBackoff           = 5 * time.Second
-)
-
-// 批次處理相關配置
-const (
-	BatchSize        = 100                    // 每批次處理的記錄數
-	WorkerPoolSize   = 10                     // 並行處理的 worker 數量
-	MaxBatchWaitTime = 500 * time.Millisecond // 批次等待時間
 )
 
 type EventPayload struct {
@@ -143,7 +132,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 			currentIterator := initialIterator
 
 			// 自適應退避策略參數設置
-			backoffDuration := 500 * time.Millisecond
+			backoffDuration := k.config.Consumer.MinBackoff
 			for {
 				select {
 				case <-shardCtx.Done():
@@ -154,7 +143,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 						shardCtx,
 						&kinesis.GetRecordsInput{
 							ShardIterator: aws.String(currentIterator),
-							Limit:         aws.Int32(1000),
+							Limit:         aws.Int32(int32(k.config.Consumer.KDSRecordLimit)),
 						},
 					)
 					if getRecordsErr != nil {
@@ -167,8 +156,8 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 
 						// 遇到錯誤時增加退避時間
 						backoffDuration = time.Duration(float64(backoffDuration) * 1.5)
-						if backoffDuration > maxBackoff {
-							backoffDuration = maxBackoff
+						if backoffDuration > k.config.Consumer.MaxBackoff {
+							backoffDuration = k.config.Consumer.MaxBackoff
 						}
 						time.Sleep(backoffDuration)
 
@@ -206,14 +195,14 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 					if recordsCount == 0 {
 						// 沒有記錄，增加退避時間
 						backoffDuration = time.Duration(float64(backoffDuration) * 1.2)
-						if backoffDuration > maxBackoff {
-							backoffDuration = maxBackoff
+						if backoffDuration > k.config.Consumer.MaxBackoff {
+							backoffDuration = k.config.Consumer.MaxBackoff
 						}
 					} else {
 						// 有記錄，減少退避時間
 						backoffDuration = time.Duration(float64(backoffDuration) * 0.8)
-						if backoffDuration < minBackoff {
-							backoffDuration = minBackoff
+						if backoffDuration < k.config.Consumer.MinBackoff {
+							backoffDuration = k.config.Consumer.MinBackoff
 						}
 					}
 
@@ -243,40 +232,49 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 					}
 
 					if len(unprocessedRecords) > 0 {
-						batch.Records = unprocessedRecords
-
-						// 批次處理
-						results := k.processBatch(shardCtx, batch)
-
-						// 批次標記已處理和更新檢查點
-						successfulEvents := make([]string, 0, len(results))
+						// 收集所有批次的處理結果
+						allSuccessfulEvents := make([]string, 0)
 						var lastSuccessSequence string
 
-						for _, result := range results {
-							if result.Success {
-								successfulEvents = append(successfulEvents, result.EventID)
-								lastSuccessSequence = result.SequenceNumber
+						// 按照配置的 BatchSize 分割記錄
+						batchSize := k.config.Consumer.BatchSize
+						for i := 0; i < len(unprocessedRecords); i += batchSize {
+							end := i + batchSize
+							if end > len(unprocessedRecords) {
+								end = len(unprocessedRecords)
+							}
 
-								k.logger.InfoWithContext(shardCtx,
-									"Processed event successfully",
-									k.logger.String("event_type", result.EventType),
-									k.logger.String("event_id", result.EventID),
-									k.logger.String("sequence_number", result.SequenceNumber))
-							} else if result.Error != nil {
-								if errors.Is(result.Error, errmsg.ErrUnknownEventType) {
-									// 未知事件類型仍需要更新檢查點
+							batch.Records = unprocessedRecords[i:end]
+							// 批次處理
+							results := k.processBatch(shardCtx, batch)
+
+							// 處理每個批次的結果
+							for _, result := range results {
+								if result.Success {
+									allSuccessfulEvents = append(allSuccessfulEvents, result.EventID)
 									lastSuccessSequence = result.SequenceNumber
+
+									k.logger.InfoWithContext(shardCtx,
+										"Processed event successfully",
+										k.logger.String("event_type", result.EventType),
+										k.logger.String("event_id", result.EventID),
+										k.logger.String("sequence_number", result.SequenceNumber))
+								} else if result.Error != nil {
+									if errors.Is(result.Error, errmsg.ErrUnknownEventType) {
+										// 未知事件類型仍需要更新檢查點
+										lastSuccessSequence = result.SequenceNumber
+									}
+									k.logger.ErrorWithContext(shardCtx,
+										"Failed to process event",
+										k.logger.String("event_id", result.EventID),
+										k.logger.Error("err", result.Error))
 								}
-								k.logger.ErrorWithContext(shardCtx,
-									"Failed to process event",
-									k.logger.String("event_id", result.EventID),
-									k.logger.Error("err", result.Error))
 							}
 						}
 
-						// 批次標記事件為已處理
-						if len(successfulEvents) > 0 {
-							k.batchMarkEventsProcessed(shardCtx, successfulEvents)
+						// 批次標記所有成功的事件為已處理
+						if len(allSuccessfulEvents) > 0 {
+							k.batchMarkEventsProcessed(shardCtx, allSuccessfulEvents)
 						}
 
 						// 更新檢查點到最後成功的序列號
@@ -321,71 +319,6 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-func (k *KDSService) getRecordsWithRetry(
-	ctx context.Context,
-	shardIterator string,
-) (*kinesis.GetRecordsOutput, error) {
-	var records *kinesis.GetRecordsOutput
-
-	// 配置指數退避策略
-	exponentialBackoff := backoff.NewExponentialBackOff()
-	exponentialBackoff.InitialInterval = 1 * time.Second // 初始重試間隔
-	exponentialBackoff.MaxInterval = 30 * time.Second    // 最大重試間隔
-	exponentialBackoff.MaxElapsedTime = 2 * time.Minute  // 最大總重試時間
-	exponentialBackoff.Multiplier = 2.0                  // 每次重試間隔的倍數
-
-	operation := func() error {
-		var err error
-		records, err = k.client.GetRecords(ctx, &kinesis.GetRecordsInput{
-			ShardIterator: aws.String(shardIterator),
-			Limit:         aws.Int32(10000),
-		})
-
-		if err != nil {
-			// 檢查上下文超時
-			if errors.Is(err, context.DeadlineExceeded) {
-				k.logger.ErrorWithContext(
-					ctx,
-					"GetRecords timeout",
-					k.logger.Error("err", err),
-				)
-				return err
-			}
-
-			// 檢查網絡超時
-			var netErr net.Error
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				k.logger.ErrorWithContext(
-					ctx,
-					"Network timeout",
-					k.logger.Error("err", err),
-				)
-				return err
-			}
-
-			// 檢查是否為可重試的 AWS 錯誤
-			var throughputErr *types.ProvisionedThroughputExceededException
-			if errors.As(err, &throughputErr) {
-				k.logger.WarnWithContext(
-					ctx,
-					"Throughput exceeded, will retry",
-					k.logger.Error("err", err),
-				)
-				return err
-			}
-			// 其他錯誤視為永久性錯誤，不再重試
-			return backoff.Permanent(err)
-		}
-		return nil
-	}
-
-	err := backoff.Retry(operation, exponentialBackoff)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get records after retries: %w", err)
-	}
-	return records, nil
 }
 
 // getShardIterators 獲取所有分片的迭代器
@@ -609,10 +542,10 @@ func (k *KDSService) processBatch(ctx context.Context, batch RecordBatch) []Proc
 
 	// 使用 worker pool 並行處理
 	var wg sync.WaitGroup
-	workerChan := make(chan types.Record, len(batch.Records))
+	workerChan := make(chan types.Record, k.config.Consumer.WorkerBufferSize)
 
 	// 啟動 workers
-	numWorkers := WorkerPoolSize
+	numWorkers := k.config.Consumer.WorkerPoolSize
 	if len(batch.Records) < numWorkers {
 		numWorkers = len(batch.Records)
 	}

@@ -107,8 +107,8 @@ func (k *KDSService) ConsumeAllEventsEnhanced(ctx context.Context) error {
 		ctx,
 		"Starting enhanced event consumption with batch processing",
 		k.logger.String("stream", k.consumeStream),
-		k.logger.Int("batch_size", BatchSize),
-		k.logger.Int("worker_pool_size", WorkerPoolSize),
+		k.logger.Int("batch_size", k.config.Consumer.BatchSize),
+		k.logger.Int("worker_pool_size", k.config.Consumer.WorkerPoolSize),
 	)
 
 	// 直接調用已經優化的 ConsumeAllEvents 方法

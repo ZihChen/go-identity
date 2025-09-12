@@ -114,33 +114,35 @@ type EventsConfig struct {
 // ConsumerConfig Consumer 服務配置
 type ConsumerConfig struct {
 	// 批次處理配置
-	BatchSize        int           `json:"batch_size"`          // 每批次記錄數
-	MaxBatchWaitTime time.Duration `json:"max_batch_wait_time"` // 批次最大等待時間
+	BatchSize        int           // 每批次記錄數 (用於 Worker Pool 處理)
+	MaxBatchWaitTime time.Duration // 批次最大等待時間
+	
+	// KDS 獲取配置
+	KDSRecordLimit   int           // 每次從 KDS GetRecords 獲取的記錄數上限
 
 	// Worker Pool 配置
-	WorkerPoolSize   int `json:"worker_pool_size"`   // Worker 數量
-	WorkerBufferSize int `json:"worker_buffer_size"` // Worker 通道緩衝區大小
+	WorkerPoolSize   int // Worker 數量
+	WorkerBufferSize int // Worker 通道緩衝區大小
 
 	// 退避策略配置
-	MinBackoff        time.Duration `json:"min_backoff"`        // 最小退避時間
-	MaxBackoff        time.Duration `json:"max_backoff"`        // 最大退避時間
-	BackoffMultiplier float64       `json:"backoff_multiplier"` // 退避倍數
+	MinBackoff time.Duration // 最小退避時間
+	MaxBackoff time.Duration // 最大退避時間
 
 	// 分片處理配置
-	MaxShardConcurrency int           `json:"max_shard_concurrency"` // 最大並行分片數
-	ShardLockTimeout    time.Duration `json:"shard_lock_timeout"`    // 分片鎖超時時間
+	MaxShardConcurrency int           // 最大並行分片數
+	ShardLockTimeout    time.Duration // 分片鎖超時時間
 
 	// 監控配置
-	MetricsInterval     time.Duration `json:"metrics_interval"`      // 指標收集間隔
-	HealthCheckInterval time.Duration `json:"health_check_interval"` // 健康檢查間隔
+	MetricsInterval     time.Duration // 指標收集間隔
+	HealthCheckInterval time.Duration // 健康檢查間隔
 
 	// 恢復機制配置
-	EnablePanicRecovery bool `json:"enable_panic_recovery"` // 是否啟用 Panic 恢復
-	MaxRecoveryAttempts int  `json:"max_recovery_attempts"` // 最大恢復嘗試次數
+	EnablePanicRecovery bool // 是否啟用 Panic 恢復
+	MaxRecoveryAttempts int  // 最大恢復嘗試次數
 
 	// 分散式鎖配置
-	LockRetryInterval time.Duration `json:"lock_retry_interval"` // 鎖重試間隔
-	LockMaxRetries    int           `json:"lock_max_retries"`    // 鎖最大重試次數
+	LockRetryInterval time.Duration // 鎖重試間隔
+	LockMaxRetries    int           // 鎖最大重試次數
 }
 
 // LoadConfig 加載配置
@@ -236,15 +238,17 @@ func LoadConfig() (*Config, error) {
 				"CONSUMER_MAX_BATCH_WAIT_TIME",
 				500*time.Millisecond,
 			),
+			
+			// KDS 獲取配置
+			KDSRecordLimit: getIntWithDefault("CONSUMER_KDS_RECORD_LIMIT", 1000),
 
 			// Worker Pool 配置
 			WorkerPoolSize:   getIntWithDefault("CONSUMER_WORKER_POOL_SIZE", 10),
-			WorkerBufferSize: getIntWithDefault("CONSUMER_WORKER_BUFFER_SIZE", 1000),
+			WorkerBufferSize: getIntWithDefault("CONSUMER_WORKER_BUFFER_SIZE", 200),
 
 			// 退避策略配置
-			MinBackoff:        getDurationWithDefault("CONSUMER_MIN_BACKOFF", 500*time.Millisecond),
-			MaxBackoff:        getDurationWithDefault("CONSUMER_MAX_BACKOFF", 5*time.Second),
-			BackoffMultiplier: getFloatWithDefault("CONSUMER_BACKOFF_MULTIPLIER", 1.5),
+			MinBackoff: getDurationWithDefault("CONSUMER_MIN_BACKOFF", 500*time.Millisecond),
+			MaxBackoff: getDurationWithDefault("CONSUMER_MAX_BACKOFF", 5*time.Second),
 
 			// 分片處理配置
 			MaxShardConcurrency: getIntWithDefault("CONSUMER_MAX_SHARD_CONCURRENCY", 8),
@@ -410,11 +414,11 @@ func (c *Config) PrintConfig() {
 	fmt.Printf("\n[Consumer]\n")
 	fmt.Printf("  BatchSize: %d\n", c.Consumer.BatchSize)
 	fmt.Printf("  MaxBatchWaitTime: %v\n", c.Consumer.MaxBatchWaitTime)
+	fmt.Printf("  KDSRecordLimit: %d\n", c.Consumer.KDSRecordLimit)
 	fmt.Printf("  WorkerPoolSize: %d\n", c.Consumer.WorkerPoolSize)
 	fmt.Printf("  WorkerBufferSize: %d\n", c.Consumer.WorkerBufferSize)
 	fmt.Printf("  MinBackoff: %v\n", c.Consumer.MinBackoff)
 	fmt.Printf("  MaxBackoff: %v\n", c.Consumer.MaxBackoff)
-	fmt.Printf("  BackoffMultiplier: %.2f\n", c.Consumer.BackoffMultiplier)
 	fmt.Printf("  MaxShardConcurrency: %d\n", c.Consumer.MaxShardConcurrency)
 	fmt.Printf("  ShardLockTimeout: %v\n", c.Consumer.ShardLockTimeout)
 	fmt.Printf("  MetricsInterval: %v\n", c.Consumer.MetricsInterval)
