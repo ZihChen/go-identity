@@ -268,16 +268,7 @@ func executeConsumerWithRecovery(
 			}
 		}()
 
-		// 嘗試使用增強版消費者（如果配置啟用的話）
-		var err error
-		if shouldUseEnhancedConsumer(kdsService) {
-			logger.InfoWithContext(consumerCtx, "Using enhanced consumer for event processing")
-			err = kdsService.ConsumeAllEventsEnhanced(consumerCtx)
-		} else {
-			logger.InfoWithContext(consumerCtx, "Using traditional consumer for event processing")
-			err = kdsService.ConsumeAllEvents(consumerCtx)
-		}
-
+		err := kdsService.ConsumeAllEvents(consumerCtx)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(consumerCtx.Err(), context.Canceled) {
 				logger.WarnWithContext(
@@ -315,11 +306,4 @@ func backoffDelay(attempt int) time.Duration {
 	backoffDuration := retryBaseDelay * time.Duration(1+attempt/2)
 	jitter := time.Duration(rand.Int63n(int64(maxJitter)))
 	return backoffDuration + jitter
-}
-
-// shouldUseEnhancedConsumer 檢查是否應該使用增強版消費者
-func shouldUseEnhancedConsumer(kdsService *kds.KDSService) bool {
-	// 檢查環境變量或配置來決定是否使用增強版消費者
-	// 預設使用增強版消費者
-	return true // 未來可以從配置文件或環境變量讀取
 }

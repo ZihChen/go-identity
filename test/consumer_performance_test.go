@@ -147,59 +147,96 @@ func (pts *PerformanceTestSuite) TestHealthChecker(t *testing.T) {
 	t.Logf("健康檢查測試通過: %s", unhealthyStatus.Status)
 }
 
-// TestBackoffStrategies 測試退避策略
-func (pts *PerformanceTestSuite) TestBackoffStrategies(t *testing.T) {
-	t.Run("AdaptiveBackoff", func(t *testing.T) {
-		strategy := kds.NewAdaptiveBackoffStrategy(
-			pts.config.Consumer.MinBackoff,
-			pts.config.Consumer.MaxBackoff,
-			1.5,
+// TestBackoffManager 測試退避管理器
+func (pts *PerformanceTestSuite) TestBackoffManager(t *testing.T) {
+	config := pts.config
+
+	t.Run("BackoffManagerBasicOperation", func(t *testing.T) {
+		// 使用公共構造函數創建BackoffManager
+		backoffManager := kds.NewBackoffManager(
+			config.Consumer.MinBackoff,
+			config.Consumer.MaxBackoff,
 		)
 
 		// 測試初始退避時間
-		initialBackoff := strategy.NextBackoff()
-		assert.GreaterOrEqual(t, initialBackoff, pts.config.Consumer.MinBackoff, "初始退避時間應不小於最小值")
+		initialBackoff := backoffManager.GetCurrentBackoff()
+		assert.Equal(t, config.Consumer.MinBackoff, initialBackoff, "初始退避時間應等於最小值")
 
 		// 測試錯誤後退避時間增加
-		strategy.RecordError(kds.ErrKDSThrottling)
-		increasedBackoff := strategy.NextBackoff()
+		backoffManager.IncreaseBackoff()
+		increasedBackoff := backoffManager.GetCurrentBackoff()
 		assert.Greater(t, increasedBackoff, initialBackoff, "錯誤後退避時間應增加")
 
-		// 測試成功後退避時間減少
-		for i := 0; i < 5; i++ {
-			strategy.RecordSuccess()
-		}
-		decreasedBackoff := strategy.NextBackoff()
-		assert.Less(t, decreasedBackoff, increasedBackoff, "成功後退避時間應減少")
+		// 測試減少退避時間
+		backoffManager.DecreaseBackoff()
+		decreasedBackoff := backoffManager.GetCurrentBackoff()
+		assert.Less(t, decreasedBackoff, increasedBackoff, "減少後退避時間應降低")
 
-		t.Logf("自適應退避測試通過: 初始=%v, 增加=%v, 減少=%v",
+		t.Logf("退避管理器基本操作測試通過: 初始=%v, 增加=%v, 減少=%v",
 			initialBackoff, increasedBackoff, decreasedBackoff)
 	})
 
-	t.Run("ExponentialBackoff", func(t *testing.T) {
-		strategy := kds.NewExponentialBackoffStrategy(
-			pts.config.Consumer.MinBackoff,
-			pts.config.Consumer.MaxBackoff,
-			1.5,
+	t.Run("RecordCountBasedAdjustment", func(t *testing.T) {
+		backoffManager := kds.NewBackoffManager(
+			config.Consumer.MinBackoff,
+			config.Consumer.MaxBackoff,
 		)
 
-		backoffs := make([]time.Duration, 5)
-		for i := 0; i < 5; i++ {
-			backoffs[i] = strategy.NextBackoff()
+		initialBackoff := backoffManager.GetCurrentBackoff()
+
+		// 測試無記錄時增加退避
+		backoffManager.AdjustBackoffByRecordCount(0)
+		noRecordBackoff := backoffManager.GetCurrentBackoff()
+		assert.Greater(t, noRecordBackoff, initialBackoff, "無記錄時退避時間應增加")
+
+		// 測試有記錄時減少退避
+		backoffManager.AdjustBackoffByRecordCount(100)
+		withRecordBackoff := backoffManager.GetCurrentBackoff()
+		assert.Less(t, withRecordBackoff, noRecordBackoff, "有記錄時退避時間應減少")
+
+		t.Logf("基於記錄數調整測試通過: 無記錄=%v, 有記錄=%v", noRecordBackoff, withRecordBackoff)
+	})
+
+	t.Run("BackoffLimits", func(t *testing.T) {
+		// 創建一個已經設置到最大值的BackoffManager
+		backoffManager := kds.NewBackoffManager(
+			config.Consumer.MinBackoff,
+			config.Consumer.MaxBackoff,
+		)
+		// 手動設置到最大值
+		for i := 0; i < 20; i++ {
+			backoffManager.IncreaseBackoff()
 		}
 
-		// 驗證指數增長
-		for i := 1; i < len(backoffs); i++ {
-			assert.GreaterOrEqual(t, backoffs[i], backoffs[i-1],
-				fmt.Sprintf("退避時間應遞增: %v >= %v", backoffs[i], backoffs[i-1]))
+		// 測試不會超過最大值
+		for i := 0; i < 10; i++ {
+			backoffManager.IncreaseBackoff()
 		}
+		assert.Equal(
+			t,
+			config.Consumer.MaxBackoff,
+			backoffManager.GetCurrentBackoff(),
+			"退避時間不應超過最大值",
+		)
 
-		// 測試重置
-		strategy.Reset()
-		resetBackoff := strategy.NextBackoff()
-		assert.LessOrEqual(t, resetBackoff, backoffs[0]*2, "重置後退避時間應回到初始水平")
+		// 重新創建一個新的BackoffManager（預設為最小值）
+		backoffManager = kds.NewBackoffManager(
+			config.Consumer.MinBackoff,
+			config.Consumer.MaxBackoff,
+		)
 
-		t.Logf("指數退避測試通過: %v", backoffs)
+		// 測試不會低於最小值
+		for i := 0; i < 10; i++ {
+			backoffManager.DecreaseBackoff()
+		}
+		assert.Equal(
+			t,
+			config.Consumer.MinBackoff,
+			backoffManager.GetCurrentBackoff(),
+			"退避時間不應低於最小值",
+		)
+
+		t.Logf("退避限制測試通過")
 	})
 }
 
@@ -261,41 +298,39 @@ func (pts *PerformanceTestSuite) TestPanicRecovery(t *testing.T) {
 	t.Logf("Panic恢復測試: 嘗試次數=%d", recovery.GetAttemptCount())
 }
 
-// TestRetryExecutor 測試重試執行器
-func (pts *PerformanceTestSuite) TestRetryExecutor(t *testing.T) {
-	strategy := kds.NewAdaptiveBackoffStrategy(
-		time.Millisecond*10,
-		time.Millisecond*100,
-		1.5,
+// TestBackoffManagerWithErrors 測試退避管理器在不同錯誤情況下的行為
+func (pts *PerformanceTestSuite) TestBackoffManagerWithErrors(t *testing.T) {
+	backoffManager := kds.NewBackoffManager(
+		pts.config.Consumer.MinBackoff,
+		pts.config.Consumer.MaxBackoff,
 	)
 
-	executor := kds.NewRetryExecutor(strategy, 3)
-	ctx := context.Background()
+	// 模擬連續錯誤情況
+	var backoffProgression []time.Duration
+	backoffProgression = append(backoffProgression, backoffManager.GetCurrentBackoff())
 
-	// 測試成功執行
-	var attempts int
-	err := executor.Execute(ctx, "test_operation", func() error {
-		attempts++
-		if attempts < 2 {
-			return kds.ErrKDSConnectionFailed // 可重試錯誤
-		}
-		return nil
-	})
+	// 模擬5次連續錯誤
+	for i := 0; i < 5; i++ {
+		backoffManager.IncreaseBackoff()
+		backoffProgression = append(backoffProgression, backoffManager.GetCurrentBackoff())
+	}
 
-	assert.NoError(t, err, "重試後應該成功")
-	assert.Equal(t, 2, attempts, "應該執行2次嘗試")
+	// 驗證退避時間遞增
+	for i := 1; i < len(backoffProgression); i++ {
+		assert.GreaterOrEqual(t, backoffProgression[i], backoffProgression[i-1],
+			fmt.Sprintf("退避時間應遞增: %v >= %v", backoffProgression[i], backoffProgression[i-1]))
+	}
 
-	// 測試永久錯誤不重試
-	attempts = 0
-	err = executor.Execute(ctx, "permanent_error_operation", func() error {
-		attempts++
-		return kds.ErrKDSRecordInvalid // 永久錯誤
-	})
+	// 模擬恢復情況（有記錄處理）
+	maxBackoff := backoffManager.GetCurrentBackoff()
+	for i := 0; i < 3; i++ {
+		backoffManager.AdjustBackoffByRecordCount(50) // 模擬處理了50條記錄
+	}
 
-	assert.Error(t, err, "永久錯誤應該返回錯誤")
-	assert.Equal(t, 1, attempts, "永久錯誤不應重試")
+	recoveryBackoff := backoffManager.GetCurrentBackoff()
+	assert.Less(t, recoveryBackoff, maxBackoff, "處理記錄後退避時間應減少")
 
-	t.Logf("重試執行器測試通過")
+	t.Logf("退避管理器錯誤處理測試通過: 最大退避=%v, 恢復後=%v", maxBackoff, recoveryBackoff)
 }
 
 // TestPerformanceBaseline 建立效能基準
@@ -375,10 +410,11 @@ func RunAllTests(t *testing.T) {
 	t.Run("ConfigurationValidation", suite.TestConfigurationValidation)
 	t.Run("MetricsAccuracy", suite.TestMetricsAccuracy)
 	t.Run("HealthChecker", suite.TestHealthChecker)
-	t.Run("BackoffStrategies", suite.TestBackoffStrategies)
+	t.Run("BackoffManager", suite.TestBackoffManager)
+	t.Run("BackoffManagerWithErrors", suite.TestBackoffManagerWithErrors)
 	t.Run("ErrorClassification", suite.TestErrorClassification)
 	t.Run("PanicRecovery", suite.TestPanicRecovery)
-	t.Run("RetryExecutor", suite.TestRetryExecutor)
+	// 注释掉RetryExecutor测试，因为现在使用简化的BackoffManager
 	t.Run("PerformanceBaseline", suite.TestPerformanceBaseline)
 }
 

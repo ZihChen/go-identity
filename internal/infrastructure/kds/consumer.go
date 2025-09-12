@@ -23,39 +23,83 @@ import (
 )
 
 const (
-	// 處理過的事件在Redis中保留的時間
+	// eventProcessedTTL 處理過的事件在Redis中保留的時間
+	// 用於防止重複處理相同事件，24小時後自動過期
 	eventProcessedTTL = 24 * time.Hour
-	// 處理過的事件key前綴
+
+	// processedEventKeyPrefix 處理過的事件在Redis中的key前綴
+	// 格式：kds:processed:{eventId}
 	processedEventKeyPrefix = "kds:processed:"
-	// 分佈式鎖Timeout時長
+
+	// consumerProcessedTTL 分片處理的分佈式鎖最大持有時間
+	// 防止多個消費者同時處理同一個分片
 	consumerProcessedTTL = 1 * time.Minute
 )
 
+// EventPayload 代表從Kinesis中解析出的事件負載
+// 包含了事件的核心識別資訊和數據內容
 type EventPayload struct {
-	ID               string
-	Type             string
+	// ID 事件的唯一識別符，用於去重和追蹤
+	ID string
+
+	// Type 事件類型，用於決定處理策略
+	Type string
+
+	// GlobalMerchantID 全局商戶ID，用於商戶級別的數據隔離
 	GlobalMerchantID string
-	Data             map[string]interface{}
+
+	// Data 事件的具體數據內容
+	Data map[string]interface{}
 }
 
-// RecordBatch 批次處理的記錄
+// RecordBatch 代表一批待處理的Kinesis記錄
+// 用於批次處理以提高效率
 type RecordBatch struct {
-	Records        []types.Record
-	ShardID        string
+	// Records Kinesis原始記錄列表
+	Records []types.Record
+
+	// ShardID 所屬分片ID，用於日誌記錄和錯誤追蹤
+	ShardID string
+
+	// ProcessedCount 已處理的記錄數量（留作未來統計使用）
 	ProcessedCount int
-	Errors         []error
+
+	// Errors 處理過程中的錯誤列表（留作未來錯誤處理使用）
+	Errors []error
 }
 
-// ProcessResult 處理結果
+// ProcessResult 代表單個事件處理的結果
+// 用於統計成功率和錯誤追蹤
 type ProcessResult struct {
-	EventID        string
-	EventType      string
+	// EventID 事件唯一識別符
+	EventID string
+
+	// EventType 事件類型
+	EventType string
+
+	// SequenceNumber Kinesis序列號，用於checkpoint更新
 	SequenceNumber string
-	Success        bool
-	Error          error
+
+	// Success 是否處理成功
+	Success bool
+
+	// Error 處理失敗時的錯誤資訊
+	Error error
 }
 
 // ConsumeAllEvents 消費所有事件類型
+//
+// 這是 KDS Consumer 的主入口點，負責：
+// 1. 獲取所有分片的迭代器
+// 2. 為每個分片創建獨立的消費者goroutine
+// 3. 使用分佈式鎖防止多個消費者同時處理同一分片
+// 4. 統一管理所有分片的生命週期和錯誤處理
+//
+// 參數：
+//   - ctx: 上下文，用於取消和超時控制
+//
+// 返回值：
+//   - error: 若初始化失敗或有分片處理出現不可恢復錯誤
 func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 	k.logger.InfoWithContext(
 		ctx,
@@ -82,226 +126,15 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 			k.logger.String("shard_id", shardId),
 		)
 
-		// 為每個 shard 建立分布式鎖
-		mutexKey := fmt.Sprintf(consts.ShardMutexRedisKey, k.consumeStream, shardId)
-		mutex, mutexErr := k.redisManager.GetMutex(mutexKey, consumerProcessedTTL)
-		if mutexErr != nil {
-			// Redis連線異常仍執行後面程序
-			k.logger.WarnWithContext(ctx, "Failed to create mutex, skipping lock logic",
-				k.logger.String("mutex_key", mutexKey),
-				k.logger.Error("err", mutexErr))
-			mutex = nil
-		}
-
-		// 嘗試取得鎖，若失敗則跳過
-		if mutex != nil {
-			if lockErr := mutex.Lock(); lockErr != nil {
-				k.logger.WarnWithContext(ctx, "Shard already locked, skipping",
-					k.logger.String("mutex_key", mutexKey),
-					k.logger.Error("error", lockErr))
-				shardWaiters.Done()
-				continue
-			}
+		// 獲取分片鎖
+		shardMutex := k.acquireShardLock(ctx, shardId)
+		if shardMutex == nil {
+			shardWaiters.Done()
+			continue
 		}
 
 		// 為每個分片創建一個協程
-		go func(shardId, initialIterator string, shardMutex *redsync.Mutex) {
-			shardCtx, shardCancel := context.WithCancel(ctx)
-			defer func() {
-				// 解鎖 shard mutex
-				if ok, unlockErr := shardMutex.Unlock(); !ok || err != nil {
-					k.logger.WarnWithContext(shardCtx, "Failed to release shard lock",
-						k.logger.String("shard_id", shardId),
-						k.logger.Error("err", unlockErr))
-				}
-			}()
-			defer func() {
-				if r := recover(); r != nil {
-					k.logger.ErrorWithContext(
-						shardCtx,
-						"Recovered from panic in shard consumer",
-						k.logger.String("shard_id", shardId),
-						k.logger.Any("recover", r),
-						k.logger.String("stacktrace", string(debug.Stack())),
-					)
-				}
-				shardCancel()
-				shardWaiters.Done()
-			}()
-
-			currentIterator := initialIterator
-
-			// 自適應退避策略參數設置
-			backoffDuration := k.config.Consumer.MinBackoff
-			for {
-				select {
-				case <-shardCtx.Done():
-					return
-				default:
-					// 獲取記錄
-					recordsOutput, getRecordsErr := k.client.GetRecords(
-						shardCtx,
-						&kinesis.GetRecordsInput{
-							ShardIterator: aws.String(currentIterator),
-							Limit:         aws.Int32(int32(k.config.Consumer.KDSRecordLimit)),
-						},
-					)
-					if getRecordsErr != nil {
-						k.logger.ErrorWithContext(
-							shardCtx,
-							"Failed to get records from shard",
-							k.logger.String("shard_id", shardId),
-							k.logger.Error("err", getRecordsErr),
-						)
-
-						// 遇到錯誤時增加退避時間
-						backoffDuration = time.Duration(float64(backoffDuration) * 1.5)
-						if backoffDuration > k.config.Consumer.MaxBackoff {
-							backoffDuration = k.config.Consumer.MaxBackoff
-						}
-						time.Sleep(backoffDuration)
-
-						// 重新獲取迭代器
-						iterators, getIteratorsErr := k.getShardIterators(shardCtx)
-						if getIteratorsErr != nil {
-							k.logger.ErrorWithContext(
-								shardCtx,
-								"Failed to refresh shard iterator",
-								k.logger.String("shard_id", shardId),
-								k.logger.Error("err", getIteratorsErr),
-							)
-
-							// 只有在上下文被取消時才報告錯誤
-							if shardCtx.Err() == nil {
-								shardErrs <- fmt.Errorf("failed to refresh shard iterator for shard %s: %w", shardId, err)
-							}
-							return
-						}
-
-						if newIterator, ok := iterators[shardId]; ok {
-							currentIterator = newIterator
-						} else {
-							k.logger.ErrorWithContext(shardCtx, "Shard no longer available", k.logger.String("shard_id", shardId))
-							return
-						}
-
-						continue
-					}
-
-					// 處理記錄
-					recordsCount := len(recordsOutput.Records)
-
-					// 根據獲取的記錄數調整退避時間
-					if recordsCount == 0 {
-						// 沒有記錄，增加退避時間
-						backoffDuration = time.Duration(float64(backoffDuration) * 1.2)
-						if backoffDuration > k.config.Consumer.MaxBackoff {
-							backoffDuration = k.config.Consumer.MaxBackoff
-						}
-					} else {
-						// 有記錄，減少退避時間
-						backoffDuration = time.Duration(float64(backoffDuration) * 0.8)
-						if backoffDuration < k.config.Consumer.MinBackoff {
-							backoffDuration = k.config.Consumer.MinBackoff
-						}
-					}
-
-					// 批次處理記錄
-					batch := RecordBatch{
-						Records: recordsOutput.Records,
-						ShardID: shardId,
-					}
-
-					// 批次去重檢查
-					eventIDs := make([]string, 0, len(batch.Records))
-					for _, record := range batch.Records {
-						if parseEvent, err := k.parseEvent(record.Data); err == nil {
-							eventIDs = append(eventIDs, parseEvent.ID)
-						}
-					}
-
-					// 批次檢查已處理的事件
-					processedMap := k.batchCheckEventsProcessed(shardCtx, eventIDs)
-
-					// 過濾未處理的記錄
-					unprocessedRecords := make([]types.Record, 0, len(batch.Records))
-					for i, record := range batch.Records {
-						if i < len(eventIDs) && !processedMap[eventIDs[i]] {
-							unprocessedRecords = append(unprocessedRecords, record)
-						}
-					}
-
-					if len(unprocessedRecords) > 0 {
-						// 收集所有批次的處理結果
-						allSuccessfulEvents := make([]string, 0)
-						var lastSuccessSequence string
-
-						// 按照配置的 BatchSize 分割記錄
-						batchSize := k.config.Consumer.BatchSize
-						for i := 0; i < len(unprocessedRecords); i += batchSize {
-							end := i + batchSize
-							if end > len(unprocessedRecords) {
-								end = len(unprocessedRecords)
-							}
-
-							batch.Records = unprocessedRecords[i:end]
-							// 批次處理
-							results := k.processBatch(shardCtx, batch)
-
-							// 處理每個批次的結果
-							for _, result := range results {
-								if result.Success {
-									allSuccessfulEvents = append(allSuccessfulEvents, result.EventID)
-									lastSuccessSequence = result.SequenceNumber
-
-									k.logger.InfoWithContext(shardCtx,
-										"Processed event successfully",
-										k.logger.String("event_type", result.EventType),
-										k.logger.String("event_id", result.EventID),
-										k.logger.String("sequence_number", result.SequenceNumber))
-								} else if result.Error != nil {
-									if errors.Is(result.Error, errmsg.ErrUnknownEventType) {
-										// 未知事件類型仍需要更新檢查點
-										lastSuccessSequence = result.SequenceNumber
-									}
-									k.logger.ErrorWithContext(shardCtx,
-										"Failed to process event",
-										k.logger.String("event_id", result.EventID),
-										k.logger.Error("err", result.Error))
-								}
-							}
-						}
-
-						// 批次標記所有成功的事件為已處理
-						if len(allSuccessfulEvents) > 0 {
-							k.batchMarkEventsProcessed(shardCtx, allSuccessfulEvents)
-						}
-
-						// 更新檢查點到最後成功的序列號
-						if lastSuccessSequence != "" {
-							if checkpointErr := k.updateCheckpoint(shardCtx, shardId, lastSuccessSequence); checkpointErr != nil {
-								k.logger.WarnWithContext(shardCtx,
-									"Failed to update checkpoint",
-									k.logger.String("shard_id", shardId),
-									k.logger.String("sequence_number", lastSuccessSequence),
-									k.logger.Error("err", checkpointErr))
-							}
-						}
-					}
-
-					// 獲取下一個迭代器
-					if recordsOutput.NextShardIterator != nil {
-						currentIterator = *recordsOutput.NextShardIterator
-					} else {
-						// 分片已關閉
-						k.logger.InfoLog("Shard has been closed", k.logger.String("shard_id", shardId))
-						return
-					}
-					// 使用自適應退避策略：避免過度頻繁請求造成資源消耗
-					time.Sleep(backoffDuration)
-				}
-			}
-		}(shardId, iterator, mutex)
+		go k.consumeShardEvents(ctx, shardId, iterator, shardMutex, &shardWaiters, shardErrs)
 	}
 
 	// 等待所有分片處理完成或出錯
@@ -321,6 +154,39 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 	return nil
 }
 
+// acquireShardLock 獲取分片鎖
+//
+// 使用Redis分佈式鎖確保只有一個消費者實例處理特定分片。
+// 這在水平擴展情境下特別重要，防止重複處理和競爭情況。
+//
+// 參數：
+//   - ctx: 上下文，用於日誌記錄
+//   - shardId: 分片ID
+//
+// 返回值：
+//   - *redsync.Mutex: 成功獲取的鎖，失敗時返回 nil
+func (k *KDSService) acquireShardLock(ctx context.Context, shardId string) *redsync.Mutex {
+	mutexKey := fmt.Sprintf(consts.ShardMutexRedisKey, k.consumeStream, shardId)
+	mutex, mutexErr := k.redisManager.GetMutex(mutexKey, consumerProcessedTTL)
+	if mutexErr != nil {
+		// Redis連線異常仍執行後面程序
+		k.logger.WarnWithContext(ctx, "Failed to create mutex, skipping lock logic",
+			k.logger.String("mutex_key", mutexKey),
+			k.logger.Error("err", mutexErr))
+		return nil
+	}
+
+	// 嘗試取得鎖，若失敗則跳過
+	if lockErr := mutex.Lock(); lockErr != nil {
+		k.logger.WarnWithContext(ctx, "Shard already locked, skipping",
+			k.logger.String("mutex_key", mutexKey),
+			k.logger.Error("error", lockErr))
+		return nil
+	}
+
+	return mutex
+}
+
 // getShardIterators 獲取所有分片的迭代器
 func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, error) {
 	// 獲取所有分片
@@ -338,7 +204,7 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 		if shard.ShardId != nil && *shard.ShardId != "" {
 			// 檢查DynamoDB中是否有這個分片的checkpoint
 			checkpoint, checkpointErr := k.getCheckpoint(ctx, *shard.ShardId)
-			k.logger.InfoLog("Current checkpoint",
+			k.logger.InfoWithContext(ctx, "Current checkpoint",
 				k.logger.String("shard_id", *shard.ShardId),
 				k.logger.String("checkpoint", checkpoint))
 
@@ -349,11 +215,14 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 				// 如果找到checkpoint，從該位置開始讀取
 				iteratorType = types.ShardIteratorTypeAfterSequenceNumber
 				sequenceNumber = &checkpoint
-				k.logger.InfoLog("Found checkpoint, starting from after sequence number",
+				k.logger.InfoWithContext(
+					ctx,
+					"Found checkpoint, starting from after sequence number",
 					k.logger.String("shard_id", *shard.ShardId),
-					k.logger.String("sequence_number", checkpoint))
+					k.logger.String("sequence_number", checkpoint),
+				)
 			} else {
-				k.logger.ErrorLog("No checkpoint found, starting from latest position",
+				k.logger.ErrorWithContext(ctx, "No checkpoint found, starting from latest position",
 					k.logger.String("shard_id", *shard.ShardId),
 					k.logger.Error("err", checkpointErr))
 			}
@@ -368,7 +237,7 @@ func (k *KDSService) getShardIterators(ctx context.Context) (map[string]string, 
 				},
 			)
 			if iteratorErr != nil {
-				k.logger.ErrorLog("Failed to get shard iterator",
+				k.logger.ErrorWithContext(ctx, "Failed to get shard iterator",
 					k.logger.String("shard_id", *shard.ShardId),
 					k.logger.Error("err", iteratorErr))
 				continue
@@ -397,7 +266,7 @@ func (k *KDSService) getCheckpoint(ctx context.Context, shardId string) (string,
 		},
 	})
 	if err != nil {
-		k.logger.ErrorLog("Failed to get checkpoint from DynamoDB",
+		k.logger.ErrorWithContext(ctx, "Failed to get checkpoint from DynamoDB",
 			k.logger.String("tableName", k.tableName),
 			k.logger.String("partitionKey", k.partitionKey),
 			k.logger.String("checkPointKey", checkPointKey),
@@ -439,7 +308,7 @@ func (k *KDSService) updateCheckpoint(
 	if err != nil {
 		return fmt.Errorf("failed to update checkpoint in DynamoDB: %w", err)
 	}
-	k.logger.InfoLog(
+	k.logger.InfoWithContext(ctx,
 		"Update checkpoint successfully",
 		k.logger.String("tableName", k.tableName),
 		k.logger.String("checkPointKey", checkPointKey),
@@ -696,4 +565,280 @@ func (k *KDSService) parseEvent(data []byte) (EventPayload, error) {
 
 func (k *KDSService) composeDynamoDBKey(shardId string) string {
 	return fmt.Sprintf("%s_%s_%s", k.consumeStream, shardId, k.config.App.Name)
+}
+
+// consumeShardEvents 消費單個分片事件
+// 這是單個分片的主處理循環，負責：
+// 1. 持續從Kinesis獲取記錄
+// 2. 管理自適應退避策略
+// 3. 處理獲取錯誤和連線中斷
+// 4. 在分片關閉或上下文取消時清理資源
+//
+// 參數：
+//   - ctx: 上下文，用於取消控制
+//   - shardId: 分片ID
+//   - initialIterator: 初始迭代器
+//   - shardMutex: 分片鎖，用於防止多個消費者同時處理
+//   - shardWaiters: 用於等待所有分片完成
+//   - shardErrs: 用於報告不可恢復的錯誤
+func (k *KDSService) consumeShardEvents(
+	ctx context.Context,
+	shardId, initialIterator string,
+	shardMutex *redsync.Mutex,
+	shardWaiters *sync.WaitGroup,
+	shardErrs chan<- error,
+) {
+	shardCtx, shardCancel := context.WithCancel(ctx)
+	defer func() {
+		// 解鎖 shard mutex
+		if shardMutex != nil {
+			if ok, unlockErr := shardMutex.Unlock(); !ok || unlockErr != nil {
+				k.logger.WarnWithContext(shardCtx, "Failed to release shard lock",
+					k.logger.String("shard_id", shardId),
+					k.logger.Error("err", unlockErr))
+			}
+		}
+	}()
+	defer func() {
+		if r := recover(); r != nil {
+			k.logger.ErrorWithContext(
+				shardCtx,
+				"Recovered from panic in shard consumer",
+				k.logger.String("shard_id", shardId),
+				k.logger.Any("recover", r),
+				k.logger.String("stacktrace", string(debug.Stack())),
+			)
+		}
+		shardCancel()
+		shardWaiters.Done()
+	}()
+
+	currentIterator := initialIterator
+	backoffManager := k.createBackoffManager()
+
+	for {
+		select {
+		case <-shardCtx.Done():
+			return
+		default:
+			// 獲取和處理記錄
+			newIterator, shouldContinue := k.processShardRecords(
+				shardCtx, shardId, currentIterator, backoffManager, shardErrs)
+			if !shouldContinue {
+				return
+			}
+			currentIterator = newIterator
+			time.Sleep(backoffManager.GetCurrentBackoff())
+		}
+	}
+}
+
+// processShardRecords 處理分片記錄
+func (k *KDSService) processShardRecords(
+	ctx context.Context,
+	shardId, currentIterator string,
+	backoffManager *BackoffManager,
+	shardErrs chan<- error,
+) (string, bool) {
+	// 獲取記錄
+	recordsOutput, getRecordsErr := k.client.GetRecords(
+		ctx,
+		&kinesis.GetRecordsInput{
+			ShardIterator: aws.String(currentIterator),
+			Limit:         aws.Int32(int32(k.config.Consumer.KDSRecordLimit)),
+		},
+	)
+	if getRecordsErr != nil {
+		return k.handleGetRecordsError(ctx, shardId, getRecordsErr, backoffManager, shardErrs)
+	}
+
+	// 調整退避時間
+	recordsCount := len(recordsOutput.Records)
+	backoffManager.AdjustBackoffByRecordCount(recordsCount)
+
+	// 處理記錄批次
+	if recordsCount > 0 {
+		k.processRecordBatches(ctx, shardId, recordsOutput.Records)
+	}
+
+	// 獲取下一個迭代器
+	if recordsOutput.NextShardIterator != nil {
+		return *recordsOutput.NextShardIterator, true
+	}
+
+	// 分片已關閉
+	k.logger.InfoWithContext(ctx, "Shard has been closed", k.logger.String("shard_id", shardId))
+	return "", false
+}
+
+// handleGetRecordsError 處理獲取記錄錯誤
+func (k *KDSService) handleGetRecordsError(
+	ctx context.Context,
+	shardId string,
+	getRecordsErr error,
+	backoffManager *BackoffManager,
+	shardErrs chan<- error,
+) (string, bool) {
+	k.logger.ErrorWithContext(
+		ctx,
+		"Failed to get records from shard",
+		k.logger.String("shard_id", shardId),
+		k.logger.Error("err", getRecordsErr),
+	)
+
+	// 增加退避時間
+	backoffManager.IncreaseBackoff()
+	time.Sleep(backoffManager.GetCurrentBackoff())
+
+	// 重新獲取迭代器
+	iterators, getIteratorsErr := k.getShardIterators(ctx)
+	if getIteratorsErr != nil {
+		k.logger.ErrorWithContext(
+			ctx,
+			"Failed to refresh shard iterator",
+			k.logger.String("shard_id", shardId),
+			k.logger.Error("err", getIteratorsErr),
+		)
+
+		// 只有在上下文未被取消時才報告錯誤
+		if ctx.Err() == nil {
+			select {
+			case shardErrs <- fmt.Errorf("failed to refresh shard iterator for shard %s: %w", shardId, getIteratorsErr):
+			default:
+			}
+		}
+		return "", false
+	}
+
+	if newIterator, ok := iterators[shardId]; ok {
+		return newIterator, true
+	}
+
+	k.logger.ErrorWithContext(
+		ctx,
+		"Shard no longer available",
+		k.logger.String("shard_id", shardId),
+	)
+	return "", false
+}
+
+// processRecordBatches 處理記錄批次
+func (k *KDSService) processRecordBatches(
+	ctx context.Context,
+	shardId string,
+	records []types.Record,
+) {
+	// 批次去重檢查
+	eventIDs := k.extractEventIDs(records)
+	duplicationCheckMap := k.batchCheckEventsProcessed(ctx, eventIDs)
+
+	// 過濾未處理的記錄
+	unprocessedRecords := k.filterUnprocessedRecords(records, eventIDs, duplicationCheckMap)
+
+	if len(unprocessedRecords) == 0 {
+		return
+	}
+
+	// 收集所有批次的處理結果
+	allSuccessfulEvents := make([]string, 0)
+	var lastSuccessSequence string
+
+	// 按照配置的 BatchSize 分割記錄
+	batchSize := k.config.Consumer.BatchSize
+	for i := 0; i < len(unprocessedRecords); i += batchSize {
+		end := i + batchSize
+		if end > len(unprocessedRecords) {
+			end = len(unprocessedRecords)
+		}
+
+		batch := RecordBatch{
+			Records: unprocessedRecords[i:end],
+			ShardID: shardId,
+		}
+
+		// 批次處理
+		results := k.processBatch(ctx, batch)
+
+		// 處理每個批次的結果
+		successfulEvents, lastSequence := k.handleBatchResults(ctx, results)
+		allSuccessfulEvents = append(allSuccessfulEvents, successfulEvents...)
+		if lastSequence != "" {
+			lastSuccessSequence = lastSequence
+		}
+	}
+
+	// 批次標記所有成功的事件為已處理
+	if len(allSuccessfulEvents) > 0 {
+		k.batchMarkEventsProcessed(ctx, allSuccessfulEvents)
+	}
+
+	// 更新檢查點到最後成功的序列號
+	if lastSuccessSequence != "" {
+		if checkpointErr := k.updateCheckpoint(ctx, shardId, lastSuccessSequence); checkpointErr != nil {
+			k.logger.WarnWithContext(ctx,
+				"Failed to update checkpoint",
+				k.logger.String("shard_id", shardId),
+				k.logger.String("sequence_number", lastSuccessSequence),
+				k.logger.Error("err", checkpointErr))
+		}
+	}
+}
+
+// extractEventIDs 提取事件ID列表
+func (k *KDSService) extractEventIDs(records []types.Record) []string {
+	eventIDs := make([]string, 0, len(records))
+	for _, record := range records {
+		if parseEvent, err := k.parseEvent(record.Data); err == nil {
+			eventIDs = append(eventIDs, parseEvent.ID)
+		}
+	}
+	return eventIDs
+}
+
+// filterUnprocessedRecords 過濾未處理的記錄
+func (k *KDSService) filterUnprocessedRecords(
+	records []types.Record,
+	eventIDs []string,
+	processedMap map[string]bool,
+) []types.Record {
+	unprocessedRecords := make([]types.Record, 0, len(records))
+	for i, record := range records {
+		if i < len(eventIDs) && !processedMap[eventIDs[i]] {
+			unprocessedRecords = append(unprocessedRecords, record)
+		}
+	}
+	return unprocessedRecords
+}
+
+// handleBatchResults 處理批次結果
+func (k *KDSService) handleBatchResults(
+	ctx context.Context,
+	results []ProcessResult,
+) ([]string, string) {
+	successfulEvents := make([]string, 0, len(results))
+	var lastSuccessSequence string
+
+	for _, result := range results {
+		if result.Success {
+			successfulEvents = append(successfulEvents, result.EventID)
+			lastSuccessSequence = result.SequenceNumber
+
+			k.logger.InfoWithContext(ctx,
+				"Processed event successfully",
+				k.logger.String("event_type", result.EventType),
+				k.logger.String("event_id", result.EventID),
+				k.logger.String("sequence_number", result.SequenceNumber))
+		} else if result.Error != nil {
+			if errors.Is(result.Error, errmsg.ErrUnknownEventType) {
+				// 未知事件類型仍需要更新檢查點
+				lastSuccessSequence = result.SequenceNumber
+			}
+			k.logger.ErrorWithContext(ctx,
+				"Failed to process event",
+				k.logger.String("event_id", result.EventID),
+				k.logger.Error("err", result.Error))
+		}
+	}
+
+	return successfulEvents, lastSuccessSequence
 }

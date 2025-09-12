@@ -116,9 +116,9 @@ type ConsumerConfig struct {
 	// 批次處理配置
 	BatchSize        int           // 每批次記錄數 (用於 Worker Pool 處理)
 	MaxBatchWaitTime time.Duration // 批次最大等待時間
-	
+
 	// KDS 獲取配置
-	KDSRecordLimit   int           // 每次從 KDS GetRecords 獲取的記錄數上限
+	KDSRecordLimit int // 每次從 KDS GetRecords 獲取的記錄數上限
 
 	// Worker Pool 配置
 	WorkerPoolSize   int // Worker 數量
@@ -238,7 +238,7 @@ func LoadConfig() (*Config, error) {
 				"CONSUMER_MAX_BATCH_WAIT_TIME",
 				500*time.Millisecond,
 			),
-			
+
 			// KDS 獲取配置
 			KDSRecordLimit: getIntWithDefault("CONSUMER_KDS_RECORD_LIMIT", 1000),
 
