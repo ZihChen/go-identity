@@ -91,26 +91,7 @@ func NewKDSService(
 // Close 釋放 KDSService 持有的所有資源
 func (k *KDSService) Close() error {
 	if err := k.queueService.Close(); err != nil {
-		k.logger.ErrorLog("Failed to close queue service",
-			k.logger.Error("error", err))
 		return fmt.Errorf("failed to close queue service: %w", err)
 	}
-	k.logger.InfoLog("KDS service and queue service closed successfully")
 	return nil
-}
-
-// ConsumeAllEventsEnhanced 使用簡化版批次處理消費所有事件
-// 這是一個簡化版本，直接使用現有的 ConsumeAllEvents 方法
-// 該方法現在已經包含了批次處理和 worker pool 優化
-func (k *KDSService) ConsumeAllEventsEnhanced(ctx context.Context) error {
-	k.logger.InfoWithContext(
-		ctx,
-		"Starting enhanced event consumption with batch processing",
-		k.logger.String("stream", k.consumeStream),
-		k.logger.Int("batch_size", k.config.Consumer.BatchSize),
-		k.logger.Int("worker_pool_size", k.config.Consumer.WorkerPoolSize),
-	)
-
-	// 直接調用已經優化的 ConsumeAllEvents 方法
-	return k.ConsumeAllEvents(ctx)
 }

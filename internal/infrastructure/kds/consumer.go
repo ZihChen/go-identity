@@ -147,7 +147,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 	// 檢查是否有錯誤
 	for shardErr := range shardErrs {
 		if shardErr != nil {
-			k.logger.ErrorLog("Error in shard processing", k.logger.Error("err", shardErr))
+			k.logger.ErrorWithContext(ctx, "Error in shard processing", k.logger.Error("err", shardErr))
 			return shardErr
 		}
 	}
