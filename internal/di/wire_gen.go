@@ -10,6 +10,7 @@ import (
 	"github.com/google/wire"
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/consumer"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
 	repository3 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/level"
 	repository4 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/manager"
@@ -127,8 +128,8 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 	return workerComponents, nil
 }
 
-// InitializeConsumer 初始化 Consumer 服務的 KDS 服務
-func InitializeConsumer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager) (*kds.KDSService, error) {
+// InitializeConsumerHandler 初始化 Consumer 服務的 Handler
+func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager) (*consumer.ConsumerHandler, error) {
 	queueService, err := queue.NewQueueService(cfg, logger)
 	if err != nil {
 		return nil, err
@@ -137,7 +138,8 @@ func InitializeConsumer(cfg *config.Config, logger infrastructure.Logger, redisM
 	if err != nil {
 		return nil, err
 	}
-	return kdsService, nil
+	consumerHandler := consumer.NewConsumerHandler(kdsService, queueService, logger)
+	return consumerHandler, nil
 }
 
 // wire.go:
