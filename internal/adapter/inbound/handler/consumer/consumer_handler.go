@@ -27,7 +27,11 @@ type ConsumerHandler struct {
 	logger       infrastructure.Logger
 }
 
-func NewConsumerHandler(kdsService *kds.KDSService, queueService service.QueueService, logger infrastructure.Logger) *ConsumerHandler {
+func NewConsumerHandler(
+	kdsService *kds.KDSService,
+	queueService service.QueueService,
+	logger infrastructure.Logger,
+) *ConsumerHandler {
 	return &ConsumerHandler{
 		kdsService:   kdsService,
 		queueService: queueService,
@@ -44,7 +48,10 @@ func (h *ConsumerHandler) RunConsumerLoop(rootCtx context.Context) {
 	for {
 		select {
 		case <-rootCtx.Done():
-			h.logger.WarnWithContext(rootCtx, "All events consumer stopping due to rootCtx cancellation")
+			h.logger.WarnWithContext(
+				rootCtx,
+				"All events consumer stopping due to rootCtx cancellation",
+			)
 			return
 		case <-ticker.C:
 			// Ticker觸發，執行consumer
@@ -71,7 +78,10 @@ func (h *ConsumerHandler) runConsumerWithRetry(consumerCtx context.Context) bool
 			select {
 			case <-consumerCtx.Done():
 				// 如果context已取消，立即退出， 避免無意義重試
-				h.logger.WarnWithContext(consumerCtx, "All events consumer stopping due to context cancellation during retry")
+				h.logger.WarnWithContext(
+					consumerCtx,
+					"All events consumer stopping due to context cancellation during retry",
+				)
 				return false
 			default:
 			}
@@ -154,7 +164,10 @@ func (h *ConsumerHandler) handlePanic(ctx context.Context, r interface{}) error 
 func (h *ConsumerHandler) handleConsumerError(ctx context.Context, err error, attempt int) error {
 	// 快速檢查context取消
 	if h.isContextCanceled(ctx, err) {
-		h.logger.WarnWithContext(ctx, "All events consumer stopped due to context cancellation during consume")
+		h.logger.WarnWithContext(
+			ctx,
+			"All events consumer stopped due to context cancellation during consume",
+		)
 		return err
 	}
 
