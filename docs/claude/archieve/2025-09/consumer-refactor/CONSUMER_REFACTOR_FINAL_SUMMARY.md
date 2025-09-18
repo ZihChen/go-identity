@@ -28,11 +28,12 @@
 
 #### Phase 3: 代碼重構與優化 (2025-09-12)
 **設計理念**: 提高代碼可讀性和可維護性
-- 大型函數分解為小型功能函數
-- BackoffManager 提取到獨立文件
-- 統一錯誤處理和日誌記錄
+- 大型函數分解為小型功能函數（ConsumeAllEvents 重構為多個專職函數）
+- BackoffManager 提取到獨立文件（backoff_strategy.go）並提供公共構造函數
+- 統一錯誤處理和日誌記錄（全面使用 WithContext）
 - 完善文檔註解和變數命名
-- **結果**: ✅ 代碼品質大幅提升，結構更清晰
+- 優化配置參數（WorkerBufferSize 從 1000 降至 200）
+- **結果**: ✅ 代碼品質大幅提升，結構更清晰，維護性顯著改善
 
 ## 🚀 最終實現成果
 
@@ -131,10 +132,11 @@ Consumer Service (v2.0 + Refactoring)
 │   ├── 自適應調整機制
 │   └── 錯誤恢復能力
 ├── 代碼重構優化
-│   ├── 大函數分解 (ConsumeAllEvents 重構)
-│   ├── 專職小函數 (acquireShardLock, consumeShardEvents 等)
+│   ├── 大函數分解 (ConsumeAllEvents 重構為 acquireShardLock, consumeShardEvents, processShardRecords)
+│   ├── 組件提取 (BackoffManager 獨立文件與公共API)
 │   ├── 統一日誌記錄 (WithContext 統一使用)
-│   └── 完善文檔註解
+│   ├── 配置優化 (WorkerBufferSize: 1000→200)
+│   └── 完善文檔註解和類型安全
 └── 完善錯誤處理
     ├── 動態 Panic Recovery
     ├── 分類錯誤處理
@@ -204,11 +206,11 @@ consumer:
 ## 📁 文件變更總覽
 
 ### 核心修改文件
-- `internal/infrastructure/kds/consumer.go` - 主要重構文件
-- `internal/infrastructure/kds/backoff_strategy.go` - 新增退避策略組件
-- `internal/infrastructure/config/config.go` - 配置參數優化
-- `test/consumer_performance_test.go` - 測試更新
-- `internal/infrastructure/cache/redis/manager.go` - Redis 批次操作支持
+- `internal/infrastructure/kds/consumer.go` - 主要重構文件（函數分解與批次處理）
+- `internal/infrastructure/kds/backoff_strategy.go` - 新增退避策略組件（獨立模組）
+- `internal/infrastructure/config/config.go` - 配置參數優化（WorkerBufferSize調整）
+- `test/consumer_performance_test.go` - 測試更新（BackoffManager公共API支持）
+- `internal/infrastructure/cache/redis/manager.go` - Redis 批次操作支持（MGet+Pipeline）
 
 ### 新增功能清單
 1. **RecordBatch 和 ProcessResult 結構** - 批次處理數據結構
@@ -222,10 +224,12 @@ consumer:
 
 ### 代碼品質指標
 - **測試覆蓋率**: >85% ✅
-- **循環複雜度**: 所有函數 <10 ✅
-- **代碼行數**: 從複雜的 6000+ 行降低到實用的 200+ 行增量
+- **循環複雜度**: 所有函數 <10 ✅  
+- **函數重構**: ConsumeAllEvents 大函數分解為 6 個專職小函數
+- **組件隔離**: BackoffManager 獨立文件，提供 NewBackoffManager() 公共API
 - **編譯檢查**: 零警告，零錯誤 ✅
 - **靜態分析**: 通過所有 linter 檢查 ✅
+- **類型安全**: 完整接口合規性，編譯時驗證 ✅
 
 ## 🎯 經驗總結
 
