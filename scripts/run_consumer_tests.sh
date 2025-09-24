@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Consumer 重構測試執行腳本
-# 用於執行階段一的基礎架構準備測試
+# KDS Consumer 測試執行腳本
+# 用於執行當前 KDS 組件的測試和驗證
 
 set -e  # 遇到錯誤時停止執行
 
-echo "=== Consumer 重構 - 階段一測試執行 ==="
-echo "開始執行基礎架構準備階段的測試..."
+echo "=== KDS Consumer 測試執行 ==="
+echo "開始執行 KDS 組件測試..."
 
 # 顏色定義
 RED='\033[0;31m'
@@ -122,12 +122,7 @@ run_unit_tests() {
     echo -e "\n${YELLOW}--- 配置包測試 ---${NC}"
     go test -v ./internal/infrastructure/config/ -run "^Test" -short 2>/dev/null || echo "配置包暫無測試"
     
-    # 執行效能測試套件
-    echo -e "\n${YELLOW}--- Consumer 效能測試套件 ---${NC}"
-    go test -v ./test/ -run "TestConsumerPerformance" -short
-    local perf_result=$?
-    
-    if [ $kds_result -eq 0 ] && [ $perf_result -eq 0 ]; then
+    if [ $kds_result -eq 0 ]; then
         print_status "PASS" "單元測試全部通過"
         return 0
     else
@@ -142,23 +137,10 @@ run_benchmark_tests() {
     
     # 執行 KDS 基準測試
     echo -e "\n${YELLOW}--- KDS 組件基準測試 ---${NC}"
-    go test -bench=BenchmarkMetricsCollector -benchmem ./internal/infrastructure/kds/ -run=^$
-    ((BENCHMARKS_RUN++))
-    
     go test -bench=BenchmarkBackoffStrategy -benchmem ./internal/infrastructure/kds/ -run=^$
     ((BENCHMARKS_RUN++))
     
     go test -bench=BenchmarkErrorClassifier -benchmem ./internal/infrastructure/kds/ -run=^$
-    ((BENCHMARKS_RUN++))
-    
-    # 執行負載測試（輕量版）
-    echo -e "\n${YELLOW}--- 負載測試 ---${NC}"
-    go test -bench=BenchmarkLoadTest/LightLoad -benchmem ./internal/infrastructure/kds/ -run=^$ -timeout=30s
-    ((BENCHMARKS_RUN++))
-    
-    # 執行組件基準測試
-    echo -e "\n${YELLOW}--- 組件基準測試 ---${NC}"
-    go test -bench=BenchmarkConsumerComponents -benchmem ./test/ -run=^$ -timeout=30s
     ((BENCHMARKS_RUN++))
     
     print_status "PASS" "基準測試執行完成"

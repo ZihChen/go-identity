@@ -26,9 +26,6 @@ type KDSService struct {
 	config        *cfg.Config
 	queueService  service.QueueService
 	logger        infrastructure.Logger
-
-	// 新增：錯誤分類器用於批次處理
-	errorClassifier *ErrorClassifier
 }
 
 // NewKDSService 創建KDS服務
@@ -68,23 +65,19 @@ func NewKDSService(
 		logger.String("stream_arn", streamARN),
 		logger.String("dynamodb_table", config.AWS.DynamoDBTable))
 
-	// 創建錯誤分類器
-	errorClassifier := NewErrorClassifier()
-
 	return &KDSService{
-		client:          kinesisClient,
-		dynamoClient:    dynamoClient,
-		redisManager:    redisManager,
-		streamName:      streamName,
-		consumeStream:   config.AWS.ConsumeStream,
-		produceStream:   config.AWS.ProduceStream,
-		tableName:       config.AWS.DynamoDBTable,
-		partitionKey:    config.AWS.PartitionKey,
-		sortKey:         config.AWS.SortKey,
-		config:          config,
-		queueService:    queueService,
-		logger:          logger,
-		errorClassifier: errorClassifier,
+		client:        kinesisClient,
+		dynamoClient:  dynamoClient,
+		redisManager:  redisManager,
+		streamName:    streamName,
+		consumeStream: config.AWS.ConsumeStream,
+		produceStream: config.AWS.ProduceStream,
+		tableName:     config.AWS.DynamoDBTable,
+		partitionKey:  config.AWS.PartitionKey,
+		sortKey:       config.AWS.SortKey,
+		config:        config,
+		queueService:  queueService,
+		logger:        logger,
 	}, nil
 }
 

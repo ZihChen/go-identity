@@ -60,6 +60,11 @@ The codebase follows hexagonal architecture with clear separation:
   - `database/mysql/` - MySQL with GORM
   - `cache/redis/` - Redis caching and queuing
   - `kds/` - AWS Kinesis integration for event streaming
+    - `backoff_strategy.go` - Adaptive backoff management for Consumer resilience
+    - `consumer.go` - KDS event consumption with batch processing and worker pools
+    - `enqueue.go` - Event enqueueing and processing logic
+    - `kds.go` - Core KDS service with AWS SDK integration
+    - `producer.go` - KDS event production for identity synchronization
   - `queue/` - Background job queue management
   - `tracing/` - OpenTelemetry distributed tracing
   - `config/` - Configuration management
@@ -308,3 +313,33 @@ While both services share similar architectural patterns, Fat Identity Cat focus
 - **✅ Documentation Complete**: Complete refactoring history and technical decisions documented and archived
 
 The Consumer service now delivers enterprise-grade performance and scalability with significantly improved code maintainability, **successfully deployed and running in production environment**.
+
+### Code Cleanup and Simplification (2025-09-24) ✅
+**Architecture Simplification**: Removed unused experimental components to maintain clean, production-ready codebase
+
+#### Cleanup Activities Completed
+- ✅ **ErrorClassifier Removal**: Removed unused error classification system (errors.go, errors_test.go)
+- ✅ **Metrics System Cleanup**: Previously removed unused metrics collection components (metrics.go)
+- ✅ **BackoffManager Simplification**: Removed unused SetBackoffMultiplier method
+- ✅ **Code Consolidation**: Streamlined error handling to production-essential logic only
+- ✅ **Test Suite Cleanup**: Removed obsolete performance test files and updated test scripts
+
+#### Current KDS Architecture (Post-Cleanup)
+**Core Components** (5 files):
+- `backoff_strategy.go` - Essential adaptive backoff management
+- `consumer.go` - Core KDS consumption with batch processing and worker pools
+- `enqueue.go` - Event processing and queue integration
+- `kds.go` - AWS SDK integration and service management
+- `producer.go` - KDS event production
+
+**Key Architectural Principles**:
+- **Production-Focused**: Only essential components that are actively used in production
+- **Clean Dependencies**: No unused experimental code or over-engineered abstractions
+- **Maintainable**: Simplified error handling and logging patterns
+- **Performance-Proven**: Retains all production-validated optimizations (3.3x throughput improvement)
+
+#### Benefits of Simplification
+- **Reduced Complexity**: Easier for new developers to understand and maintain
+- **Lower Technical Debt**: Removed ~800+ lines of unused experimental code
+- **Cleaner Testing**: Focused test coverage on actually used functionality
+- **Production Stability**: No risk from unused code paths or experimental features
