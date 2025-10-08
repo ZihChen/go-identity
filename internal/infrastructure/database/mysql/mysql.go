@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
@@ -48,7 +49,8 @@ func (d *Database) connect() error {
 	}
 
 	dsn := buildDSN(d.cfg)
-	d.logger.InfoLog(fmt.Sprintf("Connecting to database DSN:%s", dsn))
+	sanitizedDSN := sanitizeDSN(dsn)
+	d.logger.InfoLog(fmt.Sprintf("Connecting to database DSN:%s", sanitizedDSN))
 
 	db, err := gorm.Open(mysql.Open(dsn), gormCfg)
 	if err != nil {
@@ -112,6 +114,24 @@ func buildDSN(cfg *config.Config) string {
 		cfg.Database.Port,
 		cfg.Database.DBName,
 	)
+}
+
+func sanitizeDSN(dsn string) string {
+	re := regexp.MustCompile(`(.*?):(.+?)@(.*)`)
+	matches := re.FindStringSubmatch(dsn)
+	if len(matches) >= 4 {
+		user := matches[1]
+		password := matches[2]
+		rest := matches[3]
+		
+		maskedPassword := "****"
+		if len(password) > 0 {
+			maskedPassword = "****"
+		}
+		
+		return fmt.Sprintf("%s:%s@%s", user, maskedPassword, rest)
+	}
+	return dsn
 }
 
 func (d *Database) startHealthChecker() {
