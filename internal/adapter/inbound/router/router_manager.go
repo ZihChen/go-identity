@@ -30,6 +30,8 @@ func NewRouterManager(handler *api.HTTPHandler) *Manager {
 func (rm *Manager) SetupRoutersWithMiddleware(router *gin.Engine, cfg *config.Config) {
 	// 加入全局Middleware
 	router.Use(
+		middleware.NewCorsMiddleware(cfg),
+		middleware.AuthMiddleware(),
 		middleware.TracingMiddleware(),
 	)
 

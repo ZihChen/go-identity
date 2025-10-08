@@ -123,12 +123,12 @@ func sanitizeDSN(dsn string) string {
 		user := matches[1]
 		password := matches[2]
 		rest := matches[3]
-		
+
 		maskedPassword := "****"
 		if len(password) > 0 {
 			maskedPassword = "****"
 		}
-		
+
 		return fmt.Sprintf("%s:%s@%s", user, maskedPassword, rest)
 	}
 	return dsn

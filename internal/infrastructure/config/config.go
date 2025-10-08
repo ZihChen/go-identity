@@ -22,6 +22,7 @@ type Config struct {
 	Logs     LogsConfig
 	Events   EventsConfig
 	Consumer ConsumerConfig
+	CORS     CORSConfig
 }
 
 // AppConfig 應用程序基本配置
@@ -131,6 +132,17 @@ type ConsumerConfig struct {
 	// 分片處理配置
 	MaxShardConcurrency int           // 最大並行分片數
 	ShardLockTimeout    time.Duration // 分片鎖超時時間
+}
+
+// CORSConfig CORS配置
+type CORSConfig struct {
+	Enabled          bool     // 是否啟用CORS
+	AllowedOrigins   []string // 允許的來源列表
+	AllowedMethods   []string // 允許的HTTP方法
+	AllowedHeaders   []string // 允許的請求頭
+	ExposedHeaders   []string // 暴露的回應頭
+	AllowCredentials bool     // 是否允許憑證
+	MaxAge           int      // 預檢請求快取時間(小時)
 }
 
 // LoadConfig 加載配置
@@ -245,6 +257,21 @@ func LoadConfig() (*Config, error) {
 				1*time.Minute,
 			),
 		},
+		CORS: CORSConfig{
+			Enabled:        getBoolWithDefault("CORS_ENABLED", true),
+			AllowedOrigins: getSliceWithDefault("CORS_ALLOWED_ORIGINS", []string{}),
+			AllowedMethods: getSliceWithDefault(
+				"CORS_ALLOWED_METHODS",
+				[]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+			),
+			AllowedHeaders: getSliceWithDefault(
+				"CORS_ALLOWED_HEADERS",
+				[]string{"Origin", "Content-Type", "Authorization", "API-Key"},
+			),
+			ExposedHeaders:   getSliceWithDefault("CORS_EXPOSED_HEADERS", []string{"Content-Type"}),
+			AllowCredentials: getBoolWithDefault("CORS_ALLOW_CREDENTIALS", false),
+			MaxAge:           getIntWithDefault("CORS_MAX_AGE", 12),
+		},
 	}
 
 	return config, nil
@@ -307,6 +334,14 @@ func getFloatWithDefault(key string, defaultValue float64) float64 {
 func getBoolWithDefault(key string, defaultValue bool) bool {
 	if viper.IsSet(key) {
 		return viper.GetBool(key)
+	}
+	return defaultValue
+}
+
+// getSliceWithDefault 獲取 string slice 配置值，如果不存在則使用預設值
+func getSliceWithDefault(key string, defaultValue []string) []string {
+	if viper.IsSet(key) {
+		return viper.GetStringSlice(key)
 	}
 	return defaultValue
 }
@@ -388,6 +423,15 @@ func (c *Config) PrintConfig() {
 	fmt.Printf("  MaxBackoff: %v\n", c.Consumer.MaxBackoff)
 	fmt.Printf("  MaxShardConcurrency: %d\n", c.Consumer.MaxShardConcurrency)
 	fmt.Printf("  ShardLockTimeout: %v\n", c.Consumer.ShardLockTimeout)
+
+	fmt.Printf("\n[CORS]\n")
+	fmt.Printf("  Enabled: %t\n", c.CORS.Enabled)
+	fmt.Printf("  AllowedOrigins: %v\n", c.CORS.AllowedOrigins)
+	fmt.Printf("  AllowedMethods: %v\n", c.CORS.AllowedMethods)
+	fmt.Printf("  AllowedHeaders: %v\n", c.CORS.AllowedHeaders)
+	fmt.Printf("  ExposedHeaders: %v\n", c.CORS.ExposedHeaders)
+	fmt.Printf("  AllowCredentials: %t\n", c.CORS.AllowCredentials)
+	fmt.Printf("  MaxAge: %d hours\n", c.CORS.MaxAge)
 
 	fmt.Println("\n==============================")
 }
