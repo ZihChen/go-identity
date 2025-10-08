@@ -131,18 +131,6 @@ type ConsumerConfig struct {
 	// 分片處理配置
 	MaxShardConcurrency int           // 最大並行分片數
 	ShardLockTimeout    time.Duration // 分片鎖超時時間
-
-	// 監控配置
-	MetricsInterval     time.Duration // 指標收集間隔
-	HealthCheckInterval time.Duration // 健康檢查間隔
-
-	// 恢復機制配置
-	EnablePanicRecovery bool // 是否啟用 Panic 恢復
-	MaxRecoveryAttempts int  // 最大恢復嘗試次數
-
-	// 分散式鎖配置
-	LockRetryInterval time.Duration // 鎖重試間隔
-	LockMaxRetries    int           // 鎖最大重試次數
 }
 
 // LoadConfig 加載配置
@@ -256,27 +244,6 @@ func LoadConfig() (*Config, error) {
 				"CONSUMER_SHARD_LOCK_TIMEOUT",
 				1*time.Minute,
 			),
-
-			// 監控配置
-			MetricsInterval: getDurationWithDefault(
-				"CONSUMER_METRICS_INTERVAL",
-				30*time.Second,
-			),
-			HealthCheckInterval: getDurationWithDefault(
-				"CONSUMER_HEALTH_CHECK_INTERVAL",
-				10*time.Second,
-			),
-
-			// 恢復機制配置
-			EnablePanicRecovery: getBoolWithDefault("CONSUMER_ENABLE_PANIC_RECOVERY", true),
-			MaxRecoveryAttempts: getIntWithDefault("CONSUMER_MAX_RECOVERY_ATTEMPTS", 3),
-
-			// 分散式鎖配置
-			LockRetryInterval: getDurationWithDefault(
-				"CONSUMER_LOCK_RETRY_INTERVAL",
-				1*time.Second,
-			),
-			LockMaxRetries: getIntWithDefault("CONSUMER_LOCK_MAX_RETRIES", 5),
 		},
 	}
 
@@ -421,12 +388,6 @@ func (c *Config) PrintConfig() {
 	fmt.Printf("  MaxBackoff: %v\n", c.Consumer.MaxBackoff)
 	fmt.Printf("  MaxShardConcurrency: %d\n", c.Consumer.MaxShardConcurrency)
 	fmt.Printf("  ShardLockTimeout: %v\n", c.Consumer.ShardLockTimeout)
-	fmt.Printf("  MetricsInterval: %v\n", c.Consumer.MetricsInterval)
-	fmt.Printf("  HealthCheckInterval: %v\n", c.Consumer.HealthCheckInterval)
-	fmt.Printf("  EnablePanicRecovery: %t\n", c.Consumer.EnablePanicRecovery)
-	fmt.Printf("  MaxRecoveryAttempts: %d\n", c.Consumer.MaxRecoveryAttempts)
-	fmt.Printf("  LockRetryInterval: %v\n", c.Consumer.LockRetryInterval)
-	fmt.Printf("  LockMaxRetries: %d\n", c.Consumer.LockMaxRetries)
 
 	fmt.Println("\n==============================")
 }

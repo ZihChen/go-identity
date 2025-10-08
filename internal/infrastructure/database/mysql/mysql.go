@@ -22,8 +22,9 @@ type Database struct {
 
 func NewDatabase(cfg *config.Config, logger infrastructure.Logger) (*Database, error) {
 	db := &Database{
-		cfg:    cfg,
-		logger: logger,
+		cfg:     cfg,
+		logger:  logger,
+		isClose: make(chan struct{}),
 	}
 	if err := db.connect(); err != nil {
 		return nil, err
@@ -132,7 +133,7 @@ func (d *Database) startHealthChecker() {
 			} else {
 				d.logger.InfoLog("Database connection is up!")
 			}
-		case d.isClose <- struct{}{}:
+		case <-d.isClose:
 			return
 		}
 	}
