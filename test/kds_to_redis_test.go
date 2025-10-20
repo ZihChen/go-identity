@@ -11,121 +11,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/google/uuid"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-type MockLogger struct {
-	mock.Mock
-}
-
-func (m *MockLogger) DebugWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) InfoWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) ErrorWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) WarnWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) FatalWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) DebugLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) InfoLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) ErrorLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) WarnLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) FatalLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) Error(key string, value error) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) String(key string, value string) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Int(key string, value int) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Int64(key string, value int64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) UInt64(key string, value uint64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Float64(key string, value float64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Bool(key string, value bool) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Any(key string, value interface{}) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Close() {
-	m.Called()
-}
+// MockLogger is now in test/mocks/service_mocks.go
 
 func TestKDSToRedisManagerSync(t *testing.T) {
 	// 加載配置
@@ -133,7 +26,7 @@ func TestKDSToRedisManagerSync(t *testing.T) {
 	require.NoError(t, err, "Should load config without error")
 
 	// 創建日誌
-	logger := new(MockLogger)
+	logger := helper.NewMockLogger()
 
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
@@ -237,7 +130,7 @@ func TestKDSToRedisPlayerSync(t *testing.T) {
 	require.NoError(t, err, "Should load config without error")
 
 	// 創建日誌
-	logger := new(MockLogger)
+	logger := helper.NewMockLogger()
 
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
@@ -336,7 +229,7 @@ func TestKDSToRedisMerchantSync(t *testing.T) {
 	require.NoError(t, err, "Should load config without error")
 
 	// 創建日誌
-	logger := new(MockLogger)
+	logger := helper.NewMockLogger()
 
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())

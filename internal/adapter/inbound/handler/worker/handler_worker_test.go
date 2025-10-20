@@ -11,6 +11,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -18,13 +19,13 @@ import (
 // Setup function for tests
 func setupWorkerTest(
 	t *testing.T,
-) (*helper.MockMerchantUseCase, *helper.MockPlayerUseCase, *helper.MockManagerUseCase, *helper.MockTagUseCase, *WorkerHandler) {
-	merchantUseCase := new(helper.MockMerchantUseCase)
-	playerUseCase := new(helper.MockPlayerUseCase)
-	managerUseCase := new(helper.MockManagerUseCase)
-	tagUseCase := new(helper.MockTagUseCase)
-	mockLevelUseCase := new(helper.MockLevelUseCase)
-	logger := helper.SetupLoggerMock(t)
+) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *mocks.TagUseCaseMock, *WorkerHandler) {
+	merchantUseCase := mocks.NewMerchantUseCaseMock(t)
+	playerUseCase := mocks.NewPlayerUseCaseMock(t)
+	managerUseCase := mocks.NewManagerUseCaseMock(t)
+	tagUseCase := mocks.NewTagUseCaseMock(t)
+	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
+	logger := helper.NewMockLogger()
 
 	handler := NewWorkerHandler(
 		merchantUseCase,
@@ -84,7 +85,7 @@ func TestWorkerHandler_HandleMerchantSync_Success(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	merchantUseCase.AssertExpectations(t)
+	merchantUseCase.AssertExpectations()
 }
 
 func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
@@ -109,7 +110,7 @@ func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync merchant")
-	merchantUseCase.AssertExpectations(t)
+	merchantUseCase.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync
@@ -134,7 +135,7 @@ func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 func TestWorkerHandler_HandlePlayerSync_NilTask(t *testing.T) {
@@ -174,14 +175,14 @@ func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync player")
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync with tags and level data
 func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 	// Setup
 	_, playerUseCase, _, tagUseCase, handler := setupWorkerTest(t)
-	mockLevelUseCase := new(helper.MockLevelUseCase)
+	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
 	handler.levelUseCase = mockLevelUseCase
 
 	// Create task with player, tags, and level data
@@ -223,16 +224,16 @@ func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	playerUseCase.AssertExpectations(t)
-	tagUseCase.AssertExpectations(t)
-	mockLevelUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
+	tagUseCase.AssertExpectations()
+	mockLevelUseCase.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync with level data error
 func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 	// Setup
 	_, playerUseCase, _, _, handler := setupWorkerTest(t)
-	mockLevelUseCase := new(helper.MockLevelUseCase)
+	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
 	handler.levelUseCase = mockLevelUseCase
 
 	// Setup expectations
@@ -266,8 +267,8 @@ func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	playerUseCase.AssertExpectations(t)
-	mockLevelUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
+	mockLevelUseCase.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync with tag error
@@ -312,8 +313,8 @@ func TestWorkerHandler_HandlePlayerSync_TagError(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync player tags")
-	playerUseCase.AssertExpectations(t)
-	tagUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
+	tagUseCase.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync with player tag relation error
@@ -358,8 +359,8 @@ func TestWorkerHandler_HandlePlayerSync_PlayerTagRelationError(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync player tags relation")
-	playerUseCase.AssertExpectations(t)
-	tagUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
+	tagUseCase.AssertExpectations()
 }
 
 // Tests for HandleManagerSync
@@ -383,7 +384,7 @@ func TestWorkerHandler_HandleManagerSync_Success(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	managerUseCase.AssertExpectations(t)
+	managerUseCase.AssertExpectations()
 }
 
 func TestWorkerHandler_HandleManagerSync_NilTask(t *testing.T) {
@@ -423,5 +424,5 @@ func TestWorkerHandler_HandleManagerSync_Error(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync manager")
-	managerUseCase.AssertExpectations(t)
+	managerUseCase.AssertExpectations()
 }

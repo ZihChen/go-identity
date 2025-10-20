@@ -11,6 +11,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -19,13 +20,13 @@ import (
 // Helper functions
 func setupTest(
 	t *testing.T,
-) (*helper.MockMerchantUseCase, *helper.MockPlayerUseCase, *helper.MockManagerUseCase, *helper.MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
+) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *helper.MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 
-	merchantUseCase := new(helper.MockMerchantUseCase)
-	playerUseCase := new(helper.MockPlayerUseCase)
-	managerUseCase := new(helper.MockManagerUseCase)
-	mockLogger := helper.SetupLoggerMock(t)
+	merchantUseCase := mocks.NewMerchantUseCaseMock(t)
+	playerUseCase := mocks.NewPlayerUseCaseMock(t)
+	managerUseCase := mocks.NewManagerUseCaseMock(t)
+	mockLogger := helper.NewMockLogger()
 
 	handler := &HTTPHandler{
 		merchantUseCase: merchantUseCase,
@@ -40,34 +41,7 @@ func setupTest(
 	return merchantUseCase, playerUseCase, managerUseCase, mockLogger, handler, c, w
 }
 
-func createTestMerchant() *entity.Merchant {
-	return &entity.Merchant{
-		ID:               1,
-		GlobalMerchantID: "FATCAT-MERCHANT-1",
-		Name:             "Test Merchant",
-		DisplayName:      "Test Merchant Display",
-		APIKey:           "api-key-123",
-	}
-}
-
-func createTestPlayer() *entity.Player {
-	return &entity.Player{
-		ID:             1,
-		GlobalPlayerID: "FATCAT-PLAYER-1",
-		MerchantID:     1,
-		Account:        "testplayer",
-		APIKey:         "api-key-456",
-	}
-}
-
-func createTestManager() *entity.Manager {
-	return &entity.Manager{
-		ID:              1,
-		GlobalManagerID: "FATCAT-MANAGER-1",
-		MerchantID:      1,
-		Account:         "testmanager",
-	}
-}
+// Test helper functions are now in test/mocks/helpers.go
 
 // Tests for GetMerchantByID
 func TestHTTPHandler_GetMerchantByID(t *testing.T) {
@@ -78,7 +52,7 @@ func TestHTTPHandler_GetMerchantByID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock
-	merchant := createTestMerchant()
+	merchant := mocks.CreateTestMerchant()
 	merchantUseCase.On("GetMerchantByID", mock.Anything, uint64(1)).Return(merchant, nil)
 
 	// Execute
@@ -95,7 +69,7 @@ func TestHTTPHandler_GetMerchantByID(t *testing.T) {
 	assert.Equal(t, merchant.GlobalMerchantID, response.GlobalMerchantID)
 	assert.Equal(t, merchant.Name, response.Name)
 
-	merchantUseCase.AssertExpectations(t)
+	merchantUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetMerchantByID_InvalidID(t *testing.T) {
@@ -141,7 +115,7 @@ func TestHTTPHandler_GetMerchantByID_NotFound(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Merchant not found")
 
-	merchantUseCase.AssertExpectations(t)
+	merchantUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetMerchantByID_InternalError(t *testing.T) {
@@ -167,7 +141,7 @@ func TestHTTPHandler_GetMerchantByID_InternalError(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Failed to get merchant")
 
-	merchantUseCase.AssertExpectations(t)
+	merchantUseCase.AssertExpectations()
 }
 
 // Tests for GetMerchantByGlobalID
@@ -179,7 +153,7 @@ func TestHTTPHandler_GetMerchantByGlobalID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-MERCHANT-1"}}
 
 	// Setup mock
-	merchant := createTestMerchant()
+	merchant := mocks.CreateTestMerchant()
 	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
 		Return(merchant, nil)
 
@@ -197,7 +171,7 @@ func TestHTTPHandler_GetMerchantByGlobalID(t *testing.T) {
 	assert.Equal(t, merchant.GlobalMerchantID, response.GlobalMerchantID)
 	assert.Equal(t, merchant.Name, response.Name)
 
-	merchantUseCase.AssertExpectations(t)
+	merchantUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetMerchantByGlobalID_EmptyID(t *testing.T) {
@@ -243,7 +217,7 @@ func TestHTTPHandler_GetMerchantByGlobalID_NotFound(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Merchant not found")
 
-	merchantUseCase.AssertExpectations(t)
+	merchantUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetMerchantByGlobalID_InternalError(t *testing.T) {
@@ -269,7 +243,7 @@ func TestHTTPHandler_GetMerchantByGlobalID_InternalError(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Failed to get merchant")
 
-	merchantUseCase.AssertExpectations(t)
+	merchantUseCase.AssertExpectations()
 }
 
 // Tests for GetPlayerByID
@@ -281,7 +255,7 @@ func TestHTTPHandler_GetPlayerByID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock
-	player := createTestPlayer()
+	player := mocks.CreateTestPlayer()
 	playerUseCase.On("GetPlayerByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// Execute
@@ -298,7 +272,7 @@ func TestHTTPHandler_GetPlayerByID(t *testing.T) {
 	assert.Equal(t, player.GlobalPlayerID, response.GlobalPlayerID)
 	assert.Equal(t, player.Account, response.Account)
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetPlayerByID_InvalidID(t *testing.T) {
@@ -344,7 +318,7 @@ func TestHTTPHandler_GetPlayerByID_NotFound(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Player not found")
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetPlayerByID_InternalError(t *testing.T) {
@@ -370,7 +344,7 @@ func TestHTTPHandler_GetPlayerByID_InternalError(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Failed to get player")
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 // Tests for GetPlayerByGlobalID
@@ -382,7 +356,7 @@ func TestHTTPHandler_GetPlayerByGlobalID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-PLAYER-1"}}
 
 	// Setup mock
-	player := createTestPlayer()
+	player := mocks.CreateTestPlayer()
 	playerUseCase.On("GetPlayerByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(player, nil)
 
 	// Execute
@@ -399,7 +373,7 @@ func TestHTTPHandler_GetPlayerByGlobalID(t *testing.T) {
 	assert.Equal(t, player.GlobalPlayerID, response.GlobalPlayerID)
 	assert.Equal(t, player.Account, response.Account)
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetPlayerByGlobalID_EmptyID(t *testing.T) {
@@ -445,7 +419,7 @@ func TestHTTPHandler_GetPlayerByGlobalID_NotFound(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Player not found")
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetPlayerByGlobalID_InternalError(t *testing.T) {
@@ -471,7 +445,7 @@ func TestHTTPHandler_GetPlayerByGlobalID_InternalError(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Failed to get player")
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_UpdatePlayerLastActive(t *testing.T) {
@@ -496,7 +470,7 @@ func TestHTTPHandler_UpdatePlayerLastActive(t *testing.T) {
 
 	assert.Contains(t, response["status"], "success")
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_UpdatePlayerLastActive_InvalidID(t *testing.T) {
@@ -542,7 +516,7 @@ func TestHTTPHandler_UpdatePlayerLastActive_NotFound(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Player not found")
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_UpdatePlayerLastActive_InternalError(t *testing.T) {
@@ -568,7 +542,7 @@ func TestHTTPHandler_UpdatePlayerLastActive_InternalError(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Failed to update player")
 
-	playerUseCase.AssertExpectations(t)
+	playerUseCase.AssertExpectations()
 }
 
 // Tests for GetManagerByID
@@ -580,7 +554,7 @@ func TestHTTPHandler_GetManagerByID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock
-	manager := createTestManager()
+	manager := mocks.CreateTestManager()
 	managerUseCase.On("GetManagerByID", mock.Anything, uint64(1)).Return(manager, nil)
 
 	// Execute
@@ -597,7 +571,7 @@ func TestHTTPHandler_GetManagerByID(t *testing.T) {
 	assert.Equal(t, manager.GlobalManagerID, response.GlobalManagerID)
 	assert.Equal(t, manager.Account, response.Account)
 
-	managerUseCase.AssertExpectations(t)
+	managerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetManagerByID_InvalidID(t *testing.T) {
@@ -643,7 +617,7 @@ func TestHTTPHandler_GetManagerByID_NotFound(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Manager not found")
 
-	managerUseCase.AssertExpectations(t)
+	managerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetManagerByID_InternalError(t *testing.T) {
@@ -669,7 +643,7 @@ func TestHTTPHandler_GetManagerByID_InternalError(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Failed to get manager")
 
-	managerUseCase.AssertExpectations(t)
+	managerUseCase.AssertExpectations()
 }
 
 // Tests for GetManagerByGlobalID
@@ -681,7 +655,7 @@ func TestHTTPHandler_GetManagerByGlobalID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-MANAGER-1"}}
 
 	// Setup mock
-	manager := createTestManager()
+	manager := mocks.CreateTestManager()
 	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
 		Return(manager, nil)
 
@@ -699,7 +673,7 @@ func TestHTTPHandler_GetManagerByGlobalID(t *testing.T) {
 	assert.Equal(t, manager.GlobalManagerID, response.GlobalManagerID)
 	assert.Equal(t, manager.Account, response.Account)
 
-	managerUseCase.AssertExpectations(t)
+	managerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetManagerByGlobalID_EmptyID(t *testing.T) {
@@ -745,7 +719,7 @@ func TestHTTPHandler_GetManagerByGlobalID_NotFound(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Manager not found")
 
-	managerUseCase.AssertExpectations(t)
+	managerUseCase.AssertExpectations()
 }
 
 func TestHTTPHandler_GetManagerByGlobalID_InternalError(t *testing.T) {
@@ -771,5 +745,5 @@ func TestHTTPHandler_GetManagerByGlobalID_InternalError(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Failed to get manager")
 
-	managerUseCase.AssertExpectations(t)
+	managerUseCase.AssertExpectations()
 }

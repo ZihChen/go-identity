@@ -17,7 +17,7 @@ func TestDBConnection(t *testing.T) {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	loggerMock := helper.SetupLoggerMock(t)
+	loggerMock := helper.NewMockLogger()
 
 	// 初始化資料庫連接
 	db, err := mysql.NewDatabase(cfg, loggerMock)

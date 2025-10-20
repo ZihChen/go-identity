@@ -64,7 +64,7 @@ func setupWorkerComponents(
 	require.NoError(t, err, "Should load config without error")
 
 	// 建立 MockLogger
-	mockLogger := helper.SetupLoggerMock(t)
+	mockLogger := helper.NewMockLogger()
 
 	// 建立 Redis Manager
 	redisManager := redis.NewRedisManager(cfg)
@@ -172,7 +172,7 @@ func TestMerchantRedisToWorker(t *testing.T) {
 	t.Logf("Starting merchant Redis-to-Worker-to-KDS test")
 
 	// 建立 MockLogger
-	mockLogger := helper.SetupLoggerMock(t)
+	mockLogger := helper.NewMockLogger()
 
 	// 設置 Worker 組件
 	workerComponents, cfg, _, cleanupWorker := setupWorkerComponents(t)
@@ -334,7 +334,7 @@ func TestMerchantRedisToWorker(t *testing.T) {
 func TestPlayerRedisToWorker(t *testing.T) {
 	t.Logf("Starting player Redis-to-Worker-to-KDS test")
 
-	mockLogger := helper.SetupLoggerMock(t)
+	mockLogger := helper.NewMockLogger()
 
 	// 設置 Worker 組件
 	workerComponents, cfg, _, cleanupWorker := setupWorkerComponents(t)
@@ -512,7 +512,7 @@ func TestPlayerRedisToWorker(t *testing.T) {
 func TestManagerRedisToWorker(t *testing.T) {
 	t.Logf("Starting manager Redis-to-Worker-to-KDS test")
 
-	mockLogger := helper.SetupLoggerMock(t)
+	mockLogger := helper.NewMockLogger()
 
 	// 設置 Worker 組件
 	workerComponents, cfg, _, cleanupWorker := setupWorkerComponents(t)

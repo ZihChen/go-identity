@@ -7,11 +7,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -143,114 +143,6 @@ func (m *MockDynamoDBClient) PutItem(
 	return args.Get(0).(*dynamodb.PutItemOutput), args.Error(1)
 }
 
-// MockLogger is a mock implementation of infraport.Logger
-type MockLogger struct {
-	mock.Mock
-}
-
-func (m *MockLogger) DebugWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) InfoWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) ErrorWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) WarnWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) FatalWithContext(
-	ctx context.Context,
-	msg string,
-	fields ...*entity.LoggerFiled,
-) {
-	m.Called(ctx, msg, fields)
-}
-
-func (m *MockLogger) DebugLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) InfoLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) ErrorLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) WarnLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) FatalLog(msg string, fields ...*entity.LoggerFiled) {
-	m.Called(msg, fields)
-}
-
-func (m *MockLogger) Error(key string, value error) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) String(key string, value string) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Int(key string, value int) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Int64(key string, value int64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) UInt64(key string, value uint64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Float64(key string, value float64) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Bool(key string, value bool) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Any(key string, value interface{}) *entity.LoggerFiled {
-	args := m.Called(key, value)
-	return args.Get(0).(*entity.LoggerFiled)
-}
-
-func (m *MockLogger) Close() {
-	m.Called()
-}
 
 // TestNewKDSService tests the NewKDSService function
 func TestNewKDSService(t *testing.T) {
@@ -271,7 +163,7 @@ func TestNewKDSService(t *testing.T) {
 	// Create mocks
 	mockQueueService := new(MockQueueService)
 	redisManager := redisCache.NewRedisManager(cfg)
-	mockLogger := new(MockLogger)
+	mockLogger := helper.NewMockLogger()
 
 	// Setup mock expectations
 	mockLogger.On("InfoWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
@@ -460,11 +352,11 @@ func TestConsumeAllEvents(t *testing.T) {
 			},
 		},
 		queueService: new(MockQueueService),
-		logger:       new(MockLogger),
+		logger:       helper.NewMockLogger(),
 	}
 
 	// Setup mock expectations for the logger
-	mockLogger := service.logger.(*MockLogger)
+	mockLogger := service.logger.(*helper.MockLogger)
 	mockLogger.On("InfoWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 	mockLogger.On("ErrorWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 	mockLogger.On("DebugWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
