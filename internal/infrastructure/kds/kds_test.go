@@ -163,13 +163,14 @@ func TestNewKDSService(t *testing.T) {
 	mockQueueService := new(MockQueueService)
 	redisManager := redisCache.NewRedisManager(cfg)
 	mockLogger := mocks.NewMockLogger(t)
+	mockTracer := mocks.NewTracingServiceMock(t)
 
 	// Setup mock expectations
 	mockLogger.On("InfoWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 	mockLogger.On("ErrorWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 
 	// Call the function being tested
-	service, err := NewKDSService(cfg, mockQueueService, redisManager, mockLogger)
+	service, err := NewKDSService(cfg, mockQueueService, redisManager, mockLogger, mockTracer)
 
 	// Check the results
 	assert.NoError(t, err)

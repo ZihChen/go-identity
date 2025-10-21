@@ -18,7 +18,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -491,12 +490,12 @@ func (k *KDSService) processRecord(
 	}
 
 	// 從資料中取得追蹤上下文
-	ctxWithTrace := tracing.ExtractTraceContext(ctx, record.Data)
-	eventCtx, eventSpan := tracing.StartSpan(ctxWithTrace, "KDS.EventRecord.Processing")
-	defer tracing.SpanEnd(eventSpan)
+	ctxWithTrace := k.tracing.ExtractTraceContext(ctx, record.Data)
+	eventCtx, eventSpan := k.tracing.StartSpan(ctxWithTrace, "KDS.EventRecord.Processing")
+	defer k.tracing.SpanEnd(eventSpan)
 
 	// 記錄 span 屬性
-	tracing.RecordSpanAttributes(eventSpan,
+	k.tracing.RecordSpanAttributes(eventSpan,
 		attribute.String("messaging.shard_id", shardID),
 		attribute.String("messaging.sequence_number", sequenceNumber),
 		attribute.String("messaging.event_id", eventID),
@@ -509,7 +508,7 @@ func (k *KDSService) processRecord(
 	// 處理事件
 	enqueueErr := k.eventEnqueueProcess(msgCtxWithID, eventType, record.Data)
 	if enqueueErr != nil {
-		tracing.RecordSpanError(eventSpan, enqueueErr)
+		k.tracing.RecordSpanError(eventSpan, enqueueErr)
 		return ProcessResult{
 			EventID:        eventID,
 			EventType:      eventType,
@@ -519,7 +518,7 @@ func (k *KDSService) processRecord(
 		}
 	}
 
-	tracing.TraceEvent(eventSpan, "Event processed successfully")
+	k.tracing.TraceEvent(eventSpan, "Event processed successfully")
 	return ProcessResult{
 		EventID:        eventID,
 		EventType:      eventType,

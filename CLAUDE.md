@@ -381,33 +381,57 @@ The Consumer service now delivers enterprise-grade performance and scalability w
 - **Cleaner Testing**: Focused test coverage on actually used functionality
 - **Production Stability**: No risk from unused code paths or experimental features
 
-### DIP Violation Fix - Tracing Service Abstraction (2025-10-21) ✅
-**Architecture Compliance Enhancement**: Fixed Dependency Inversion Principle violation by abstracting tracing functionality into proper interfaces
+### DIP Violation Fix - Unified TracingService Architecture (2025-10-21) ✅
+**Architecture Compliance Enhancement**: Fixed Dependency Inversion Principle violation and simplified tracing architecture through unified TracingService design
 
-#### DIP Refactoring Activities Completed
+#### DIP Refactoring and Unification Completed
 - ✅ **TracingService Interface Creation**: Created comprehensive interface in `internal/domain/ports/outbound/infrastructure/tracing.go`
-- ✅ **Infrastructure Implementation**: Implemented TracingService interface in `internal/infrastructure/tracing/tracing.go` with Service struct
+- ✅ **Unified TracingService Implementation**: Merged separate Tracer and Service structs into single `TracingService` with provider management
 - ✅ **Use Case Refactoring**: Updated all Use Cases to use dependency injection instead of direct tracing imports
   - `MerchantUseCase`, `PlayerUseCase`, `ManagerUseCase`, `LevelUseCase`, `TagUseCase`
 - ✅ **Wire Dependency Injection**: Added `provideTracingService()` to Wire configuration and updated all constructors
+- ✅ **Service Initialization Unification**: Updated all cmd services (web, consumer, worker) to use unified `NewTracingService()`
 - ✅ **Test Mock Implementation**: Created `NilTracingService` and `TracingServiceMock` for comprehensive testing support
 - ✅ **Compilation Verification**: All services compile successfully and core tests pass
 
-#### Architecture Compliance Achievements
-- **✅ Complete DIP Compliance**: Use Case層不再直接依賴Infrastructure層具體實現
+#### Unified TracingService Architecture Achievements
+- **✅ Complete DIP Compliance**: Use Case层不再直接依賴Infrastructure层具體實現
+- **✅ Simplified Design**: Merged `Tracer` and `Service` into unified `TracingService` with provider and global tracer
 - **✅ Clean Architecture Adherence**: 依賴方向完全符合Clean Architecture原則
 - **✅ Enhanced Testability**: TracingService可以輕鬆mock進行單元測試
 - **✅ Interface Abstraction**: 13個tracing方法全部抽象化為interface
 - **✅ Backward Compatibility**: 所有現有功能保持不變，無breaking changes
 
 #### Technical Implementation Details
+**Unified TracingService Structure**:
+```go
+type TracingService struct {
+    provider *sdktrace.TracerProvider
+    tracer   trace.Tracer
+}
+```
+- **Provider Management**: Internal TracerProvider lifecycle management
+- **Global Tracer**: Embedded otel.Tracer(ServiceName) for direct OpenTelemetry calls
 - **Interface Methods**: StartSpan, RecordSpanError, RecordSpanAttributes, TraceEvent, SpanEnd, GetTraceparent, InjectTraceparentToJSON, RecordSpanStatus, TraceWorkerToKDS, ExtractTraceContext, TraceRedisToWorker, TraceWorkerProcessing
-- **Service Implementation**: Wrapper pattern maintaining all existing tracing functionality
+- **Service Implementation**: Direct OpenTelemetry integration without wrapper overhead
 - **Mock Support**: Both full mock and nil mock implementations for different testing scenarios
 - **Wire Integration**: Seamless dependency injection with zero configuration changes required
 
+#### Service Initialization Simplification
+**Before (Separate Components)**:
+```go
+tracer, err := tracing.NewTracer(cfg)    // Provider management
+service := tracing.NewService()          // Interface implementation
+```
+
+**After (Unified)**:
+```go
+tracingService, err := tracing.NewTracingService(cfg)  // Both provider and interface
+```
+
 #### Verification Results
 - **Compilation**: ✅ `go build ./...` passes without errors
-- **Core Tests**: ✅ Merchant usecase tests passing (representative sample)
+- **Core Tests**: ✅ Merchant and Player usecase tests passing
 - **Interface Compliance**: ✅ All 13 TracingService methods properly implemented
 - **Architecture Validation**: ✅ No direct infrastructure dependencies in domain/application layers
+- **Service Integration**: ✅ All cmd services (web, consumer, worker) successfully migrated

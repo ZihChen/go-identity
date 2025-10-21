@@ -28,6 +28,9 @@ func TestKDSToRedisManagerSync(t *testing.T) {
 	// 創建日誌
 	logger := mocks.NewMockLogger(t)
 
+	// 創建追蹤器
+	tracer := mocks.NewTracingServiceMock(t)
+
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
 	require.NoError(t, err, "Should load AWS config without error")
@@ -41,7 +44,7 @@ func TestKDSToRedisManagerSync(t *testing.T) {
 	kinesisClient := kinesis.NewFromConfig(awsConfig)
 
 	// 創建Redis隊列客戶端
-	queueService, err := queue.NewQueueService(cfg, logger)
+	queueService, err := queue.NewQueueService(cfg, logger, tracer)
 	require.NoError(t, err, "Should create queue serviceport without error")
 
 	// 從ARN中提取stream名稱
@@ -132,6 +135,9 @@ func TestKDSToRedisPlayerSync(t *testing.T) {
 	// 創建日誌
 	logger := mocks.NewMockLogger(t)
 
+	// 創建追蹤器
+	tracer := mocks.NewTracingServiceMock(t)
+
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
 	require.NoError(t, err, "Should load AWS config without error")
@@ -140,7 +146,7 @@ func TestKDSToRedisPlayerSync(t *testing.T) {
 	kinesisClient := kinesis.NewFromConfig(awsConfig)
 
 	// 創建Redis隊列客戶端
-	queueService, err := queue.NewQueueService(cfg, logger)
+	queueService, err := queue.NewQueueService(cfg, logger, tracer)
 	require.NoError(t, err, "Should create queue serviceport without error")
 
 	// 從ARN中提取stream名稱
@@ -231,6 +237,9 @@ func TestKDSToRedisMerchantSync(t *testing.T) {
 	// 創建日誌
 	logger := mocks.NewMockLogger(t)
 
+	// 創建追蹤器
+	tracer := mocks.NewTracingServiceMock(t)
+
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
 	require.NoError(t, err, "Should load AWS config without error")
@@ -239,7 +248,7 @@ func TestKDSToRedisMerchantSync(t *testing.T) {
 	kinesisClient := kinesis.NewFromConfig(awsConfig)
 
 	// 創建Redis隊列客戶端
-	queueService, err := queue.NewQueueService(cfg, logger)
+	queueService, err := queue.NewQueueService(cfg, logger, tracer)
 	require.NoError(t, err, "Should create queue serviceport without error")
 
 	// 從ARN中提取stream名稱

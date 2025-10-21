@@ -9,15 +9,14 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
 
 // PublishMerchantSync 發布商戶同步事件
 func (k *KDSService) PublishMerchantSync(ctx context.Context, event *event.CloudEvent) error {
-	ctx, span := tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
-	defer tracing.SpanEnd(span)
+	ctx, span := k.tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+	defer k.tracing.SpanEnd(span)
 
 	k.logger.InfoWithContext(ctx, "Publishing merchant sync event",
 		k.logger.String("event_id", event.ID),
@@ -27,8 +26,8 @@ func (k *KDSService) PublishMerchantSync(ctx context.Context, event *event.Cloud
 
 // PublishPlayerSync 發布玩家同步事件
 func (k *KDSService) PublishPlayerSync(ctx context.Context, event *event.CloudEvent) error {
-	ctx, span := tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
-	defer tracing.SpanEnd(span)
+	ctx, span := k.tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+	defer k.tracing.SpanEnd(span)
 
 	k.logger.InfoWithContext(ctx, "Publishing player sync event",
 		k.logger.String("event_id", event.ID),
@@ -38,8 +37,8 @@ func (k *KDSService) PublishPlayerSync(ctx context.Context, event *event.CloudEv
 
 // PublishManagerSync 發布管理員同步事件
 func (k *KDSService) PublishManagerSync(ctx context.Context, event *event.CloudEvent) error {
-	ctx, span := tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
-	defer tracing.SpanEnd(span)
+	ctx, span := k.tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+	defer k.tracing.SpanEnd(span)
 
 	k.logger.InfoWithContext(ctx, "Publishing manager sync event",
 		k.logger.String("event_id", event.ID),
@@ -49,8 +48,8 @@ func (k *KDSService) PublishManagerSync(ctx context.Context, event *event.CloudE
 
 // PublishPlayerLevelSync 發布玩家等級同步事件
 func (k *KDSService) PublishPlayerLevelSync(ctx context.Context, event *event.CloudEvent) error {
-	ctx, span := tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
-	defer tracing.SpanEnd(span)
+	ctx, span := k.tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+	defer k.tracing.SpanEnd(span)
 
 	k.logger.InfoWithContext(ctx, "Publishing player level sync event",
 		k.logger.String("event_id", event.ID),
@@ -60,8 +59,8 @@ func (k *KDSService) PublishPlayerLevelSync(ctx context.Context, event *event.Cl
 
 // PublishPlayerTagsSync 發布玩家標籤同步事件
 func (k *KDSService) PublishPlayerTagsSync(ctx context.Context, event *event.CloudEvent) error {
-	ctx, span := tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
-	defer tracing.SpanEnd(span)
+	ctx, span := k.tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+	defer k.tracing.SpanEnd(span)
 
 	k.logger.InfoWithContext(ctx, "Publishing player tags sync event",
 		k.logger.String("event_id", event.ID),
@@ -71,8 +70,8 @@ func (k *KDSService) PublishPlayerTagsSync(ctx context.Context, event *event.Clo
 
 // PublishTagSync 發布標籤同步事件
 func (k *KDSService) PublishTagSync(ctx context.Context, event *event.CloudEvent) error {
-	ctx, span := tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
-	defer tracing.SpanEnd(span)
+	ctx, span := k.tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+	defer k.tracing.SpanEnd(span)
 
 	k.logger.InfoWithContext(ctx, "Publishing tag sync event",
 		k.logger.String("event_id", event.ID),
@@ -86,7 +85,7 @@ func (k *KDSService) publishEvent(ctx context.Context, event *event.CloudEvent) 
 		return fmt.Errorf("event cannot be nil")
 	}
 
-	event.TraceParent = tracing.GetTraceparent(ctx)
+	event.TraceParent = k.tracing.GetTraceparent(ctx)
 
 	eventBytes, err := jsoniter.Marshal(event)
 	if err != nil {
@@ -106,11 +105,11 @@ func (k *KDSService) publishEvent(ctx context.Context, event *event.CloudEvent) 
 
 // Send 發送事件到KDS
 func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) error {
-	ctx, span := tracing.StartSpan(ctx, "KDS.Send")
-	defer tracing.SpanEnd(span)
+	ctx, span := k.tracing.StartSpan(ctx, "KDS.Send")
+	defer k.tracing.SpanEnd(span)
 
 	// 添加屬性到 span
-	tracing.RecordSpanAttributes(span,
+	k.tracing.RecordSpanAttributes(span,
 		attribute.String("messaging.system", "kds"),
 		attribute.String("messaging.operation", "send"),
 		attribute.String("messaging.event_type", eventType),
@@ -120,12 +119,12 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 	// 嘗試在 JSON 載荷中添加 traceparent
 	var jsonData map[string]interface{}
 	if err := jsoniter.Unmarshal(data, &jsonData); err == nil {
-		traceparent := tracing.GetTraceparent(ctx)
+		traceparent := k.tracing.GetTraceparent(ctx)
 		if traceparent != "" {
 			jsonData["traceparent"] = traceparent
 			if newData, err := jsoniter.Marshal(jsonData); err == nil {
 				data = newData
-				tracing.RecordSpanAttributes(
+				k.tracing.RecordSpanAttributes(
 					span,
 					attribute.Bool("messaging.trace_propagated", true),
 				)
@@ -137,7 +136,7 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 	partitionKey := uuid.New().String()
 
 	// 記錄事件到 span
-	tracing.TraceEvent(span, "Sending message to KDS",
+	k.tracing.TraceEvent(span, "Sending message to KDS",
 		attribute.String("messaging.partition_key", partitionKey),
 	)
 
@@ -150,13 +149,13 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 		k.logger.ErrorLog("Failed to put record to kinesis",
 			k.logger.String("event_type", eventType),
 			k.logger.Error("err", err))
-		tracing.RecordSpanError(span, err)
-		tracing.RecordSpanStatus(span, codes.Error, err.Error())
+		k.tracing.RecordSpanError(span, err)
+		k.tracing.RecordSpanStatus(span, codes.Error, err.Error())
 		return fmt.Errorf("put record to kinesis: %w", err)
 	}
 
 	// 記錄成功事件
-	tracing.TraceEvent(span, "Message sent to KDS successfully")
+	k.tracing.TraceEvent(span, "Message sent to KDS successfully")
 
 	k.logger.InfoLog("Published event to KDS",
 		k.logger.String("event_type", eventType),

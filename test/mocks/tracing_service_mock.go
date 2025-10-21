@@ -58,7 +58,10 @@ func (m *TracingServiceMock) GetTraceparent(ctx context.Context) string {
 }
 
 // InjectTraceparentToJSON 將traceparent注入到JSON數據中
-func (m *TracingServiceMock) InjectTraceparentToJSON(ctx context.Context, data []byte) ([]byte, error) {
+func (m *TracingServiceMock) InjectTraceparentToJSON(
+	ctx context.Context,
+	data []byte,
+) ([]byte, error) {
 	args := m.Called(ctx, data)
 	return args.Get(0).([]byte), args.Error(1)
 }
@@ -69,19 +72,28 @@ func (m *TracingServiceMock) RecordSpanStatus(span trace.Span, code codes.Code, 
 }
 
 // TraceWorkerToKDS 從Worker到KDS的追蹤封裝
-func (m *TracingServiceMock) TraceWorkerToKDS(ctx context.Context, eventType, eventID string) (context.Context, trace.Span) {
+func (m *TracingServiceMock) TraceWorkerToKDS(
+	ctx context.Context,
+	eventType, eventID string,
+) (context.Context, trace.Span) {
 	args := m.Called(ctx, eventType, eventID)
 	return args.Get(0).(context.Context), args.Get(1).(trace.Span)
 }
 
 // ExtractTraceContext 從數據中提取追蹤上下文
-func (m *TracingServiceMock) ExtractTraceContext(ctx context.Context, carrier []byte) context.Context {
+func (m *TracingServiceMock) ExtractTraceContext(
+	ctx context.Context,
+	carrier []byte,
+) context.Context {
 	args := m.Called(ctx, carrier)
 	return args.Get(0).(context.Context)
 }
 
 // TraceRedisToWorker 從Redis到Worker的追蹤封裝
-func (m *TracingServiceMock) TraceRedisToWorker(ctx context.Context, taskType, taskID string) (context.Context, trace.Span) {
+func (m *TracingServiceMock) TraceRedisToWorker(
+	ctx context.Context,
+	taskType, taskID string,
+) (context.Context, trace.Span) {
 	args := m.Called(ctx, taskType, taskID)
 	return args.Get(0).(context.Context), args.Get(1).(trace.Span)
 }

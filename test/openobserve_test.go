@@ -64,38 +64,38 @@ func TestOpenObserveTracing(t *testing.T) {
 		t.Skip("Skipping OpenObserve test because OPENOBSERVE_TRACE_API_ENDPOINT is not set")
 	}
 
-	// 初始化追蹤器
-	tracer, err := tracing.NewTracer(cfg)
+	// 創建 TracingService 實例
+	tracingService, err := tracing.NewTracingService(cfg)
 	if err != nil {
-		t.Fatalf("Failed to create tracer: %v", err)
+		t.Fatalf("Failed to create tracing service: %v", err)
 	}
 	defer func() {
-		_ = tracer.Shutdown(context.Background())
+		_ = tracingService.Shutdown(context.Background())
 	}()
 
 	// 創建測試跟蹤
-	ctx, rootSpan := tracing.StartSpan(context.Background(), "TestOpenObserveTracing")
-	defer tracing.SpanEnd(rootSpan)
+	ctx, rootSpan := tracingService.StartSpan(context.Background(), "TestOpenObserveTracing")
+	defer tracingService.SpanEnd(rootSpan)
 
 	testID := time.Now().Format("20060102150405")
-	tracing.RecordSpanAttributes(rootSpan,
+	tracingService.RecordSpanAttributes(rootSpan,
 		attribute.String("test_id", testID),
 		attribute.String("component", "test"),
 	)
 
 	// 添加事件
-	tracing.TraceEvent(rootSpan, "Test event",
+	tracingService.TraceEvent(rootSpan, "Test event",
 		attribute.String("detail", "This is a test event for OpenObserve tracing"),
 	)
 
 	// 創建子 span
-	_, childSpan := tracing.StartSpan(ctx, "TestOpenObserveTracingChild")
-	tracing.RecordSpanAttributes(childSpan,
+	_, childSpan := tracingService.StartSpan(ctx, "TestOpenObserveTracingChild")
+	tracingService.RecordSpanAttributes(childSpan,
 		attribute.String("test_id", testID),
 		attribute.String("component", "test-child"),
 	)
-	tracing.TraceEvent(childSpan, "Test child event")
-	tracing.SpanEnd(childSpan)
+	tracingService.TraceEvent(childSpan, "Test child event")
+	tracingService.SpanEnd(childSpan)
 
 	// 給追蹤一些時間發送到 OpenObserve
 	time.Sleep(1 * time.Second)

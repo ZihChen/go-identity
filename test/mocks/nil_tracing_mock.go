@@ -43,7 +43,10 @@ func (n *NilTracingService) GetTraceparent(ctx context.Context) string {
 }
 
 // InjectTraceparentToJSON 無操作實現
-func (n *NilTracingService) InjectTraceparentToJSON(ctx context.Context, data []byte) ([]byte, error) {
+func (n *NilTracingService) InjectTraceparentToJSON(
+	ctx context.Context,
+	data []byte,
+) ([]byte, error) {
 	return data, nil
 }
 
@@ -51,17 +54,26 @@ func (n *NilTracingService) InjectTraceparentToJSON(ctx context.Context, data []
 func (n *NilTracingService) RecordSpanStatus(span trace.Span, code codes.Code, desc string) {}
 
 // TraceWorkerToKDS 無操作實現
-func (n *NilTracingService) TraceWorkerToKDS(ctx context.Context, eventType, eventID string) (context.Context, trace.Span) {
+func (n *NilTracingService) TraceWorkerToKDS(
+	ctx context.Context,
+	eventType, eventID string,
+) (context.Context, trace.Span) {
 	return ctx, trace.SpanFromContext(ctx)
 }
 
 // ExtractTraceContext 無操作實現
-func (n *NilTracingService) ExtractTraceContext(ctx context.Context, carrier []byte) context.Context {
+func (n *NilTracingService) ExtractTraceContext(
+	ctx context.Context,
+	carrier []byte,
+) context.Context {
 	return ctx
 }
 
 // TraceRedisToWorker 無操作實現
-func (n *NilTracingService) TraceRedisToWorker(ctx context.Context, taskType, taskID string) (context.Context, trace.Span) {
+func (n *NilTracingService) TraceRedisToWorker(
+	ctx context.Context,
+	taskType, taskID string,
+) (context.Context, trace.Span) {
 	return ctx, trace.SpanFromContext(ctx)
 }
 
@@ -72,4 +84,3 @@ func (n *NilTracingService) TraceWorkerProcessing(
 ) (context.Context, trace.Span) {
 	return ctx, trace.SpanFromContext(ctx)
 }
-

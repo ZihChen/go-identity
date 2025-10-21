@@ -33,6 +33,7 @@ type HTTPHandler struct {
 	playerUseCase   inbound.PlayerUseCase
 	managerUseCase  inbound.ManagerUseCase
 	logger          infrastructure.Logger
+	tracing         infrastructure.TracingService
 }
 
 // NewHTTPHandler 創建HTTP處理器
@@ -41,13 +42,20 @@ func NewHTTPHandler(
 	playerUseCase inbound.PlayerUseCase,
 	managerUseCase inbound.ManagerUseCase,
 	logger infrastructure.Logger,
+	tracing infrastructure.TracingService,
 ) *HTTPHandler {
 	return &HTTPHandler{
 		merchantUseCase: merchantUseCase,
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
 		logger:          logger,
+		tracing:         tracing,
 	}
+}
+
+// GetTracingService 獲取TracingService實例
+func (h *HTTPHandler) GetTracingService() infrastructure.TracingService {
+	return h.tracing
 }
 
 // HealthCheck 健康檢查

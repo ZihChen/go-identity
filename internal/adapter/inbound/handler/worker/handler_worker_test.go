@@ -25,6 +25,7 @@ func setupWorkerTest(
 	tagUseCase := mocks.NewTagUseCaseMock(t)
 	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
 	logger := mocks.NewMockLogger(t)
+	mockTracer := mocks.NewTracingServiceMock(t)
 
 	handler := NewWorkerHandler(
 		merchantUseCase,
@@ -33,6 +34,7 @@ func setupWorkerTest(
 		tagUseCase,
 		mockLevelUseCase,
 		logger,
+		mockTracer,
 	)
 
 	return merchantUseCase, playerUseCase, managerUseCase, tagUseCase, handler

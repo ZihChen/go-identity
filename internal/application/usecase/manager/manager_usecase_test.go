@@ -48,7 +48,13 @@ func createManagerSyncEvent() *event.ManagerSyncEvent {
 func TestNewManagerUseCase(t *testing.T) {
 	managerRepo, merchantRepo, eventProducer, logger := createManagerMockDependencies(t)
 
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	assert.NotNil(t, useCase)
 	assert.IsType(t, &ManagerUseCase{}, useCase)
@@ -70,7 +76,13 @@ func TestManagerUseCase_SyncManager_CreateNew(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Create test event data
 	eventData := createManagerSyncEvent()
@@ -100,7 +112,13 @@ func TestManagerUseCase_SyncManager_UpdateExisting(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Create test event data
 	eventData := createManagerSyncEvent()
@@ -124,7 +142,13 @@ func TestManagerUseCase_SyncManager_MerchantNotFound(t *testing.T) {
 		Return(nil, errors.New("merchant not found"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Create test event data
 	eventData := createManagerSyncEvent()
@@ -151,7 +175,13 @@ func TestManagerUseCase_SyncManager_FindManagerError(t *testing.T) {
 		Return(errors.New("database error"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Create test event data
 	eventData := createManagerSyncEvent()
@@ -179,7 +209,13 @@ func TestManagerUseCase_SyncManager_CreateError(t *testing.T) {
 		Return(errors.New("upsert error"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Create test event data
 	eventData := createManagerSyncEvent()
@@ -207,7 +243,13 @@ func TestManagerUseCase_SyncManager_UpdateError(t *testing.T) {
 		Return(errors.New("upsert error"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Create test event data
 	eventData := createManagerSyncEvent()
@@ -238,7 +280,13 @@ func TestManagerUseCase_SyncManager_PublishError(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Create test event data
 	eventData := createManagerSyncEvent()
@@ -263,7 +311,13 @@ func TestManagerUseCase_GetManagerByID(t *testing.T) {
 	managerRepo.On("FindByID", mock.Anything, uint64(1)).Return(manager, nil)
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Execute the function
 	result, err := useCase.GetManagerByID(ctx, 1)
@@ -283,7 +337,13 @@ func TestManagerUseCase_GetManagerByID_NotFound(t *testing.T) {
 		Return(nil, errors.New("manager not found"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Execute the function
 	result, err := useCase.GetManagerByID(ctx, 999)
@@ -304,7 +364,13 @@ func TestManagerUseCase_GetManagerByGlobalID(t *testing.T) {
 	managerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MANAGER-1").Return(manager, nil)
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Execute the function
 	result, err := useCase.GetManagerByGlobalID(ctx, "FATCAT-MANAGER-1")
@@ -324,7 +390,13 @@ func TestManagerUseCase_GetManagerByGlobalID_NotFound(t *testing.T) {
 		Return(nil, errors.New("manager not found"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Execute the function
 	result, err := useCase.GetManagerByGlobalID(ctx, "NONEXISTENT")
@@ -348,7 +420,13 @@ func TestManagerUseCase_publishManagerSyncEvent(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*ManagerUseCase).publishManagerSyncEvent(
@@ -374,7 +452,13 @@ func TestManagerUseCase_publishManagerSyncEvent_Error(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*ManagerUseCase).publishManagerSyncEvent(
@@ -418,7 +502,13 @@ func TestManagerUseCase_SyncManager_MarshalError(t *testing.T) {
 		Return(errors.New("json: unsupported type"))
 
 	// Create the use case
-	useCase := NewManagerUseCase(managerRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
+	useCase := NewManagerUseCase(
+		managerRepo,
+		merchantRepo,
+		eventProducer,
+		logger,
+		mocks.NewNilTracingService(),
+	)
 
 	// Execute the function
 	err := useCase.SyncManager(ctx, &managerEvent)

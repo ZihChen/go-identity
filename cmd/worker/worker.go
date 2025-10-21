@@ -37,7 +37,7 @@ func init() {
 }
 
 type services struct {
-	tracer       *tracing.Tracer
+	tracer       *tracing.TracingService
 	db           *mysql.Database
 	redisManager *redis.Manager
 	components   *di.WorkerComponents
@@ -119,7 +119,7 @@ func initializeServices(
 	logger infrastructure.Logger,
 ) (*services, error) {
 	// 初始化追踪器
-	tracer, err := tracing.NewTracer(cfg)
+	tracer, err := tracing.NewTracingService(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tracer: %w", err)
 	}

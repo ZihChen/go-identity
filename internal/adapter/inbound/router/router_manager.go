@@ -27,12 +27,16 @@ func NewRouterManager(handler *api.HTTPHandler) *Manager {
 }
 
 // SetupRoutersWithMiddleware 配置所有中間件並註冊路由
-func (rm *Manager) SetupRoutersWithMiddleware(router *gin.Engine, cfg *config.Config) {
+func (rm *Manager) SetupRoutersWithMiddleware(
+	router *gin.Engine,
+	cfg *config.Config,
+	handler *api.HTTPHandler,
+) {
 	// 加入全局Middleware
 	router.Use(
 		middleware.NewCorsMiddleware(cfg),
 		middleware.AuthMiddleware(),
-		middleware.TracingMiddleware(),
+		middleware.NewTracingMiddleware(handler.GetTracingService()),
 	)
 
 	// 註冊所有路由

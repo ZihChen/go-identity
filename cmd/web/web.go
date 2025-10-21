@@ -34,7 +34,7 @@ var (
 
 // services 包含所有需要清理的服務
 type services struct {
-	tracer       *tracing.Tracer
+	tracer       *tracing.TracingService
 	db           *mysql.Database
 	redisManager *redis.Manager
 	httpHandler  *api.HTTPHandler
@@ -77,9 +77,10 @@ func runWebServer(_ *cobra.Command, _ []string) {
 	}
 	defer svc.cleanup(rootCtx, logger)
 
-	// 創建追蹤 span
-	ctx, rootSpan := tracing.StartSpan(rootCtx, "WebService")
-	defer tracing.SpanEnd(rootSpan)
+	// 創建TracingService實例並創建追蹤 span
+	tracingService := svc.httpHandler.GetTracingService()
+	ctx, rootSpan := tracingService.StartSpan(rootCtx, "WebService")
+	defer tracingService.SpanEnd(rootSpan)
 
 	// 決定服務端口
 	serverPort := determinePort(port, cfg)
@@ -94,7 +95,7 @@ func runWebServer(_ *cobra.Command, _ []string) {
 
 	// 創建路由管理器並統一配置中間件和路由
 	routerManager := router.NewRouterManager(svc.httpHandler)
-	routerManager.SetupRoutersWithMiddleware(ginRouter, cfg)
+	routerManager.SetupRoutersWithMiddleware(ginRouter, cfg, svc.httpHandler)
 
 	// 創建HTTP服務器
 	server := &http.Server{
@@ -129,7 +130,7 @@ func runWebServer(_ *cobra.Command, _ []string) {
 	<-quit
 
 	logger.InfoWithContext(ctx, "Shutting down server...")
-	tracing.TraceEvent(rootSpan, "Shutting down web server")
+	tracingService.TraceEvent(rootSpan, "Shutting down web server")
 
 	// 創建帶超時的上下文用於優雅關閉
 	shutdownCtx, cancel := context.WithTimeout(ctx, shutdownTimeout)
@@ -156,7 +157,7 @@ func runWebServer(_ *cobra.Command, _ []string) {
 		logger.InfoWithContext(ctx, "All connections closed gracefully")
 	}
 
-	tracing.TraceEvent(rootSpan, "Web server exited gracefully")
+	tracingService.TraceEvent(rootSpan, "Web server exited gracefully")
 	logger.InfoWithContext(ctx, "Server exited")
 }
 
@@ -167,7 +168,7 @@ func initializeServices(
 	logger infrastructure.Logger,
 ) (*services, error) {
 	// 初始化追蹤器
-	tracer, err := tracing.NewTracer(cfg)
+	tracer, err := tracing.NewTracingService(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tracer: %w", err)
 	}

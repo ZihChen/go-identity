@@ -67,8 +67,12 @@ func provideEventProducer(kdsService *kds.KDSService, logger infrastructure.Logg
 }
 
 // TracingService提供者
-func provideTracingService() infrastructure.TracingService {
-	return tracing.NewService()
+func provideTracingService(cfg *config.Config) (infrastructure.TracingService, error) {
+	tracingService, err := tracing.NewTracingService(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return tracingService, nil
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
@@ -111,6 +115,7 @@ func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asy
 // InitializeConsumerHandler 初始化 Consumer 服務的 Handler
 func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager) (*consumer.ConsumerHandler, error) {
 	wire.Build(
+		provideTracingService,
 		queue.NewQueueService,
 		kds.NewKDSService,
 		consumer.NewConsumerHandler,

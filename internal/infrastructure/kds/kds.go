@@ -26,6 +26,7 @@ type KDSService struct {
 	config        *cfg.Config
 	queueService  service.QueueService
 	logger        infrastructure.Logger
+	tracing       infrastructure.TracingService
 }
 
 // NewKDSService 創建KDS服務
@@ -34,6 +35,7 @@ func NewKDSService(
 	queueService service.QueueService,
 	redisManager *redisCache.Manager,
 	logger infrastructure.Logger,
+	tracing infrastructure.TracingService,
 ) (*KDSService, error) {
 	// 創建AWS配置
 	awsConfig, err := config.LoadAWSConfig(context.Background())
@@ -78,6 +80,7 @@ func NewKDSService(
 		config:        config,
 		queueService:  queueService,
 		logger:        logger,
+		tracing:       tracing,
 	}, nil
 }
 
