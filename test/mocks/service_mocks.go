@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-redsync/redsync/v4"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 )
 
@@ -56,4 +57,57 @@ func (m *EventProducerMock) PublishPlayerTagsSync(
 func (m *EventProducerMock) PublishTagSync(ctx context.Context, event *event.CloudEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
+}
+
+// RedisManagerMock 統一的 Redis Manager Mock
+type RedisManagerMock struct {
+	*BaseMock
+}
+
+// NewRedisManagerMock 創建新的 Redis Manager Mock
+func NewRedisManagerMock(t *testing.T) *RedisManagerMock {
+	return &RedisManagerMock{
+		BaseMock: NewBaseMock(t),
+	}
+}
+
+func (m *RedisManagerMock) GetMutexWithOption(
+	key string,
+	options ...redsync.Option,
+) (*redsync.Mutex, error) {
+	args := m.Called(key, options)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*redsync.Mutex), args.Error(1)
+}
+
+// MockMutex 模擬 redsync.Mutex 的行為
+type MockMutex struct {
+	*BaseMock
+	locked bool
+}
+
+// NewMockMutex 創建新的 Mock Mutex
+func NewMockMutex(t *testing.T) *MockMutex {
+	return &MockMutex{
+		BaseMock: NewBaseMock(t),
+		locked:   false,
+	}
+}
+
+func (m *MockMutex) Lock() error {
+	args := m.Called()
+	if args.Error(0) == nil {
+		m.locked = true
+	}
+	return args.Error(0)
+}
+
+func (m *MockMutex) Unlock() (bool, error) {
+	args := m.Called()
+	if args.Error(1) == nil && args.Bool(0) {
+		m.locked = false
+	}
+	return args.Bool(0), args.Error(1)
 }

@@ -261,6 +261,11 @@ func (m *TagRepositoryMock) FindByGlobalIDs(
 	return args.Get(0).([]*entity.Tag), args.Error(1)
 }
 
+func (m *TagRepositoryMock) BatchUpsert(ctx context.Context, tags []*entity.Tag) error {
+	args := m.Called(ctx, tags)
+	return args.Error(0)
+}
+
 // PlayerTagRepositoryMock 統一的 PlayerTag Repository Mock
 type PlayerTagRepositoryMock struct {
 	*BaseMock
