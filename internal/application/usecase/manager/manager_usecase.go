@@ -14,7 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -24,6 +23,7 @@ type ManagerUseCase struct {
 	merchantRepo  repository.MerchantRepository
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
+	tracing       infrastructure.TracingService
 }
 
 // NewManagerUseCase 創建管理員用例
@@ -32,31 +32,33 @@ func NewManagerUseCase(
 	merchantRepo repository.MerchantRepository,
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
+	tracing infrastructure.TracingService,
 ) inbound.ManagerUseCase {
 	return &ManagerUseCase{
 		managerRepo:   managerRepo,
 		merchantRepo:  merchantRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
+		tracing:       tracing,
 	}
 }
 
 // SyncManager 同步管理員信息
 func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyncEvent) error {
-	ctx, span := tracing.StartSpan(ctx, "ManagerUseCase.SyncManager")
+	ctx, span := u.tracing.StartSpan(ctx, "ManagerUseCase.SyncManager")
 
 	// 記錄事件開始處理
-	tracing.TraceEvent(span, "Starting manager sync processing")
-	tracing.RecordSpanAttributes(span,
+	u.tracing.TraceEvent(span, "Starting manager sync processing")
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("manager.global_id", data.Manager.GlobalManagerID),
 		attribute.String("manager.account", data.Manager.Account),
 		attribute.String("merchant.global_id", data.GlobalMerchantID))
 
 	// 查找商戶是否存在
-	tracing.TraceEvent(span, "Checking if merchant exists")
+	u.tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
@@ -75,29 +77,29 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyn
 		}(),
 	}
 
-	tracing.TraceEvent(span, "Upsert manager")
+	u.tracing.TraceEvent(span, "Upsert manager")
 	if err = u.managerRepo.Upsert(ctx, manager); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("upsert manager: %w", err)
 	}
 
 	u.logger.InfoLog("Manager upserted successfully",
 		u.logger.String("global_id", manager.GlobalManagerID),
 		u.logger.String("account", manager.Account))
-	tracing.TraceEvent(span, "Database operation completed")
-	tracing.RecordSpanAttributes(span,
+	u.tracing.TraceEvent(span, "Database operation completed")
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("manager.global_id", manager.GlobalManagerID),
 		attribute.String("manager.account", manager.Account))
 
 	// 發布管理員同步事件到KDS
-	tracing.TraceEvent(span, "Publishing manager sync event to KDS")
+	u.tracing.TraceEvent(span, "Publishing manager sync event to KDS")
 	if err = u.publishManagerSyncEvent(ctx, manager, data.GlobalMerchantID); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish manager sync event: %w", err)
 	}
 
 	// 記錄處理完成
-	tracing.TraceEvent(span, "Manager sync completed successfully")
+	u.tracing.TraceEvent(span, "Manager sync completed successfully")
 	return nil
 }
 
@@ -107,10 +109,10 @@ func (u *ManagerUseCase) publishManagerSyncEvent(
 	manager *entity.Manager,
 	globalMerchantID string,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "ManagerUseCase.SyncManager")
+	ctx, span := u.tracing.StartSpan(ctx, "ManagerUseCase.SyncManager")
 
 	// 記錄發布事件開始
-	tracing.TraceEvent(span, "Preparing manager sync event for KDS")
+	u.tracing.TraceEvent(span, "Preparing manager sync event for KDS")
 
 	// 構建事件數據
 	syncEvent := event.IdentityManagerSyncEvent{
@@ -138,22 +140,22 @@ func (u *ManagerUseCase) publishManagerSyncEvent(
 		ID:              eventID,
 		Time:            time.Now(),
 		DataContentType: "application/json",
-		TraceParent:     tracing.GetTraceparent(ctx),
+		TraceParent:     u.tracing.GetTraceparent(ctx),
 		Data:            syncEvent,
 	}
 
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("outgoing.event.id", eventID),
 		attribute.String("outgoing.event.type", cloudEvent.Type))
 
 	// 發布事件
 	if err := u.eventProducer.PublishManagerSync(ctx, &cloudEvent); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish manager sync: %w", err)
 	}
 
 	// 記錄事件發布成功
-	tracing.TraceEvent(span, "Manager sync event published successfully")
+	u.tracing.TraceEvent(span, "Manager sync event published successfully")
 
 	u.logger.InfoLog("Manager sync event published",
 		u.logger.String("global_id", manager.GlobalManagerID),
@@ -164,18 +166,18 @@ func (u *ManagerUseCase) publishManagerSyncEvent(
 
 // GetManagerByID 通過ID獲取管理員
 func (u *ManagerUseCase) GetManagerByID(ctx context.Context, id uint64) (*entity.Manager, error) {
-	ctx, span := tracing.StartSpan(ctx, "ManagerUseCase.GetManagerByID")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "ManagerUseCase.GetManagerByID")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span, attribute.Int64("manager.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, attribute.Int64("manager.id", int64(id)))
 
 	manager, err := u.managerRepo.FindByID(ctx, id)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find manager: %w", err)
 	}
 
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("manager.global_id", manager.GlobalManagerID),
 		attribute.String("manager.account", manager.Account))
 	return manager, nil
@@ -187,17 +189,17 @@ func (u *ManagerUseCase) GetManagerByGlobalID(
 	globalID string,
 ) (*entity.Manager, error) {
 	// 創建 span 並跟踪此操作
-	ctx, span := tracing.StartSpan(ctx, "ManagerUseCase.GetManagerByGlobalID")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "ManagerUseCase.GetManagerByGlobalID")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span, attribute.String("manager.global_id", globalID))
+	u.tracing.RecordSpanAttributes(span, attribute.String("manager.global_id", globalID))
 
 	manager, err := u.managerRepo.FindByGlobalID(ctx, globalID)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find manager: %w", err)
 	}
 
-	tracing.RecordSpanAttributes(span, attribute.String("manager.account", manager.Account))
+	u.tracing.RecordSpanAttributes(span, attribute.String("manager.account", manager.Account))
 	return manager, nil
 }

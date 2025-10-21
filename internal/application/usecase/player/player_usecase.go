@@ -14,7 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -28,6 +27,7 @@ type PlayerUseCase struct {
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
 	redis         *redis.Client
+	tracing       infrastructure.TracingService
 }
 
 // NewPlayerUseCase 創建玩家用例
@@ -38,6 +38,7 @@ func NewPlayerUseCase(
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	redis *redis.Client,
+	tracing infrastructure.TracingService,
 ) inbound.PlayerUseCase {
 	return &PlayerUseCase{
 		playerRepo:    playerRepo,
@@ -46,6 +47,7 @@ func NewPlayerUseCase(
 		eventProducer: eventProducer,
 		logger:        logger,
 		redis:         redis,
+		tracing:       tracing,
 	}
 }
 
@@ -53,13 +55,13 @@ func (u *PlayerUseCase) SyncPlayer(
 	ctx context.Context,
 	data *event.PlayerSyncEvent,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.SyncPlayer")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.SyncPlayer")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.TraceEvent(span, "Checking if merchant exists")
+	u.tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
@@ -68,7 +70,7 @@ func (u *PlayerUseCase) SyncPlayer(
 		// 檢查有無Level，沒有則建立
 		level, err = u.findOrCreateLevel(ctx, span, data, merchant.ID)
 		if err != nil {
-			tracing.RecordSpanError(span, err)
+			u.tracing.RecordSpanError(span, err)
 			return fmt.Errorf("find or create level: %w", err)
 		}
 	}
@@ -106,9 +108,9 @@ func (u *PlayerUseCase) SyncPlayer(
 		},
 	}
 
-	tracing.TraceEvent(span, "Upsert player")
+	u.tracing.TraceEvent(span, "Upsert player")
 	if err = u.playerRepo.Upsert(ctx, &player); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("upsert player: %w", err)
 	}
 
@@ -116,20 +118,20 @@ func (u *PlayerUseCase) SyncPlayer(
 	u.logger.InfoLog("Player upserted successfully",
 		u.logger.String("global_id", player.GlobalPlayerID),
 		u.logger.String("account", player.Account))
-	tracing.TraceEvent(span, "Database operation completed")
-	tracing.RecordSpanAttributes(span,
+	u.tracing.TraceEvent(span, "Database operation completed")
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("player.global_id", player.GlobalPlayerID),
 		attribute.String("player.account", player.Account))
 
 	// 發布玩家同步事件到KDS
-	tracing.TraceEvent(span, "Publishing player sync event to KDS")
+	u.tracing.TraceEvent(span, "Publishing player sync event to KDS")
 	if err = u.publishPlayerSyncEvent(ctx, &player, data.GlobalMerchantID); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player sync event: %w", err)
 	}
 
 	// 記錄處理完成
-	tracing.TraceEvent(span, "Player sync completed successfully")
+	u.tracing.TraceEvent(span, "Player sync completed successfully")
 	return nil
 }
 
@@ -148,7 +150,7 @@ func (u *PlayerUseCase) findOrCreateLevel(
 		return nil, fmt.Errorf("find level: %w", err)
 	}
 
-	tracing.TraceEvent(span, "Upsert player")
+	u.tracing.TraceEvent(span, "Upsert player")
 	newLevel := &entity.Level{
 		GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
 		GlobalMerchantID:    data.GlobalMerchantID,
@@ -159,7 +161,7 @@ func (u *PlayerUseCase) findOrCreateLevel(
 	}
 
 	if err = u.levelRepo.Upsert(ctx, newLevel); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("upsert level: %w", err)
 	}
 
@@ -182,7 +184,7 @@ func (u *PlayerUseCase) findByGlobalID(
 	}
 
 	if !errors.Is(err, errmsg.ErrRepoLevelNotFound) {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find level: %w", err)
 	}
 	return nil, errmsg.ErrRepoLevelNotFound
@@ -194,11 +196,11 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 	player *entity.Player,
 	globalMerchantID string,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.publishPlayerSyncEvent")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.publishPlayerSyncEvent")
+	defer u.tracing.SpanEnd(span)
 
 	// 記錄發布事件開始
-	tracing.TraceEvent(span, "Preparing player sync event for KDS")
+	u.tracing.TraceEvent(span, "Preparing player sync event for KDS")
 
 	// 構建事件數據
 	syncEvent := event.IdentityPlayerSyncEvent{
@@ -235,23 +237,23 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 		ID:              eventID,
 		Time:            time.Now(),
 		DataContentType: "application/json",
-		TraceParent:     tracing.GetTraceparent(ctx),
+		TraceParent:     u.tracing.GetTraceparent(ctx),
 		Data:            syncEvent,
 	}
 
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("outgoing.event.id", eventID),
 		attribute.String("outgoing.event.type", cloudEvent.Type),
 	)
 
 	// 發布事件
 	if err := u.eventProducer.PublishPlayerSync(ctx, &cloudEvent); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player sync: %w", err)
 	}
 
 	// 記錄事件發布成功
-	tracing.TraceEvent(span, "Player sync event published successfully")
+	u.tracing.TraceEvent(span, "Player sync event published successfully")
 
 	u.logger.InfoLog("Player sync event published",
 		u.logger.String("global_id", player.GlobalPlayerID),
@@ -263,19 +265,19 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 // GetPlayerByID 通過ID獲取玩家
 func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.Player, error) {
 	// 創建 span 並跟踪此操作
-	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByID")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByID")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span, attribute.Int64("player.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, attribute.Int64("player.id", int64(id)))
 
 	player, err := u.playerRepo.FindByID(ctx, id)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find player: %w", err)
 	}
 
 	// 添加玩家信息到 span
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("player.global_id", player.GlobalPlayerID),
 		attribute.String("player.account", player.Account),
 	)
@@ -289,19 +291,19 @@ func (u *PlayerUseCase) GetPlayerByGlobalID(
 	globalID string,
 ) (*entity.Player, error) {
 	// 創建 span 並跟踪此操作
-	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByGlobalID")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByGlobalID")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span, attribute.String("player.global_id", globalID))
+	u.tracing.RecordSpanAttributes(span, attribute.String("player.global_id", globalID))
 
 	player, err := u.playerRepo.FindByGlobalID(ctx, globalID)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find player: %w", err)
 	}
 
 	// 添加玩家信息到 span
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("player.account", player.Account),
 	)
 
@@ -311,20 +313,20 @@ func (u *PlayerUseCase) GetPlayerByGlobalID(
 // UpdatePlayerLastActive 更新玩家最後活躍時間
 func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) error {
 	// 創建 span 並跟踪此操作
-	ctx, span := tracing.StartSpan(ctx, "PlayerUseCase.UpdatePlayerLastActive")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.UpdatePlayerLastActive")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span, attribute.Int64("player.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, attribute.Int64("player.id", int64(id)))
 
 	// 查找玩家
 	player, err := u.playerRepo.FindByID(ctx, id)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find player: %w", err)
 	}
 
 	// 添加玩家信息到 span
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("player.global_id", player.GlobalPlayerID),
 		attribute.String("player.account", player.Account),
 	)
@@ -335,7 +337,7 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 	player.UpdatedAt = now
 
 	if err := u.playerRepo.Update(ctx, player); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("update player: %w", err)
 	}
 

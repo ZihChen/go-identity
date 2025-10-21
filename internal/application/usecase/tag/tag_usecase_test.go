@@ -94,6 +94,7 @@ func TestNewTagUseCase(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
+		mocks.NewNilTracingService(),
 		nil,
 	)
 
@@ -117,7 +118,7 @@ func TestTagUseCase_SyncTag_CreateNew(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewTagUseCase(tagRepo, merchantRepo, nil, nil, eventProducer, logger, nil)
+	useCase := NewTagUseCase(tagRepo, merchantRepo, nil, nil, eventProducer, logger, mocks.NewNilTracingService(), nil)
 
 	// Create test event data
 	eventData := createTagSyncEvent()
@@ -148,7 +149,7 @@ func TestTagUseCase_SyncTag_ClosedTag(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewTagUseCase(tagRepo, merchantRepo, nil, nil, eventProducer, logger, nil)
+	useCase := NewTagUseCase(tagRepo, merchantRepo, nil, nil, eventProducer, logger, mocks.NewNilTracingService(), nil)
 
 	// Create test event data with closed tag
 	eventData := createTagSyncEvent()
@@ -173,7 +174,7 @@ func TestTagUseCase_SyncTag_MerchantNotFound(t *testing.T) {
 		Return(nil, errors.New("merchant not found"))
 
 	// Create the use case
-	useCase := NewTagUseCase(nil, merchantRepo, nil, nil, nil, logger, nil)
+	useCase := NewTagUseCase(nil, merchantRepo, nil, nil, nil, logger, mocks.NewNilTracingService(), nil)
 
 	// Create test event data
 	eventData := createTagSyncEvent()
@@ -200,7 +201,7 @@ func TestTagUseCase_SyncTag_UpsertError(t *testing.T) {
 		Return(errors.New("database upsert failed"))
 
 	// Create the use case
-	useCase := NewTagUseCase(tagRepo, merchantRepo, nil, nil, nil, logger, nil)
+	useCase := NewTagUseCase(tagRepo, merchantRepo, nil, nil, nil, logger, mocks.NewNilTracingService(), nil)
 
 	// Create test event data
 	eventData := createTagSyncEvent()
@@ -231,7 +232,7 @@ func TestTagUseCase_SyncTag_PublishError(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewTagUseCase(tagRepo, merchantRepo, nil, nil, eventProducer, logger, nil)
+	useCase := NewTagUseCase(tagRepo, merchantRepo, nil, nil, eventProducer, logger, mocks.NewNilTracingService(), nil)
 
 	// Create test event data
 	eventData := createTagSyncEvent()
@@ -262,7 +263,7 @@ func TestTagUseCase_publishTagSyncEvent(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewTagUseCase(nil, nil, nil, nil, eventProducer, logger, nil)
+	useCase := NewTagUseCase(nil, nil, nil, nil, eventProducer, logger, mocks.NewNilTracingService(), nil)
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*TagUseCase).publishTagSyncEvent(
@@ -288,7 +289,7 @@ func TestTagUseCase_publishTagSyncEvent_Error(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewTagUseCase(nil, nil, nil, nil, eventProducer, logger, nil)
+	useCase := NewTagUseCase(nil, nil, nil, nil, eventProducer, logger, mocks.NewNilTracingService(), nil)
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*TagUseCase).publishTagSyncEvent(
@@ -315,7 +316,7 @@ func TestTagUseCase_publishPlayerTagsSyncEvent(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewTagUseCase(nil, nil, nil, nil, eventProducer, logger, nil)
+	useCase := NewTagUseCase(nil, nil, nil, nil, eventProducer, logger, mocks.NewNilTracingService(), nil)
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*TagUseCase).publishPlayerTagsSyncEvent(
@@ -342,7 +343,7 @@ func TestTagUseCase_publishPlayerTagsSyncEvent_Error(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewTagUseCase(nil, nil, nil, nil, eventProducer, logger, nil)
+	useCase := NewTagUseCase(nil, nil, nil, nil, eventProducer, logger, mocks.NewNilTracingService(), nil)
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*TagUseCase).publishPlayerTagsSyncEvent(

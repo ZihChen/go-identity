@@ -43,7 +43,7 @@ func createMerchantSyncEvent() *event.MerchantSyncEvent {
 func TestNewMerchantUseCase(t *testing.T) {
 	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
 
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	assert.NotNil(t, useCase)
 	assert.IsType(t, &MerchantUseCase{}, useCase)
@@ -62,7 +62,7 @@ func TestMerchantUseCase_SyncMerchant_CreateNew(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createMerchantSyncEvent()
@@ -89,7 +89,7 @@ func TestMerchantUseCase_SyncMerchant_UpdateExisting(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createMerchantSyncEvent()
@@ -113,7 +113,7 @@ func TestMerchantUseCase_SyncMerchant_UpsertError(t *testing.T) {
 		Return(errors.New("timestamp-based upsert failed"))
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createMerchantSyncEvent()
@@ -141,7 +141,7 @@ func TestMerchantUseCase_SyncMerchant_PublishError(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createMerchantSyncEvent()
@@ -165,7 +165,7 @@ func TestMerchantUseCase_GetMerchantByID(t *testing.T) {
 	merchantRepo.On("FindByID", mock.Anything, uint64(1)).Return(merchant, nil)
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Execute the function
 	result, err := useCase.GetMerchantByID(ctx, 1)
@@ -185,7 +185,7 @@ func TestMerchantUseCase_GetMerchantByID_NotFound(t *testing.T) {
 		Return(nil, errors.New("merchant not found"))
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Execute the function
 	result, err := useCase.GetMerchantByID(ctx, 999)
@@ -206,7 +206,7 @@ func TestMerchantUseCase_GetMerchantByGlobalID(t *testing.T) {
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Execute the function
 	result, err := useCase.GetMerchantByGlobalID(ctx, "FATCAT-MERCHANT-1")
@@ -226,7 +226,7 @@ func TestMerchantUseCase_GetMerchantByGlobalID_NotFound(t *testing.T) {
 		Return(nil, errors.New("merchant not found"))
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Execute the function
 	result, err := useCase.GetMerchantByGlobalID(ctx, "NONEXISTENT")
@@ -250,7 +250,7 @@ func TestMerchantUseCase_publishMerchantSyncEvent(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*MerchantUseCase).publishMerchantSyncEvent(
@@ -275,7 +275,7 @@ func TestMerchantUseCase_publishMerchantSyncEvent_Error(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger)
+	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*MerchantUseCase).publishMerchantSyncEvent(

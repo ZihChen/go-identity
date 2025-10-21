@@ -17,7 +17,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -28,6 +27,7 @@ type TagUseCase struct {
 	playerTagRepo repository.PlayerTagRepository
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
+	tracing       infrastructure.TracingService
 	redisManager  *redisCache.Manager
 }
 
@@ -38,6 +38,7 @@ func NewTagUseCase(
 	playerTagRepo repository.PlayerTagRepository,
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
+	tracing infrastructure.TracingService,
 	redisManager *redisCache.Manager,
 ) inbound.TagUseCase {
 	return &TagUseCase{
@@ -47,6 +48,7 @@ func NewTagUseCase(
 		playerTagRepo: playerTagRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
+		tracing:       tracing,
 		redisManager:  redisManager,
 	}
 }
@@ -56,20 +58,20 @@ func (u *TagUseCase) SyncPlayerTag(
 	data []event.TagData,
 	globalMerchantID, globalPlayerID string,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "TagUseCase.SyncPlayerTag")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "TagUseCase.SyncPlayerTag")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.TraceEvent(span, "Checking if merchant exists")
+	u.tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
-	tracing.TraceEvent(span, "Checking if player exists")
+	u.tracing.TraceEvent(span, "Checking if player exists")
 	player, err := u.playerRepo.FindByGlobalID(ctx, globalPlayerID)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find player by global_id: %w", err)
 	}
 
@@ -86,9 +88,9 @@ func (u *TagUseCase) SyncPlayerTag(
 	}
 
 	// 更新或創建Tags
-	tracing.TraceEvent(span, "Start operation tags batch upsert")
+	u.tracing.TraceEvent(span, "Start operation tags batch upsert")
 	if err = u.tagRepo.BatchUpsert(ctx, tagsToInsert); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("batch upsert tags failed: %w", err)
 	}
 	u.logger.InfoWithContext(
@@ -100,7 +102,7 @@ func (u *TagUseCase) SyncPlayerTag(
 
 	tags, err := u.tagRepo.FindByGlobalIDs(ctx, tagsGlobalIDs)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find tags by global_ids: %w", err)
 	}
 
@@ -110,11 +112,11 @@ func (u *TagUseCase) SyncPlayerTag(
 	}
 
 	// 建立Player Tags關聯
-	tracing.TraceEvent(span, "Start sync player tags relation")
+	u.tracing.TraceEvent(span, "Start sync player tags relation")
 	if err = u.executeLocked(ctx, player.ID, func() error {
 		err = u.playerTagRepo.BatchUpdate(ctx, player.ID, tagIDs)
 		if err != nil {
-			tracing.RecordSpanError(span, err)
+			u.tracing.RecordSpanError(span, err)
 			return fmt.Errorf("batch update player tags failed: %w", err)
 		}
 		u.logger.InfoWithContext(ctx, "Batch upsert player tags completed",
@@ -124,29 +126,29 @@ func (u *TagUseCase) SyncPlayerTag(
 		)
 		return nil
 	}); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("batch upsert player tags failed: %w", err)
 	}
-	tracing.TraceEvent(span, "Sync player tags relation completed")
+	u.tracing.TraceEvent(span, "Sync player tags relation completed")
 
-	tracing.TraceEvent(span, "Publishing player tags sync event to KDS")
+	u.tracing.TraceEvent(span, "Publishing player tags sync event to KDS")
 	if err = u.publishPlayerTagsSyncEvent(ctx, tagsToInsert, globalMerchantID, globalPlayerID); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player tags sync event: %w", err)
 	}
 
-	tracing.TraceEvent(span, "Player tags sync completed successfully")
+	u.tracing.TraceEvent(span, "Player tags sync completed successfully")
 	return nil
 }
 
 func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) error {
-	ctx, span := tracing.StartSpan(ctx, "TagUseCase.SyncTag")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "TagUseCase.SyncTag")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.TraceEvent(span, "Checking if merchant exists")
+	u.tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
@@ -165,16 +167,16 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 	}
 
 	if err = u.tagRepo.Upsert(ctx, tagToInsert); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("upsert tag: %w", err)
 	}
 	u.logger.InfoWithContext(ctx, "Upsert tag completed", u.logger.Any("tag", tagToInsert))
 
 	if err = u.publishTagSyncEvent(ctx, tagToInsert, data.GlobalMerchantID); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish tag sync event: %w", err)
 	}
-	tracing.TraceEvent(span, "Tag sync completed successfully")
+	u.tracing.TraceEvent(span, "Tag sync completed successfully")
 	return nil
 }
 
@@ -183,8 +185,8 @@ func (u *TagUseCase) publishPlayerTagsSyncEvent(
 	tags []*entity.Tag,
 	globalMerchantID, globalPlayerID string,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "TagUseCase.publishPlayerTagsSyncEvent")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "TagUseCase.publishPlayerTagsSyncEvent")
+	defer u.tracing.SpanEnd(span)
 
 	syncEvents := make([]*event.IdentityTagDataSyncEvent, len(tags))
 	for i, tag := range tags {
@@ -205,19 +207,19 @@ func (u *TagUseCase) publishPlayerTagsSyncEvent(
 		ID:              eventID,
 		Time:            time.Now(),
 		DataContentType: "application/json",
-		TraceParent:     tracing.GetTraceparent(ctx),
+		TraceParent:     u.tracing.GetTraceparent(ctx),
 		Data: event.IdentityPlayerTagSyncEvent{
 			GlobalMerchantID: globalMerchantID,
 			GlobalPlayerID:   globalPlayerID,
 			Tags:             syncEvents},
 	}
 
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("outgoing.event.id", eventID),
 		attribute.String("outgoing.event.type", cloudEvent.Type))
 
 	if err := u.eventProducer.PublishPlayerTagsSync(ctx, &cloudEvent); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish tag sync: %w", err)
 	}
 
@@ -231,8 +233,8 @@ func (u *TagUseCase) publishTagSyncEvent(
 	tag *entity.Tag,
 	globalMerchantID string,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "TagUseCase.publishTagSyncEvent")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "TagUseCase.publishTagSyncEvent")
+	defer u.tracing.SpanEnd(span)
 
 	eventID := uuid.New().String()
 	cloudEvent := event.CloudEvent{
@@ -243,7 +245,7 @@ func (u *TagUseCase) publishTagSyncEvent(
 		ID:              eventID,
 		Time:            time.Now(),
 		DataContentType: "application/json",
-		TraceParent:     tracing.GetTraceparent(ctx),
+		TraceParent:     u.tracing.GetTraceparent(ctx),
 		Data: event.IdentityTagSyncEvent{
 			GlobalMerchantID: globalMerchantID,
 			Tag: &event.IdentityTagDataSyncEvent{
@@ -261,12 +263,12 @@ func (u *TagUseCase) publishTagSyncEvent(
 		},
 	}
 
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("outgoing.event.id", eventID),
 		attribute.String("outgoing.event.type", cloudEvent.Type))
 
 	if err := u.eventProducer.PublishTagSync(ctx, &cloudEvent); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish tag sync: %w", err)
 	}
 

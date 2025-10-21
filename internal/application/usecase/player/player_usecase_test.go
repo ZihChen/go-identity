@@ -70,6 +70,7 @@ func TestNewPlayerUseCase(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	assert.NotNil(t, useCase)
@@ -104,6 +105,7 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Create test event data
@@ -149,6 +151,7 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Create test event data
@@ -190,6 +193,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Execute the function
@@ -219,6 +223,7 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Execute the function
@@ -249,6 +254,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Execute the function
@@ -278,6 +284,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Execute the function
@@ -309,6 +316,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Execute the function
@@ -337,6 +345,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Execute the function
@@ -370,6 +379,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
 		eventProducer,
 		logger,
 		redisClient,
+		mocks.NewNilTracingService(),
 	)
 
 	// Execute the function

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -26,6 +27,16 @@ const (
 // Tracer 追踪器封裝
 type Tracer struct {
 	provider *sdktrace.TracerProvider
+}
+
+// Service 追踪服務實現
+type Service struct {
+	// 可以保留額外的配置，但主要通過全局otel實例工作
+}
+
+// NewService 創建追踪服務實例
+func NewService() infrastructure.TracingService {
+	return &Service{}
 }
 
 // NewTracer 創建追踪器
@@ -323,4 +334,73 @@ func EndSpanWithError(span trace.Span, err error) {
 		RecordSpanStatus(span, codes.Ok, "")
 	}
 	span.End()
+}
+
+// 實現 TracingService interface
+
+// StartSpan 開始一個新的span
+func (s *Service) StartSpan(
+	ctx context.Context,
+	spanName string,
+	opts ...trace.SpanStartOption,
+) (context.Context, trace.Span) {
+	return StartSpan(ctx, spanName, opts...)
+}
+
+// RecordSpanError 記錄span錯誤
+func (s *Service) RecordSpanError(span trace.Span, err error) {
+	RecordSpanError(span, err)
+}
+
+// RecordSpanAttributes 記錄span屬性
+func (s *Service) RecordSpanAttributes(span trace.Span, attrs ...attribute.KeyValue) {
+	RecordSpanAttributes(span, attrs...)
+}
+
+// TraceEvent 追蹤事件
+func (s *Service) TraceEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {
+	TraceEvent(span, name, attrs...)
+}
+
+// SpanEnd 結束span
+func (s *Service) SpanEnd(span trace.Span) {
+	SpanEnd(span)
+}
+
+// GetTraceparent 從上下文中獲取traceparent
+func (s *Service) GetTraceparent(ctx context.Context) string {
+	return GetTraceparent(ctx)
+}
+
+// InjectTraceparentToJSON 將traceparent注入到JSON數據中
+func (s *Service) InjectTraceparentToJSON(ctx context.Context, data []byte) ([]byte, error) {
+	return InjectTraceparentToJSON(ctx, data)
+}
+
+// RecordSpanStatus 記錄span狀態
+func (s *Service) RecordSpanStatus(span trace.Span, code codes.Code, desc string) {
+	RecordSpanStatus(span, code, desc)
+}
+
+// TraceWorkerToKDS 從Worker到KDS的追蹤封裝
+func (s *Service) TraceWorkerToKDS(ctx context.Context, eventType, eventID string) (context.Context, trace.Span) {
+	return TraceWorkerToKDS(ctx, eventType, eventID)
+}
+
+// ExtractTraceContext 從數據中提取追蹤上下文
+func (s *Service) ExtractTraceContext(ctx context.Context, carrier []byte) context.Context {
+	return ExtractTraceContext(ctx, carrier)
+}
+
+// TraceRedisToWorker 從Redis到Worker的追蹤封裝
+func (s *Service) TraceRedisToWorker(ctx context.Context, taskType, taskID string) (context.Context, trace.Span) {
+	return TraceRedisToWorker(ctx, taskType, taskID)
+}
+
+// TraceWorkerProcessing Worker處理任務的追蹤封裝
+func (s *Service) TraceWorkerProcessing(
+	ctx context.Context,
+	taskType, taskID string,
+) (context.Context, trace.Span) {
+	return TraceWorkerProcessing(ctx, taskType, taskID)
 }

@@ -51,7 +51,7 @@ func createLevelSyncEvent() *event.LevelSyncEvent {
 func TestNewLevelUseCase(t *testing.T) {
 	levelRepo, merchantRepo, eventProducer, logger := createLevelMockDependencies(t)
 
-	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger)
+	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	assert.NotNil(t, useCase)
 	assert.IsType(t, &LevelUseCase{}, useCase)
@@ -73,7 +73,7 @@ func TestLevelUseCase_SyncLevel_CreateNew(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger)
+	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createLevelSyncEvent()
@@ -104,7 +104,7 @@ func TestLevelUseCase_SyncLevel_UpdateExisting(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger)
+	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createLevelSyncEvent()
@@ -128,7 +128,7 @@ func TestLevelUseCase_SyncLevel_MerchantNotFound(t *testing.T) {
 		Return(nil, errors.New("merchant not found"))
 
 	// Create the use case
-	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger)
+	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createLevelSyncEvent()
@@ -155,7 +155,7 @@ func TestLevelUseCase_SyncLevel_UpsertError(t *testing.T) {
 		Return(errors.New("database upsert failed"))
 
 	// Create the use case
-	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger)
+	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createLevelSyncEvent()
@@ -186,7 +186,7 @@ func TestLevelUseCase_SyncLevel_PublishError(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger)
+	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Create test event data
 	eventData := createLevelSyncEvent()
@@ -214,7 +214,7 @@ func TestLevelUseCase_publishPlayerLevelSyncEvent(t *testing.T) {
 		Return(nil)
 
 	// Create the use case
-	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger)
+	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*LevelUseCase).publishPlayerLevelSyncEvent(
@@ -239,7 +239,7 @@ func TestLevelUseCase_publishPlayerLevelSyncEvent_Error(t *testing.T) {
 		Return(errors.New("publish error"))
 
 	// Create the use case
-	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger)
+	useCase := NewLevelUseCase(levelRepo, merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
 
 	// Execute the private function through a test-only wrapper
 	err := useCase.(*LevelUseCase).publishPlayerLevelSyncEvent(

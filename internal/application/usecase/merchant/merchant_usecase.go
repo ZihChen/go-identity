@@ -12,7 +12,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -21,6 +20,7 @@ type MerchantUseCase struct {
 	merchantRepo  repository.MerchantRepository
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
+	tracing       infrastructure.TracingService
 }
 
 // NewMerchantUseCase 創建商戶用例
@@ -28,22 +28,24 @@ func NewMerchantUseCase(
 	merchantRepo repository.MerchantRepository,
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
+	tracing infrastructure.TracingService,
 ) inbound.MerchantUseCase {
 	return &MerchantUseCase{
 		merchantRepo:  merchantRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
+		tracing:       tracing,
 	}
 }
 
 // SyncMerchant 同步商戶信息
 func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.MerchantSyncEvent) error {
-	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.SyncMerchant")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "MerchantUseCase.SyncMerchant")
+	defer u.tracing.SpanEnd(span)
 
 	// 記錄事件開始處理
-	tracing.TraceEvent(span, "Starting merchant sync processing")
-	tracing.RecordSpanAttributes(span,
+	u.tracing.TraceEvent(span, "Starting merchant sync processing")
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("merchant.global_id", data.GlobalMerchantID),
 		attribute.String("merchant.name", data.Merchant.Name))
 
@@ -56,25 +58,25 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.Merchant
 		UpdatedAt:        data.Merchant.UpdatedAt,
 	}
 
-	tracing.TraceEvent(span, "Upsert merchant")
+	u.tracing.TraceEvent(span, "Upsert merchant")
 	if err := u.merchantRepo.Upsert(ctx, merchant); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("upsert merchant: %w", err)
 	}
 
 	u.logger.InfoWithContext(ctx, "Merchant upserted successfully",
 		u.logger.String("global_id", merchant.GlobalMerchantID),
 		u.logger.String("name", merchant.Name))
-	tracing.TraceEvent(span, "Database operation completed")
+	u.tracing.TraceEvent(span, "Database operation completed")
 
 	// 發布商戶同步事件到KDS
-	tracing.TraceEvent(span, "Publishing merchant sync event to KDS")
+	u.tracing.TraceEvent(span, "Publishing merchant sync event to KDS")
 	if err := u.publishMerchantSyncEvent(ctx, merchant); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish merchant sync event: %w", err)
 	}
 
-	tracing.TraceEvent(span, "Merchant sync completed successfully")
+	u.tracing.TraceEvent(span, "Merchant sync completed successfully")
 	return nil
 }
 
@@ -83,10 +85,10 @@ func (u *MerchantUseCase) publishMerchantSyncEvent(
 	ctx context.Context,
 	merchant *entity.Merchant,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.publishMerchantSyncEvent")
+	ctx, span := u.tracing.StartSpan(ctx, "MerchantUseCase.publishMerchantSyncEvent")
 
 	// 記錄發布事件開始
-	tracing.TraceEvent(span, "Preparing merchant sync event for KDS")
+	u.tracing.TraceEvent(span, "Preparing merchant sync event for KDS")
 
 	// 構建事件數據
 	syncEvent := event.IdentityMerchantSyncEvent{
@@ -113,23 +115,23 @@ func (u *MerchantUseCase) publishMerchantSyncEvent(
 		ID:              eventID,
 		Time:            time.Now(),
 		DataContentType: "application/json",
-		TraceParent:     tracing.GetTraceparent(ctx),
+		TraceParent:     u.tracing.GetTraceparent(ctx),
 		Data:            syncEvent,
 	}
 
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("outgoing.event.id", eventID),
 		attribute.String("outgoing.event.type", cloudEvent.Type),
 	)
 
 	// 發布事件
 	if err := u.eventProducer.PublishMerchantSync(ctx, &cloudEvent); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish merchant sync: %w", err)
 	}
 
 	// 記錄事件發布成功
-	tracing.TraceEvent(span, "Merchant sync event published successfully")
+	u.tracing.TraceEvent(span, "Merchant sync event published successfully")
 
 	u.logger.InfoLog("Merchant sync event published",
 		u.logger.String("global_id", merchant.GlobalMerchantID),
@@ -144,18 +146,18 @@ func (u *MerchantUseCase) GetMerchantByID(
 	id uint64,
 ) (*entity.Merchant, error) {
 	// 創建 span 並跟踪此操作
-	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.GetMerchantByID")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "MerchantUseCase.GetMerchantByID")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span, attribute.Int64("merchant.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, attribute.Int64("merchant.id", int64(id)))
 
 	merchant, err := u.merchantRepo.FindByID(ctx, id)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find merchant: %w", err)
 	}
 
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("merchant.global_id", merchant.GlobalMerchantID),
 		attribute.String("merchant.name", merchant.Name),
 	)
@@ -169,19 +171,19 @@ func (u *MerchantUseCase) GetMerchantByGlobalID(
 	globalID string,
 ) (*entity.Merchant, error) {
 	// 創建 span 並跟踪此操作
-	ctx, span := tracing.StartSpan(ctx, "MerchantUseCase.GetMerchantByGlobalID")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "MerchantUseCase.GetMerchantByGlobalID")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.RecordSpanAttributes(span, attribute.String("merchant.global_id", globalID))
+	u.tracing.RecordSpanAttributes(span, attribute.String("merchant.global_id", globalID))
 
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalID)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find merchant: %w", err)
 	}
 
 	// 添加商戶信息到 span
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("merchant.name", merchant.Name),
 	)
 

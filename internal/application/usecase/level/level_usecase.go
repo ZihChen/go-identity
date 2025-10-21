@@ -14,7 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -23,6 +22,7 @@ type LevelUseCase struct {
 	merchantRepo  repository.MerchantRepository
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
+	tracing       infrastructure.TracingService
 }
 
 func NewLevelUseCase(
@@ -30,23 +30,25 @@ func NewLevelUseCase(
 	merchantRepo repository.MerchantRepository,
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
+	tracing infrastructure.TracingService,
 ) inbound.PlayerLevelUseCase {
 	return &LevelUseCase{
 		levelRepo:     levelRepo,
 		merchantRepo:  merchantRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
+		tracing:       tracing,
 	}
 }
 
 func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent) error {
-	ctx, span := tracing.StartSpan(ctx, "LevelUseCase.SyncLevel")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "LevelUseCase.SyncLevel")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.TraceEvent(span, "Checking if merchant exists")
+	u.tracing.TraceEvent(span, "Checking if merchant exists")
 	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
 	level := &entity.Level{
@@ -59,19 +61,19 @@ func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent
 	}
 	err = u.levelRepo.Upsert(ctx, level)
 	if err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("upsert player level: %w", err)
 	}
 	u.logger.InfoWithContext(ctx, "Upsert level completed", u.logger.Any("level", data))
-	tracing.TraceEvent(span, "Upsert completed")
+	u.tracing.TraceEvent(span, "Upsert completed")
 
-	tracing.TraceEvent(span, "Publishing level sync event to KDS")
+	u.tracing.TraceEvent(span, "Publishing level sync event to KDS")
 	if err = u.publishPlayerLevelSyncEvent(ctx, level); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish level sync event: %w", err)
 	}
 
-	tracing.TraceEvent(span, "Level sync completed successfully")
+	u.tracing.TraceEvent(span, "Level sync completed successfully")
 	return nil
 }
 
@@ -79,10 +81,10 @@ func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 	ctx context.Context,
 	level *entity.Level,
 ) error {
-	ctx, span := tracing.StartSpan(ctx, "LevelUseCase.publishPlayerLevelSyncEvent")
-	defer tracing.SpanEnd(span)
+	ctx, span := u.tracing.StartSpan(ctx, "LevelUseCase.publishPlayerLevelSyncEvent")
+	defer u.tracing.SpanEnd(span)
 
-	tracing.TraceEvent(span, "Preparing player level sync event for KDS")
+	u.tracing.TraceEvent(span, "Preparing player level sync event for KDS")
 
 	syncEvent := event.IdentityPlayerLevelSyncEvent{
 		GlobalMerchantID:    level.GlobalMerchantID,
@@ -101,16 +103,16 @@ func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 		ID:              eventID,
 		Time:            time.Now(),
 		DataContentType: "application/json",
-		TraceParent:     tracing.GetTraceparent(ctx),
+		TraceParent:     u.tracing.GetTraceparent(ctx),
 		Data:            syncEvent,
 	}
 
-	tracing.RecordSpanAttributes(span,
+	u.tracing.RecordSpanAttributes(span,
 		attribute.String("outgoing.event.id", eventID),
 		attribute.String("outgoing.event.type", cloudEvent.Type))
 
 	if err := u.eventProducer.PublishPlayerLevelSync(ctx, &cloudEvent); err != nil {
-		tracing.RecordSpanError(span, err)
+		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player level sync: %w", err)
 	}
 

@@ -25,6 +25,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -39,6 +40,7 @@ var baseSet = wire.NewSet(
 	// 基礎設施層
 	queue.NewQueueService,
 	provideRedisClient,
+	provideTracingService,
 
 	// 資料庫
 	merchantRepo.NewMerchantRepository,
@@ -62,6 +64,11 @@ var baseSet = wire.NewSet(
 // 事件生產者提供者
 func provideEventProducer(kdsService *kds.KDSService, logger infrastructure.Logger) service.EventProducer {
 	return kdsService
+}
+
+// TracingService提供者
+func provideTracingService() infrastructure.TracingService {
+	return tracing.NewService()
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
