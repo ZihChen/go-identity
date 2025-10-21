@@ -111,3 +111,62 @@ func (m *MockMutex) Unlock() (bool, error) {
 	}
 	return args.Bool(0), args.Error(1)
 }
+
+// QueueServiceMock 統一的 Queue Service Mock
+type QueueServiceMock struct {
+	*BaseMock
+}
+
+// NewQueueServiceMock 創建新的 Queue Service Mock
+func NewQueueServiceMock(t *testing.T) *QueueServiceMock {
+	return &QueueServiceMock{
+		BaseMock: NewBaseMock(t),
+	}
+}
+
+func (m *QueueServiceMock) EnqueueMerchantSync(ctx context.Context, data []byte) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func (m *QueueServiceMock) EnqueuePlayerSync(ctx context.Context, data []byte) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func (m *QueueServiceMock) EnqueueManagerSync(ctx context.Context, data []byte) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func (m *QueueServiceMock) EnqueueLevelSync(ctx context.Context, data []byte) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func (m *QueueServiceMock) EnqueueTagSync(ctx context.Context, data []byte) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func (m *QueueServiceMock) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+// KDSServiceMock 統一的 KDS Service Mock
+type KDSServiceMock struct {
+	*BaseMock
+}
+
+// NewKDSServiceMock 創建新的 KDS Service Mock
+func NewKDSServiceMock(t *testing.T) *KDSServiceMock {
+	return &KDSServiceMock{
+		BaseMock: NewBaseMock(t),
+	}
+}
+
+func (m *KDSServiceMock) ConsumeAllEvents(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
