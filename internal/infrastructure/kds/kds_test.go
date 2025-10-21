@@ -2,6 +2,7 @@ package kds
 
 import (
 	"context"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -143,7 +143,6 @@ func (m *MockDynamoDBClient) PutItem(
 	return args.Get(0).(*dynamodb.PutItemOutput), args.Error(1)
 }
 
-
 // TestNewKDSService tests the NewKDSService function
 func TestNewKDSService(t *testing.T) {
 	// Create a test config
@@ -163,7 +162,7 @@ func TestNewKDSService(t *testing.T) {
 	// Create mocks
 	mockQueueService := new(MockQueueService)
 	redisManager := redisCache.NewRedisManager(cfg)
-	mockLogger := helper.NewMockLogger()
+	mockLogger := mocks.NewMockLogger()
 
 	// Setup mock expectations
 	mockLogger.On("InfoWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
@@ -352,11 +351,11 @@ func TestConsumeAllEvents(t *testing.T) {
 			},
 		},
 		queueService: new(MockQueueService),
-		logger:       helper.NewMockLogger(),
+		logger:       mocks.NewMockLogger(),
 	}
 
 	// Setup mock expectations for the logger
-	mockLogger := service.logger.(*helper.MockLogger)
+	mockLogger := service.logger.(*mocks.MockLogger)
 	mockLogger.On("InfoWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 	mockLogger.On("ErrorWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
 	mockLogger.On("DebugWithContext", mock.Anything, mock.Anything, mock.Anything).Return()

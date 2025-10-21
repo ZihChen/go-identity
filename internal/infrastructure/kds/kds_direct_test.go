@@ -3,13 +3,13 @@ package kds
 import (
 	"context"
 	"encoding/json"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,7 +43,7 @@ func TestKDSServicePublishMethods(t *testing.T) {
 					ManagerSync:  "manager.sync",
 				},
 			},
-			logger: helper.NewMockLogger(),
+			logger: mocks.NewMockLogger(),
 		},
 	}
 
@@ -139,7 +139,7 @@ func TestKDSServicePublishMethods(t *testing.T) {
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.logger.(*helper.MockLogger)
+	mockLogger := testService.logger.(*mocks.MockLogger)
 
 	// Test cases
 	tests := []struct {
@@ -206,12 +206,12 @@ func TestKDSServiceSendMethod(t *testing.T) {
 	testService := &TestKDSService{
 		KDSService: KDSService{
 			streamName: "test-stream",
-			logger:     helper.NewMockLogger(),
+			logger:     mocks.NewMockLogger(),
 		},
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.logger.(*helper.MockLogger)
+	mockLogger := testService.logger.(*mocks.MockLogger)
 
 	// Create test data
 	ctx := context.Background()
@@ -253,12 +253,12 @@ func TestKDSServiceEventProcessing(t *testing.T) {
 	// Create a test service
 	testService := &TestKDSService{
 		KDSService: KDSService{
-			logger: helper.NewMockLogger(),
+			logger: mocks.NewMockLogger(),
 		},
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.logger.(*helper.MockLogger)
+	mockLogger := testService.logger.(*mocks.MockLogger)
 
 	// Create test data
 	ctx := context.Background()

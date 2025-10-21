@@ -1,9 +1,7 @@
-package helper
+package mocks
 
 import (
 	"context"
-	"testing"
-
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/stretchr/testify/mock"
 )
@@ -223,116 +221,6 @@ func NewMockLogger() *MockLogger {
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
-
-	return logger
-}
-
-func SetupLoggerMock(t *testing.T) *MockLogger {
-	logger := new(MockLogger)
-
-	// 字段方法
-	logger.On("Error",
-		mock.AnythingOfType("string"),
-		mock.MatchedBy(func(e interface{}) bool {
-			_, ok := e.(error)
-			return ok
-		}),
-	).Return(&entity.LoggerFiled{})
-
-	logger.On("String",
-		mock.AnythingOfType("string"),
-		mock.AnythingOfType("string"),
-	).Return(&entity.LoggerFiled{})
-
-	logger.On("Int",
-		mock.AnythingOfType("string"),
-		mock.AnythingOfType("int"),
-	).Return(&entity.LoggerFiled{})
-
-	logger.On("Int64",
-		mock.AnythingOfType("string"),
-		mock.AnythingOfType("int64"),
-	).Return(&entity.LoggerFiled{})
-
-	logger.On("UInt64",
-		mock.AnythingOfType("string"),
-		mock.AnythingOfType("uint64"),
-	).Return(&entity.LoggerFiled{})
-
-	logger.On("Float64",
-		mock.AnythingOfType("string"),
-		mock.AnythingOfType("float64"),
-	).Return(&entity.LoggerFiled{})
-
-	logger.On("Bool",
-		mock.AnythingOfType("string"),
-		mock.AnythingOfType("bool"),
-	).Return(&entity.LoggerFiled{})
-
-	logger.On("Any",
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return(&entity.LoggerFiled{})
-
-	// Close 方法
-	logger.On("Close").Return()
-
-	// Context相關的日誌方法
-	logger.On("DebugWithContext",
-		mock.Anything,                 // context
-		mock.AnythingOfType("string"), // msg
-		mock.Anything,                 // fields
-	).Return()
-
-	logger.On("InfoWithContext",
-		mock.Anything,
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
-
-	logger.On("ErrorWithContext",
-		mock.Anything,
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
-
-	logger.On("WarnWithContext",
-		mock.Anything,
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
-
-	logger.On("FatalWithContext",
-		mock.Anything,
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
-
-	// 一般日誌方法
-	logger.On("DebugLog",
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
-
-	logger.On("InfoLog",
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
-
-	logger.On("ErrorLog",
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
-
-	logger.On("WarnLog",
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
-
-	logger.On("FatalLog",
-		mock.AnythingOfType("string"),
-		mock.Anything,
-	).Return()
 
 	return logger
 }

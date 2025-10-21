@@ -10,7 +10,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
-	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -25,7 +24,7 @@ func setupWorkerTest(
 	managerUseCase := mocks.NewManagerUseCaseMock(t)
 	tagUseCase := mocks.NewTagUseCaseMock(t)
 	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
-	logger := helper.NewMockLogger()
+	logger := mocks.NewMockLogger()
 
 	handler := NewWorkerHandler(
 		merchantUseCase,

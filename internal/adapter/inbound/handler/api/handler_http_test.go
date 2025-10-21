@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -20,13 +20,13 @@ import (
 // Helper functions
 func setupTest(
 	t *testing.T,
-) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *helper.MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
+) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *mocks.MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 
 	merchantUseCase := mocks.NewMerchantUseCaseMock(t)
 	playerUseCase := mocks.NewPlayerUseCaseMock(t)
 	managerUseCase := mocks.NewManagerUseCaseMock(t)
-	mockLogger := helper.NewMockLogger()
+	mockLogger := mocks.NewMockLogger()
 
 	handler := &HTTPHandler{
 		merchantUseCase: merchantUseCase,
@@ -41,7 +41,7 @@ func setupTest(
 	return merchantUseCase, playerUseCase, managerUseCase, mockLogger, handler, c, w
 }
 
-// Test helper functions are now in test/mocks/helpers.go
+// Test helper functions are now in test/factories/factory.go
 
 // Tests for GetMerchantByID
 func TestHTTPHandler_GetMerchantByID(t *testing.T) {
@@ -52,7 +52,7 @@ func TestHTTPHandler_GetMerchantByID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock
-	merchant := mocks.CreateTestMerchant()
+	merchant := factories.CreateTestMerchant()
 	merchantUseCase.On("GetMerchantByID", mock.Anything, uint64(1)).Return(merchant, nil)
 
 	// Execute
@@ -153,7 +153,7 @@ func TestHTTPHandler_GetMerchantByGlobalID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-MERCHANT-1"}}
 
 	// Setup mock
-	merchant := mocks.CreateTestMerchant()
+	merchant := factories.CreateTestMerchant()
 	merchantUseCase.On("GetMerchantByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
 		Return(merchant, nil)
 
@@ -255,7 +255,7 @@ func TestHTTPHandler_GetPlayerByID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock
-	player := mocks.CreateTestPlayer()
+	player := factories.CreateTestPlayer()
 	playerUseCase.On("GetPlayerByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// Execute
@@ -356,7 +356,7 @@ func TestHTTPHandler_GetPlayerByGlobalID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-PLAYER-1"}}
 
 	// Setup mock
-	player := mocks.CreateTestPlayer()
+	player := factories.CreateTestPlayer()
 	playerUseCase.On("GetPlayerByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(player, nil)
 
 	// Execute
@@ -554,7 +554,7 @@ func TestHTTPHandler_GetManagerByID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "id", Value: "1"}}
 
 	// Setup mock
-	manager := mocks.CreateTestManager()
+	manager := factories.CreateTestManager()
 	managerUseCase.On("GetManagerByID", mock.Anything, uint64(1)).Return(manager, nil)
 
 	// Execute
@@ -655,7 +655,7 @@ func TestHTTPHandler_GetManagerByGlobalID(t *testing.T) {
 	c.Params = []gin.Param{{Key: "global_id", Value: "FATCAT-MANAGER-1"}}
 
 	// Setup mock
-	manager := mocks.CreateTestManager()
+	manager := factories.CreateTestManager()
 	managerUseCase.On("GetManagerByGlobalID", mock.Anything, "FATCAT-MANAGER-1").
 		Return(manager, nil)
 

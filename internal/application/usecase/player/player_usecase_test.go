@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"testing"
 	"time"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"github.com/jvdiamondtech/ms-identity-cat/test/helper"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -21,12 +21,12 @@ import (
 // Helper functions
 func createMockDependencies(
 	t *testing.T,
-) (*mocks.PlayerRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.LevelRepositoryMock, *mocks.EventProducerMock, *helper.MockLogger, *redis.Client) {
+) (*mocks.PlayerRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.LevelRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, *redis.Client) {
 	playerRepo := mocks.NewPlayerRepositoryMock(t)
 	merchantRepo := mocks.NewMerchantRepositoryMock(t)
 	levelRepo := mocks.NewLevelRepositoryMock(t)
 	eventProducer := mocks.NewEventProducerMock(t)
-	logger := helper.NewMockLogger()
+	logger := mocks.NewMockLogger()
 	redisClient, _ := redismock.NewClientMock()
 	return playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient
 }
@@ -77,13 +77,13 @@ func TestNewPlayerUseCase(t *testing.T) {
 }
 
 func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	merchant := mocks.CreateTestMerchant()
+	merchant := factories.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Player doesn't exist yet
@@ -128,13 +128,13 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 }
 
 func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	merchant := mocks.CreateTestMerchant()
+	merchant := factories.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
 	// Player doesn't exist yet
@@ -173,13 +173,13 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 }
 
 func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	player := mocks.CreateTestPlayer()
+	player := factories.CreateTestPlayer()
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// Create the use case
@@ -202,7 +202,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 }
 
 func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
@@ -232,13 +232,13 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 }
 
 func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	player := mocks.CreateTestPlayer()
+	player := factories.CreateTestPlayer()
 	playerRepo.On("FindByGlobalID", mock.Anything, "FATCAT-PLAYER-1").Return(player, nil)
 
 	// Create the use case
@@ -261,7 +261,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 }
 
 func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
@@ -291,13 +291,13 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 }
 
 func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	player := mocks.CreateTestPlayer()
+	player := factories.CreateTestPlayer()
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 	playerRepo.On("Update", mock.Anything, mock.AnythingOfType("*entity.Player")).Return(nil)
 
@@ -320,7 +320,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 }
 
 func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
@@ -349,13 +349,13 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 }
 
 func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
-	ctx := mocks.CreateTestContext()
+	ctx := factories.CreateTestContext()
 	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks
-	player := mocks.CreateTestPlayer()
+	player := factories.CreateTestPlayer()
 	playerRepo.On("FindByID", mock.Anything, uint64(1)).Return(player, nil)
 
 	// Update fails
