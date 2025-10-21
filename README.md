@@ -4,14 +4,15 @@ Fat Identity Cat 是一個用於管理商戶、玩家和管理員身份的微服
 
 ## 🚀 功能亮點 / 特色
 
-### ⚡ 最新性能成就（v2.0 已部署生產）
+### ⚡ 最新性能成就（v3.0 安全強化 + v2.0 已部署生產）
+- **安全架構升級**：生產級中間件系統，環境感知安全配置 ✅ **v3.0 新增**
 - **Consumer 性能提升 3.3倍**：從 ~3,000 → 10,000+ records/sec ✅ **生產實測**
 - **錯誤率超低**：<0.23%（遠低於1%目標）✅ **穩定運行**
 - **代碼品質優異**：測試覆蓋率 >85%，循環複雜度 <10 ✅ **企業級標準**
 - **生產環境驗證**：所有優化功能已成功部署並穩定運行 ✅ **可靠保證**
 
 ### 🔧 核心服務
-- **Web 服務**：提供 HTTP API（統一路由管理器架構）
+- **Web 服務**：提供 HTTP API（統一路由管理器架構 + v3.0 安全中間件）
 - **Consumer 服務**：高性能批次處理 KDS 事件（v2.0 性能優化）
 - **Worker 服務**：背景任務處理
 
@@ -80,8 +81,10 @@ docker-compose up -d fat_identity_web
 go run main.go web --port 8080
 ```
 
-Web 服務使用統一的 RouterManager 管理所有路由和中間件：
+Web 服務使用統一的 RouterManager 管理所有路由和中間件（v3.0 安全強化）：
 - 自動配置追蹤中間件
+- 環境感知 CORS 安全配置
+- API Key 認證中間件（商戶隔離）
 - 統一管理 API、健康檢查、Swagger 路由
 - 支援優雅關機和資源清理
 
@@ -289,7 +292,10 @@ fat_identity_cat/
 │   │   │   │   ├── api/        # API 處理器
 │   │   │   │   ├── consumer/   # Consumer 處理器
 │   │   │   │   └── worker/     # Worker 處理器
-│   │   │   ├── middleware/     # HTTP 中間件 (統一管理)
+│   │   │   ├── middleware/     # 高級 HTTP 中間件系統 (v3.0)
+│   │   │   │   ├── cors_middleware.go      # 環境感知 CORS 安全配置
+│   │   │   │   ├── auth_middleware.go      # API Key 認證與商戶隔離
+│   │   │   │   └── tracing_middleware.go   # OpenTelemetry 分散式追蹤
 │   │   │   └── router/         # 路由管理器 (統一封裝)
 │   │   └── outbound/           # 出站適配器
 │   │       └── repository/     # 資料庫操作實作層
@@ -319,6 +325,10 @@ fat_identity_cat/
 │       └── tracing/            # 分布式追踪器
 ├── migrations/                 # 資料庫 schema migrations檔案
 ├── test/                       # 集成測試
+│   ├── mocks/                  # 測試 Mocks (v3.0 重新組織)
+│   │   ├── repository_mocks.go # Repository 接口模擬
+│   │   ├── service_mocks.go    # Service 接口模擬
+│   │   └── usecase_mocks.go    # UseCase 接口模擬
 ├── .env                        # 環境變量
 ├── .gitlab-ci.yml              # Gitlab CI 配置
 ├── .golangci.yml               # golangci:程式碼規範工具配置
@@ -329,7 +339,10 @@ fat_identity_cat/
 
 ### 主要組件
 
-- **Web 服務**：提供 HTTP API 用於管理身份（統一路由管理器架構）
+- **Web 服務**：提供 HTTP API 用於管理身份（統一路由管理器架構 + v3.0 安全中間件）
+  - 環境感知 CORS 安全配置 ✅ **v3.0 新增**
+  - API Key 認證與商戶隔離 ✅ **安全強化**
+  - OpenTelemetry 分散式追蹤 ✅ **可觀測性**
 - **Consumer 服務**：高性能批次處理 KDS 事件（v2.0 優化完成並生產部署）
   - 批次處理引擎（100 records/batch）✅ **生產運行**
   - 並行 Worker Pool（10 goroutines）✅ **性能驗證**
@@ -351,14 +364,19 @@ fat_identity_cat/
   - **出站適配器(Outbound)**：連接外部服務和資源
 - **基礎設施層(Infra)**：提供技術實現
 
-### 最新架構特點
+### 最新架構特點（v3.0 安全強化）
 
 1. **統一路由管理**：RouterManager 統一封裝所有路由配置，提供兩種使用方式：
    - `SetupRoutersWithMiddleware`：自動配置中間件並註冊路由
    - `RegisterRoutes`：僅註冊路由（向後兼容）
 
-2. **中間件集中管理**：所有中間件統一在 `internal/adapter/inbound/middleware` 目錄管理
+2. **高級中間件系統**：生產級安全中間件統一在 `internal/adapter/inbound/middleware` 目錄管理
+   - **環境感知 CORS**：開發環境寬鬆，生產環境嚴格控制
+   - **API Key 認證**：商戶隔離與安全驗證
+   - **分散式追蹤**：OpenTelemetry 全鏈路追蹤
 
-3. **處理器模組化**：Handler 分為 API 和 Worker 兩個獨立模組，各自負責不同的業務處理
+3. **處理器模組化**：Handler 分為 API、Consumer 和 Worker 三個獨立模組，各自負責不同的業務處理
 
-4. **清晰的責任分離**：入站和出站適配器明確分離，提高代碼可維護性
+4. **安全優先設計**：生產環境嚴格的 CORS 控制和 API 認證機制
+
+5. **清晰的責任分離**：入站和出站適配器明確分離，提高代碼可維護性

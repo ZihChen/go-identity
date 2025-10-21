@@ -48,7 +48,10 @@ The codebase follows hexagonal architecture with clear separation:
       - `api_router.go` - API route registration
       - `swagger_router.go` - Swagger documentation routes
       - `health_router.go` - Health check routes
-    - `middleware/` - HTTP middleware (tracing, authentication, etc.)
+    - `middleware/` - **Advanced HTTP middleware system**
+      - `cors_middleware.go` - Environment-aware CORS with security controls
+      - `auth_middleware.go` - API Key authentication with merchant isolation
+      - `tracing_middleware.go` - OpenTelemetry integration for distributed tracing
   - `outbound/` - Outbound adapters (external dependencies)
     - `repository/` - Database operations organized by domain
       - `merchant/` - Merchant-related repositories
@@ -216,6 +219,16 @@ Custom error types defined in `internal/domain/errmsg/` for consistent error han
 
 ## Recent Architecture Updates
 
+### Security and Middleware Enhancement (2025-10-20) ✅
+**Security Architecture Enhancement**: Added production-ready middleware system with comprehensive security controls
+
+#### Security Enhancement Activities Completed
+- ✅ **CORS Middleware**: Environment-aware CORS with strict production security controls
+- ✅ **Authentication Middleware**: API Key validation with merchant context isolation
+- ✅ **Security Audit**: Completed security assessment with middleware implementation progress
+- ✅ **DSN Security Fix**: Resolved database password exposure in logs
+- ✅ **Test Mocks Organization**: Migrated test mocks to dedicated `test/mocks/` package for better organization
+
 ### Consumer Performance Optimization v2.0 + Code Refactoring (Completed & Deployed - 2025-09-12) ✅
 Successfully completed comprehensive Consumer optimization through three phases, delivering significant performance improvements with maintainable code. **Now deployed in production with verified results**:
 
@@ -248,8 +261,13 @@ Successfully completed comprehensive Consumer optimization through three phases,
 
 ### Handler and Middleware Organization
 - **API Handlers** (`internal/adapter/inbound/handler/api/`) - HTTP request handling
+- **Consumer Handlers** (`internal/adapter/inbound/handler/consumer/`) - KDS event processing
 - **Worker Handlers** (`internal/adapter/inbound/handler/worker/`) - Background task handling
-- **Centralized Middleware**: All middleware moved to `internal/adapter/inbound/middleware/`
+- **Advanced Middleware System**: All middleware moved to `internal/adapter/inbound/middleware/`
+  - Environment-aware CORS configuration
+  - API Key authentication with security validation
+  - OpenTelemetry distributed tracing
+  - Production-ready security controls
 
 ## Development Workflow
 
@@ -281,6 +299,7 @@ While both services share similar architectural patterns, Fat Identity Cat focus
 
 ## Current Status
 
+**✅ Security and Middleware Enhancement (v3.0)**: Advanced middleware system with production-ready security controls  
 **✅ Consumer Refactoring Completed & Production Deployed (v2.0 + Code Quality Improvements)**: Three-phase optimization delivering production-ready performance enhancements - **Now running in production with 3.3x performance improvement**  
 **✅ Router Architecture Migration Completed (v2.0)**: Unified router management system implemented  
 **✅ Core Identity Management (v1.0)**: Complete CRUD operations for all identity entities
@@ -313,6 +332,24 @@ While both services share similar architectural patterns, Fat Identity Cat focus
 - **✅ Documentation Complete**: Complete refactoring history and technical decisions documented and archived
 
 The Consumer service now delivers enterprise-grade performance and scalability with significantly improved code maintainability, **successfully deployed and running in production environment**.
+
+### Security and Middleware System (v3.0) ✅
+**Production-Ready Security Architecture**: Comprehensive middleware system with environment-aware configurations
+
+#### Security Features Implemented
+- ✅ **CORS Middleware**: Environment-aware CORS configuration with strict production security controls
+- ✅ **Authentication Middleware**: API Key validation with merchant context isolation and security validation
+- ✅ **Tracing Integration**: OpenTelemetry distributed tracing with middleware integration
+- ✅ **Security Audit Compliance**: Security assessment completed with middleware implementation progress documented
+- ✅ **Database Security**: DSN password exposure in logs resolved
+- ✅ **Test Organization**: Test mocks migrated to dedicated `test/mocks/` package
+
+#### Security Architecture Benefits
+- **Environment-Aware Security**: Different security levels for development vs production
+- **Merchant Isolation**: API Key authentication ensures proper merchant context isolation
+- **Production Hardening**: Strict CORS controls and security validation in production environment
+- **Comprehensive Tracing**: Full request lifecycle tracking with OpenTelemetry integration
+- **Clean Code Organization**: Organized test mocks and improved security code structure
 
 ### Code Cleanup and Simplification (2025-09-24) ✅
 **Architecture Simplification**: Removed unused experimental components to maintain clean, production-ready codebase

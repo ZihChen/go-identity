@@ -12,6 +12,8 @@ docs/claude/
 ├── archieve/                   # 歷史文檔歸檔
 │   └── 2025-09/
 │       └── consumer-refactor/  # Consumer 重構完整歷史
+├── audit/                      # 專案稽核報告工作
+│   └── AUDIT_REPORT_v1.0.md
 └── refactor/                   # 重構工作指南
     ├── README.md               # 重構目錄說明
     └── REFACTOR_BEST_PRACTICES.md # 重構最佳實踐
