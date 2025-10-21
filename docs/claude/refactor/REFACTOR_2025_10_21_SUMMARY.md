@@ -1,3 +1,5 @@
+---
+
 # DIP Refactoring Phase 2: TracingService Method-Based Implementation
 **Date**: 2025-10-21  
 **Scope**: Converting package-level tracing functions to Service struct methods  

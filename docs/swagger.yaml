@@ -1,11 +1,11 @@
 definitions:
-  handler.ErrorResponse:
+  api.ErrorResponse:
     properties:
       error:
         example: An error occurred
         type: string
     type: object
-  handler.Manager:
+  api.Manager:
     properties:
       account:
         type: string
@@ -24,7 +24,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  handler.Merchant:
+  api.Merchant:
     properties:
       api_key:
         type: string
@@ -43,7 +43,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  handler.Player:
+  api.Player:
     properties:
       account:
         type: string
@@ -61,15 +61,26 @@ definitions:
         type: integer
       last_active_at:
         type: string
+      level_id:
+        type: integer
       merchant_id:
         type: integer
+      player_level:
+        $ref: '#/definitions/entity.PlayerLevel'
       updated_at:
         type: string
     type: object
-  handler.SuccessResponse:
+  api.SuccessResponse:
     properties:
       status:
         example: success
+        type: string
+    type: object
+  entity.PlayerLevel:
+    properties:
+      global_player_level_id:
+        type: string
+      name:
         type: string
     type: object
 host: localhost:8080
@@ -93,6 +104,7 @@ paths:
       description: 根據管理員ID獲取管理員信息
       parameters:
       - description: 管理員ID
+        format: int64
         in: path
         name: id
         required: true
@@ -103,19 +115,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.Manager'
+            $ref: '#/definitions/api.Manager'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: 通過ID獲取管理員
       tags:
       - 管理員
@@ -136,19 +148,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.Manager'
+            $ref: '#/definitions/api.Manager'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: 通過全局ID獲取管理員
       tags:
       - 管理員
@@ -159,6 +171,7 @@ paths:
       description: 根據商戶ID獲取商戶信息
       parameters:
       - description: 商戶ID
+        format: int64
         in: path
         name: id
         required: true
@@ -169,19 +182,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.Merchant'
+            $ref: '#/definitions/api.Merchant'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: 通過ID獲取商戶
       tags:
       - 商戶
@@ -202,19 +215,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.Merchant'
+            $ref: '#/definitions/api.Merchant'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: 通過全局ID獲取商戶
       tags:
       - 商戶
@@ -225,6 +238,7 @@ paths:
       description: 根據玩家ID獲取玩家信息
       parameters:
       - description: 玩家ID
+        format: int64
         in: path
         name: id
         required: true
@@ -235,19 +249,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.Player'
+            $ref: '#/definitions/api.Player'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: 通過ID獲取玩家
       tags:
       - 玩家
@@ -258,6 +272,7 @@ paths:
       description: 將玩家的最後活躍時間更新為當前時間
       parameters:
       - description: 玩家ID
+        format: int64
         in: path
         name: id
         required: true
@@ -268,19 +283,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.SuccessResponse'
+            $ref: '#/definitions/api.SuccessResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: 更新玩家最後活躍時間
       tags:
       - 玩家
@@ -301,19 +316,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.Player'
+            $ref: '#/definitions/api.Player'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: 通過全局ID獲取玩家
       tags:
       - 玩家
@@ -326,7 +341,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.SuccessResponse'
+            $ref: '#/definitions/api.SuccessResponse'
       summary: 健康檢查
       tags:
       - 系統
