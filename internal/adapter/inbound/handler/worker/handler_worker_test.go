@@ -13,12 +13,14 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // Setup function for tests
 func setupWorkerTest(
 	t *testing.T,
-) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *mocks.TagUseCaseMock, *WorkerHandler) {
+) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *mocks.TagUseCaseMock, *mocks.TracingServiceMock, *WorkerHandler) {
 	merchantUseCase := mocks.NewMerchantUseCaseMock(t)
 	playerUseCase := mocks.NewPlayerUseCaseMock(t)
 	managerUseCase := mocks.NewManagerUseCaseMock(t)
@@ -37,13 +39,30 @@ func setupWorkerTest(
 		mockTracer,
 	)
 
-	return merchantUseCase, playerUseCase, managerUseCase, tagUseCase, handler
+	return merchantUseCase, playerUseCase, managerUseCase, tagUseCase, mockTracer, handler
+}
+
+// setupTracingMocks is a helper to set up common tracing mock expectations
+func setupTracingMocks(mockTracer *mocks.TracingServiceMock, taskType string) trace.Span {
+	_, span := noop.NewTracerProvider().Tracer("test").Start(context.Background(), "test-span")
+	mockTracer.On("TraceWorkerProcessing", mock.Anything, taskType, mock.AnythingOfType("string")).
+		Return(context.Background(), span)
+	mockTracer.On("RecordSpanAttributes", span, mock.AnythingOfType("[]attribute.KeyValue")).
+		Return().
+		Maybe()
+	mockTracer.On("RecordSpanError", span, mock.Anything).Return().Maybe()
+	mockTracer.On("TraceEvent", span, mock.AnythingOfType("string"), mock.AnythingOfType("[]attribute.KeyValue")).
+		Return().
+		Maybe()
+	mockTracer.On("SpanEnd", span).Return()
+	return span
 }
 
 // Tests for HandleMerchantSync
 func TestWorkerHandler_HandleMerchantSync_Success(t *testing.T) {
 	// Setup
-	merchantUseCase, _, _, _, handler := setupWorkerTest(t)
+	merchantUseCase, _, _, _, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypeMerchantSync)
 
 	// Create a valid CloudEvent with MerchantSyncEvent data
 	cloudEvent := event.CloudEvent{
@@ -87,11 +106,13 @@ func TestWorkerHandler_HandleMerchantSync_Success(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	merchantUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
 
 func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 	// Setup
-	merchantUseCase, _, _, _, handler := setupWorkerTest(t)
+	merchantUseCase, _, _, _, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypeMerchantSync)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -112,21 +133,24 @@ func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync merchant")
 	merchantUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync
 func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, tagUseCase, handler := setupWorkerTest(t)
+	_, playerUseCase, _, tagUseCase, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
 	task := asynq.NewTask(queue.TypePlayerSync, payload)
 
 	// Setup expectations
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, mock.Anything).
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything).
 		Return(nil)
-	tagUseCase.On("SyncPlayerTag", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	tagUseCase.On("SyncPlayerTag", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
 
 	// Setup context
 	ctx := context.Background()
@@ -137,11 +161,12 @@ func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	playerUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
 
 func TestWorkerHandler_HandlePlayerSync_NilTask(t *testing.T) {
 	// Setup
-	_, _, _, _, handler := setupWorkerTest(t)
+	_, _, _, _, _, handler := setupWorkerTest(t)
 
 	// Setup context
 	ctx := context.Background()
@@ -156,7 +181,8 @@ func TestWorkerHandler_HandlePlayerSync_NilTask(t *testing.T) {
 
 func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, _, handler := setupWorkerTest(t)
+	_, playerUseCase, _, _, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -164,7 +190,7 @@ func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 
 	// Setup expectations
 	expectedErr := errors.New("sync error")
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything, mock.Anything).
+	playerUseCase.On("SyncPlayer", mock.Anything, mock.Anything).
 		Return(expectedErr)
 
 	// Setup context
@@ -177,12 +203,14 @@ func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync player")
 	playerUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync with tags and level data
 func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, tagUseCase, handler := setupWorkerTest(t)
+	_, playerUseCase, _, tagUseCase, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
 	handler.levelUseCase = mockLevelUseCase
 
@@ -228,12 +256,14 @@ func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 	playerUseCase.AssertExpectations()
 	tagUseCase.AssertExpectations()
 	mockLevelUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync with level data error
 func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, _, handler := setupWorkerTest(t)
+	_, playerUseCase, _, _, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
 	handler.levelUseCase = mockLevelUseCase
 
@@ -270,12 +300,14 @@ func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 	assert.NoError(t, err)
 	playerUseCase.AssertExpectations()
 	mockLevelUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
 
 // Tests for HandlePlayerSync with tag error
 func TestWorkerHandler_HandlePlayerSync_TagError(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, tagUseCase, handler := setupWorkerTest(t)
+	_, playerUseCase, _, tagUseCase, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 
 	// Create task with player and tags data
 	payload := []byte(`{
@@ -313,61 +345,17 @@ func TestWorkerHandler_HandlePlayerSync_TagError(t *testing.T) {
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to sync player tags")
-	playerUseCase.AssertExpectations()
-	tagUseCase.AssertExpectations()
-}
-
-// Tests for HandlePlayerSync with player tag relation error
-func TestWorkerHandler_HandlePlayerSync_PlayerTagRelationError(t *testing.T) {
-	// Setup
-	_, playerUseCase, _, tagUseCase, handler := setupWorkerTest(t)
-
-	// Create task with player and tags data
-	payload := []byte(`{
-		"id": "test-id",
-		"type": "player.sync",
-		"source": "test-source",
-		"data": {
-			"player": {
-				"global_player_id": "test-player-id"
-			},
-			"player_tags": [
-				{
-					"global_tag_id": "tag1",
-					"name": "Tag 1"
-				}
-			],
-			"global_merchant_id": "merchant1"
-		},
-		"traceparent": "test-trace"
-	}`)
-	task := asynq.NewTask(queue.TypePlayerSync, payload)
-
-	// Setup expectations
-	playerUseCase.On("SyncPlayer", mock.Anything, mock.AnythingOfType("*event.PlayerSyncEvent")).
-		Return(nil)
-	expectedErr := errors.New("player tag relation error")
-	tagUseCase.On("SyncPlayerTag", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(expectedErr)
-
-	// Setup context
-	ctx := context.Background()
-
-	// Execute
-	err := handler.HandlePlayerSync(ctx, task)
-
-	// Assert
-	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync player tags relation")
 	playerUseCase.AssertExpectations()
 	tagUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
 
 // Tests for HandleManagerSync
 func TestWorkerHandler_HandleManagerSync_Success(t *testing.T) {
 	// Setup
-	_, _, managerUseCase, _, handler := setupWorkerTest(t)
+	_, _, managerUseCase, _, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypeManagerSync)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -386,11 +374,12 @@ func TestWorkerHandler_HandleManagerSync_Success(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	managerUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
 
 func TestWorkerHandler_HandleManagerSync_NilTask(t *testing.T) {
 	// Setup
-	_, _, _, _, handler := setupWorkerTest(t)
+	_, _, _, _, _, handler := setupWorkerTest(t)
 
 	// Setup context
 	ctx := context.Background()
@@ -405,7 +394,8 @@ func TestWorkerHandler_HandleManagerSync_NilTask(t *testing.T) {
 
 func TestWorkerHandler_HandleManagerSync_Error(t *testing.T) {
 	// Setup
-	_, _, managerUseCase, _, handler := setupWorkerTest(t)
+	_, _, managerUseCase, _, mockTracer, handler := setupWorkerTest(t)
+	setupTracingMocks(mockTracer, queue.TypeManagerSync)
 
 	// Create task
 	payload := []byte(`{"test":"data"}`)
@@ -426,4 +416,5 @@ func TestWorkerHandler_HandleManagerSync_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to sync manager")
 	managerUseCase.AssertExpectations()
+	mockTracer.AssertExpectations()
 }
