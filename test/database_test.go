@@ -2,11 +2,11 @@
 package tests
 
 import (
-	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"testing"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +17,7 @@ func TestDBConnection(t *testing.T) {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	loggerMock := mocks.NewMockLogger()
+	loggerMock := mocks.NewMockLogger(t)
 
 	// 初始化資料庫連接
 	db, err := mysql.NewDatabase(cfg, loggerMock)

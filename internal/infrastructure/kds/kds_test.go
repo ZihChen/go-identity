@@ -2,7 +2,6 @@ package kds
 
 import (
 	"context"
-	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -162,7 +162,7 @@ func TestNewKDSService(t *testing.T) {
 	// Create mocks
 	mockQueueService := new(MockQueueService)
 	redisManager := redisCache.NewRedisManager(cfg)
-	mockLogger := mocks.NewMockLogger()
+	mockLogger := mocks.NewMockLogger(t)
 
 	// Setup mock expectations
 	mockLogger.On("InfoWithContext", mock.Anything, mock.Anything, mock.Anything).Return()
@@ -176,9 +176,6 @@ func TestNewKDSService(t *testing.T) {
 	assert.NotNil(t, service)
 	assert.Equal(t, "test-stream", service.streamName)
 	assert.Equal(t, "test-table", service.tableName)
-
-	// Verify mock expectations
-	mockLogger.AssertExpectations(t)
 }
 
 // TestPublishMethods tests all publish methods
@@ -351,7 +348,7 @@ func TestConsumeAllEvents(t *testing.T) {
 			},
 		},
 		queueService: new(MockQueueService),
-		logger:       mocks.NewMockLogger(),
+		logger:       mocks.NewMockLogger(t),
 	}
 
 	// Setup mock expectations for the logger
@@ -366,8 +363,6 @@ func TestConsumeAllEvents(t *testing.T) {
 	// Check the results
 	assert.NoError(t, err)
 
-	// Verify mock expectations
-	mockLogger.AssertExpectations(t)
 }
 
 // TestHelperMethods tests the helper methods

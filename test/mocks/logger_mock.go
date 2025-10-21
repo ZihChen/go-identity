@@ -2,12 +2,23 @@ package mocks
 
 import (
 	"context"
+	"testing"
+
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/stretchr/testify/mock"
 )
 
 type MockLogger struct {
-	mock.Mock
+	*BaseMock
+}
+
+// NewMockLogger 創建新的 Mock Logger 實例
+func NewMockLogger(t *testing.T) *MockLogger {
+	logger := &MockLogger{
+		BaseMock: NewBaseMock(t),
+	}
+	logger.mockAllMethod()
+	return logger
 }
 
 func (m *MockLogger) DebugWithContext(
@@ -114,12 +125,9 @@ func (m *MockLogger) Close() {
 	m.Called()
 }
 
-// NewMockLogger 創建新的 Mock Logger 實例
-func NewMockLogger() *MockLogger {
-	logger := new(MockLogger)
-
+func (m *MockLogger) mockAllMethod() {
 	// 字段方法
-	logger.On("Error",
+	m.On("Error",
 		mock.AnythingOfType("string"),
 		mock.MatchedBy(func(e interface{}) bool {
 			_, ok := e.(error)
@@ -127,100 +135,98 @@ func NewMockLogger() *MockLogger {
 		}),
 	).Return(&entity.LoggerFiled{}).Maybe()
 
-	logger.On("String",
+	m.On("String",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 	).Return(&entity.LoggerFiled{}).Maybe()
 
-	logger.On("Int",
+	m.On("Int",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
 	).Return(&entity.LoggerFiled{}).Maybe()
 
-	logger.On("Int64",
+	m.On("Int64",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int64"),
 	).Return(&entity.LoggerFiled{}).Maybe()
 
-	logger.On("UInt64",
+	m.On("UInt64",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("uint64"),
 	).Return(&entity.LoggerFiled{}).Maybe()
 
-	logger.On("Float64",
+	m.On("Float64",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("float64"),
 	).Return(&entity.LoggerFiled{}).Maybe()
 
-	logger.On("Bool",
+	m.On("Bool",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("bool"),
 	).Return(&entity.LoggerFiled{}).Maybe()
 
-	logger.On("Any",
+	m.On("Any",
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return(&entity.LoggerFiled{}).Maybe()
 
 	// Close 方法
-	logger.On("Close").Return().Maybe()
+	m.On("Close").Return().Maybe()
 
 	// Context相關的日誌方法
-	logger.On("DebugWithContext",
+	m.On("DebugWithContext",
 		mock.Anything,                 // context
 		mock.AnythingOfType("string"), // msg
 		mock.Anything,                 // fields
 	).Return().Maybe()
 
-	logger.On("InfoWithContext",
+	m.On("InfoWithContext",
 		mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
 
-	logger.On("ErrorWithContext",
+	m.On("ErrorWithContext",
 		mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
 
-	logger.On("WarnWithContext",
+	m.On("WarnWithContext",
 		mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
 
-	logger.On("FatalWithContext",
+	m.On("FatalWithContext",
 		mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
 
 	// 一般日誌方法
-	logger.On("DebugLog",
+	m.On("DebugLog",
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
 
-	logger.On("InfoLog",
+	m.On("InfoLog",
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
 
-	logger.On("ErrorLog",
+	m.On("ErrorLog",
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
 
-	logger.On("WarnLog",
+	m.On("WarnLog",
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
 
-	logger.On("FatalLog",
+	m.On("FatalLog",
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return().Maybe()
-
-	return logger
 }

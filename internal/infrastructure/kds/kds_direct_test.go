@@ -3,13 +3,13 @@ package kds
 import (
 	"context"
 	"encoding/json"
-	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,7 +43,7 @@ func TestKDSServicePublishMethods(t *testing.T) {
 					ManagerSync:  "manager.sync",
 				},
 			},
-			logger: mocks.NewMockLogger(),
+			logger: mocks.NewMockLogger(t),
 		},
 	}
 
@@ -139,7 +139,7 @@ func TestKDSServicePublishMethods(t *testing.T) {
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.logger.(*mocks.MockLogger)
+	_ = testService.logger.(*mocks.MockLogger)
 
 	// Test cases
 	tests := []struct {
@@ -187,9 +187,6 @@ func TestKDSServicePublishMethods(t *testing.T) {
 			assert.Equal(t, tc.eventType, testService.sentEventType)
 		})
 	}
-
-	// Verify mock expectations
-	mockLogger.AssertExpectations(t)
 }
 
 // TestKDSServiceSendMethod tests the Send method
@@ -206,12 +203,12 @@ func TestKDSServiceSendMethod(t *testing.T) {
 	testService := &TestKDSService{
 		KDSService: KDSService{
 			streamName: "test-stream",
-			logger:     mocks.NewMockLogger(),
+			logger:     mocks.NewMockLogger(t),
 		},
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.logger.(*mocks.MockLogger)
+	_ = testService.logger.(*mocks.MockLogger)
 
 	// Create test data
 	ctx := context.Background()
@@ -234,9 +231,6 @@ func TestKDSServiceSendMethod(t *testing.T) {
 	assert.True(t, testService.putRecordCalled)
 	assert.Equal(t, data, testService.putRecordData)
 	assert.Equal(t, "test-stream", testService.putRecordStream)
-
-	// Verify mock expectations
-	mockLogger.AssertExpectations(t)
 }
 
 // TestKDSServiceEventProcessing tests the event processing methods
@@ -253,12 +247,12 @@ func TestKDSServiceEventProcessing(t *testing.T) {
 	// Create a test service
 	testService := &TestKDSService{
 		KDSService: KDSService{
-			logger: mocks.NewMockLogger(),
+			logger: mocks.NewMockLogger(t),
 		},
 	}
 
 	// Get the logger for logging purposes only
-	mockLogger := testService.logger.(*mocks.MockLogger)
+	_ = testService.logger.(*mocks.MockLogger)
 
 	// Create test data
 	ctx := context.Background()
@@ -293,7 +287,4 @@ func TestKDSServiceEventProcessing(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, testService.markEventCalled)
 	assert.Equal(t, eventID, testService.markEventID)
-
-	// Verify mock expectations
-	mockLogger.AssertExpectations(t)
 }

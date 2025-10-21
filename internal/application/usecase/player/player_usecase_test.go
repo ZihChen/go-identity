@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"errors"
-	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"testing"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,7 @@ func createMockDependencies(
 	merchantRepo := mocks.NewMerchantRepositoryMock(t)
 	levelRepo := mocks.NewLevelRepositoryMock(t)
 	eventProducer := mocks.NewEventProducerMock(t)
-	logger := mocks.NewMockLogger()
+	logger := mocks.NewMockLogger(t)
 	redisClient, _ := redismock.NewClientMock()
 	return playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient
 }

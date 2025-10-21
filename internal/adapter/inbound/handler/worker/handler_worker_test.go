@@ -24,7 +24,7 @@ func setupWorkerTest(
 	managerUseCase := mocks.NewManagerUseCaseMock(t)
 	tagUseCase := mocks.NewTagUseCaseMock(t)
 	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
-	logger := mocks.NewMockLogger()
+	logger := mocks.NewMockLogger(t)
 
 	handler := NewWorkerHandler(
 		merchantUseCase,

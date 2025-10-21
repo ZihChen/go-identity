@@ -3,13 +3,13 @@ package tests
 
 import (
 	"context"
-	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"testing"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -29,7 +29,7 @@ func TestOpenObserveLogging(t *testing.T) {
 	logger := cmd.GetLogger()
 	if logger == nil {
 		// 如果 cmd.GetLogger() 返回 nil，則手動初始化
-		logger = mocks.NewMockLogger()
+		logger = mocks.NewMockLogger(t)
 	}
 
 	// 測試日誌輸出

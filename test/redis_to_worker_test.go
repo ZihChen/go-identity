@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"testing"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	database "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/database/mysql"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -64,7 +64,7 @@ func setupWorkerComponents(
 	require.NoError(t, err, "Should load config without error")
 
 	// 建立 MockLogger
-	mockLogger := mocks.NewMockLogger()
+	mockLogger := mocks.NewMockLogger(t)
 
 	// 建立 Redis Manager
 	redisManager := redis.NewRedisManager(cfg)
@@ -172,7 +172,7 @@ func TestMerchantRedisToWorker(t *testing.T) {
 	t.Logf("Starting merchant Redis-to-Worker-to-KDS test")
 
 	// 建立 MockLogger
-	mockLogger := mocks.NewMockLogger()
+	mockLogger := mocks.NewMockLogger(t)
 
 	// 設置 Worker 組件
 	workerComponents, cfg, _, cleanupWorker := setupWorkerComponents(t)
@@ -334,7 +334,7 @@ func TestMerchantRedisToWorker(t *testing.T) {
 func TestPlayerRedisToWorker(t *testing.T) {
 	t.Logf("Starting player Redis-to-Worker-to-KDS test")
 
-	mockLogger := mocks.NewMockLogger()
+	mockLogger := mocks.NewMockLogger(t)
 
 	// 設置 Worker 組件
 	workerComponents, cfg, _, cleanupWorker := setupWorkerComponents(t)
@@ -512,7 +512,7 @@ func TestPlayerRedisToWorker(t *testing.T) {
 func TestManagerRedisToWorker(t *testing.T) {
 	t.Logf("Starting manager Redis-to-Worker-to-KDS test")
 
-	mockLogger := mocks.NewMockLogger()
+	mockLogger := mocks.NewMockLogger(t)
 
 	// 設置 Worker 組件
 	workerComponents, cfg, _, cleanupWorker := setupWorkerComponents(t)

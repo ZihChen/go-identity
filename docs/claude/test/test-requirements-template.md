@@ -19,13 +19,13 @@
 // ✅ 正確做法
 func createMockDependencies(t *testing.T) (*MockRepository, *mocks.MockLogger) {
     repo := mocks.NewRepositoryMock(t)
-    logger := mocks.NewMockLogger()  // 統一使用此函數
+    logger := mocks.NewMockLogger(t)  // 統一使用此函數
     return repo, logger
 }
 ```
 
 **重要規則：**
-1. **統一調用**: 所有測試都必須使用 `mocks.NewMockLogger()` 創建 Logger Mock
+1. **統一調用**: 所有測試都必須使用 `mocks.NewMockLogger(t)` 創建 Logger Mock
 2. **無需驗證**: **不要** 使用 `logger.AssertExpectations(t)` 進行驗證
 3. **獨立 Mock**: 每個 logger 方法都已獨立 mock，支援所有日誌級別和字段方法
 4. **自動設置**: 函數已預設所有必要的 Mock 期望值

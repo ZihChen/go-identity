@@ -3,12 +3,12 @@ package usecase
 import (
 	"context"
 	"errors"
-	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"testing"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
+	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -28,7 +28,7 @@ func createManagerMockDependencies(
 	managerRepo := mocks.NewManagerRepositoryMock(t)
 	merchantRepo := mocks.NewMerchantRepositoryMock(t)
 	eventProducer := mocks.NewEventProducerMock(t)
-	logger := mocks.NewMockLogger()
+	logger := mocks.NewMockLogger(t)
 	return managerRepo, merchantRepo, eventProducer, logger
 }
 

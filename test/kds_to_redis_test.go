@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"encoding/json"
-	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
+	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +26,7 @@ func TestKDSToRedisManagerSync(t *testing.T) {
 	require.NoError(t, err, "Should load config without error")
 
 	// 創建日誌
-	logger := mocks.NewMockLogger()
+	logger := mocks.NewMockLogger(t)
 
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
@@ -130,7 +130,7 @@ func TestKDSToRedisPlayerSync(t *testing.T) {
 	require.NoError(t, err, "Should load config without error")
 
 	// 創建日誌
-	logger := mocks.NewMockLogger()
+	logger := mocks.NewMockLogger(t)
 
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())
@@ -229,7 +229,7 @@ func TestKDSToRedisMerchantSync(t *testing.T) {
 	require.NoError(t, err, "Should load config without error")
 
 	// 創建日誌
-	logger := mocks.NewMockLogger()
+	logger := mocks.NewMockLogger(t)
 
 	// 獲取AWS配置
 	awsConfig, err := cfg.LoadAWSConfig(context.Background())

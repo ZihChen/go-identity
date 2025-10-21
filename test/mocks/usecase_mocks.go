@@ -28,7 +28,10 @@ func (m *PlayerUseCaseMock) GetPlayerByID(ctx context.Context, id uint64) (*enti
 	return args.Get(0).(*entity.Player), args.Error(1)
 }
 
-func (m *PlayerUseCaseMock) GetPlayerByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
+func (m *PlayerUseCaseMock) GetPlayerByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Player, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -63,7 +66,10 @@ func NewMerchantUseCaseMock(t *testing.T) *MerchantUseCaseMock {
 	}
 }
 
-func (m *MerchantUseCaseMock) GetMerchantByID(ctx context.Context, id uint64) (*entity.Merchant, error) {
+func (m *MerchantUseCaseMock) GetMerchantByID(
+	ctx context.Context,
+	id uint64,
+) (*entity.Merchant, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -71,7 +77,10 @@ func (m *MerchantUseCaseMock) GetMerchantByID(ctx context.Context, id uint64) (*
 	return args.Get(0).(*entity.Merchant), args.Error(1)
 }
 
-func (m *MerchantUseCaseMock) GetMerchantByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error) {
+func (m *MerchantUseCaseMock) GetMerchantByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Merchant, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -84,7 +93,10 @@ func (m *MerchantUseCaseMock) UpsertMerchant(ctx context.Context, merchant *enti
 	return args.Error(0)
 }
 
-func (m *MerchantUseCaseMock) SyncMerchant(ctx context.Context, data *event.MerchantSyncEvent) error {
+func (m *MerchantUseCaseMock) SyncMerchant(
+	ctx context.Context,
+	data *event.MerchantSyncEvent,
+) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
@@ -101,7 +113,10 @@ func NewManagerUseCaseMock(t *testing.T) *ManagerUseCaseMock {
 	}
 }
 
-func (m *ManagerUseCaseMock) GetManagerByID(ctx context.Context, id uint64) (*entity.Manager, error) {
+func (m *ManagerUseCaseMock) GetManagerByID(
+	ctx context.Context,
+	id uint64,
+) (*entity.Manager, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -109,7 +124,10 @@ func (m *ManagerUseCaseMock) GetManagerByID(ctx context.Context, id uint64) (*en
 	return args.Get(0).(*entity.Manager), args.Error(1)
 }
 
-func (m *ManagerUseCaseMock) GetManagerByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error) {
+func (m *ManagerUseCaseMock) GetManagerByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Manager, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -144,7 +162,10 @@ func (m *TagUseCaseMock) UpsertTag(ctx context.Context, tag *entity.Tag) error {
 	return args.Error(0)
 }
 
-func (m *TagUseCaseMock) GetTagByGlobalID(ctx context.Context, globalID string) (*entity.Tag, error) {
+func (m *TagUseCaseMock) GetTagByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Tag, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -152,7 +173,10 @@ func (m *TagUseCaseMock) GetTagByGlobalID(ctx context.Context, globalID string) 
 	return args.Get(0).(*entity.Tag), args.Error(1)
 }
 
-func (m *TagUseCaseMock) GetTagsByGlobalIDs(ctx context.Context, globalIDs []string) ([]*entity.Tag, error) {
+func (m *TagUseCaseMock) GetTagsByGlobalIDs(
+	ctx context.Context,
+	globalIDs []string,
+) ([]*entity.Tag, error) {
 	args := m.Called(ctx, globalIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -160,12 +184,20 @@ func (m *TagUseCaseMock) GetTagsByGlobalIDs(ctx context.Context, globalIDs []str
 	return args.Get(0).([]*entity.Tag), args.Error(1)
 }
 
-func (m *TagUseCaseMock) UpdatePlayerTags(ctx context.Context, playerID uint64, tagGlobalIDs []string) error {
+func (m *TagUseCaseMock) UpdatePlayerTags(
+	ctx context.Context,
+	playerID uint64,
+	tagGlobalIDs []string,
+) error {
 	args := m.Called(ctx, playerID, tagGlobalIDs)
 	return args.Error(0)
 }
 
-func (m *TagUseCaseMock) SyncPlayerTag(ctx context.Context, data []event.TagData, globalMerchantID, globalPlayerID string) error {
+func (m *TagUseCaseMock) SyncPlayerTag(
+	ctx context.Context,
+	data []event.TagData,
+	globalMerchantID, globalPlayerID string,
+) error {
 	args := m.Called(ctx, data, globalMerchantID, globalPlayerID)
 	return args.Error(0)
 }
@@ -187,7 +219,11 @@ func NewPlayerLevelUseCaseMock(t *testing.T) *PlayerLevelUseCaseMock {
 	}
 }
 
-func (m *PlayerLevelUseCaseMock) UpsertPlayerLevel(ctx context.Context, playerID uint64, levelGlobalID string) error {
+func (m *PlayerLevelUseCaseMock) UpsertPlayerLevel(
+	ctx context.Context,
+	playerID uint64,
+	levelGlobalID string,
+) error {
 	args := m.Called(ctx, playerID, levelGlobalID)
 	return args.Error(0)
 }

@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
+	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,7 +26,7 @@ func setupTest(
 	merchantUseCase := mocks.NewMerchantUseCaseMock(t)
 	playerUseCase := mocks.NewPlayerUseCaseMock(t)
 	managerUseCase := mocks.NewManagerUseCaseMock(t)
-	mockLogger := mocks.NewMockLogger()
+	mockLogger := mocks.NewMockLogger(t)
 
 	handler := &HTTPHandler{
 		merchantUseCase: merchantUseCase,

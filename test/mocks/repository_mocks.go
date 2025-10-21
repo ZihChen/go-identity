@@ -28,7 +28,10 @@ func (m *PlayerRepositoryMock) FindByID(ctx context.Context, id uint64) (*entity
 	return args.Get(0).(*entity.Player), args.Error(1)
 }
 
-func (m *PlayerRepositoryMock) FindByGlobalID(ctx context.Context, globalID string) (*entity.Player, error) {
+func (m *PlayerRepositoryMock) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Player, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -64,7 +67,11 @@ func (m *PlayerRepositoryMock) Upsert(ctx context.Context, player *entity.Player
 	return args.Error(0)
 }
 
-func (m *PlayerRepositoryMock) UpdateLastActiveAt(ctx context.Context, id uint64, lastActiveAt time.Time) error {
+func (m *PlayerRepositoryMock) UpdateLastActiveAt(
+	ctx context.Context,
+	id uint64,
+	lastActiveAt time.Time,
+) error {
 	args := m.Called(ctx, id, lastActiveAt)
 	return args.Error(0)
 }
@@ -81,7 +88,10 @@ func NewMerchantRepositoryMock(t *testing.T) *MerchantRepositoryMock {
 	}
 }
 
-func (m *MerchantRepositoryMock) FindByID(ctx context.Context, id uint64) (*entity.Merchant, error) {
+func (m *MerchantRepositoryMock) FindByID(
+	ctx context.Context,
+	id uint64,
+) (*entity.Merchant, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -89,7 +99,10 @@ func (m *MerchantRepositoryMock) FindByID(ctx context.Context, id uint64) (*enti
 	return args.Get(0).(*entity.Merchant), args.Error(1)
 }
 
-func (m *MerchantRepositoryMock) FindByGlobalID(ctx context.Context, globalID string) (*entity.Merchant, error) {
+func (m *MerchantRepositoryMock) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Merchant, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -97,7 +110,10 @@ func (m *MerchantRepositoryMock) FindByGlobalID(ctx context.Context, globalID st
 	return args.Get(0).(*entity.Merchant), args.Error(1)
 }
 
-func (m *MerchantRepositoryMock) FirstOrCreate(ctx context.Context, merchant *entity.Merchant) error {
+func (m *MerchantRepositoryMock) FirstOrCreate(
+	ctx context.Context,
+	merchant *entity.Merchant,
+) error {
 	args := m.Called(ctx, merchant)
 	return args.Error(0)
 }
@@ -142,7 +158,10 @@ func (m *ManagerRepositoryMock) FindByID(ctx context.Context, id uint64) (*entit
 	return args.Get(0).(*entity.Manager), args.Error(1)
 }
 
-func (m *ManagerRepositoryMock) FindByGlobalID(ctx context.Context, globalID string) (*entity.Manager, error) {
+func (m *ManagerRepositoryMock) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Manager, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -192,7 +211,10 @@ func (m *LevelRepositoryMock) Upsert(ctx context.Context, level *entity.Level) e
 	return args.Error(0)
 }
 
-func (m *LevelRepositoryMock) FindByGlobalID(ctx context.Context, globalID string) (*entity.Level, error) {
+func (m *LevelRepositoryMock) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Level, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -217,7 +239,10 @@ func (m *TagRepositoryMock) Upsert(ctx context.Context, tag *entity.Tag) error {
 	return args.Error(0)
 }
 
-func (m *TagRepositoryMock) FindByGlobalID(ctx context.Context, globalID string) (*entity.Tag, error) {
+func (m *TagRepositoryMock) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Tag, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -225,7 +250,10 @@ func (m *TagRepositoryMock) FindByGlobalID(ctx context.Context, globalID string)
 	return args.Get(0).(*entity.Tag), args.Error(1)
 }
 
-func (m *TagRepositoryMock) FindByGlobalIDs(ctx context.Context, globalIDs []string) ([]*entity.Tag, error) {
+func (m *TagRepositoryMock) FindByGlobalIDs(
+	ctx context.Context,
+	globalIDs []string,
+) ([]*entity.Tag, error) {
 	args := m.Called(ctx, globalIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -245,7 +273,11 @@ func NewPlayerTagRepositoryMock(t *testing.T) *PlayerTagRepositoryMock {
 	}
 }
 
-func (m *PlayerTagRepositoryMock) BatchUpdate(ctx context.Context, playerID uint64, tagIDs []uint64) error {
+func (m *PlayerTagRepositoryMock) BatchUpdate(
+	ctx context.Context,
+	playerID uint64,
+	tagIDs []uint64,
+) error {
 	args := m.Called(ctx, playerID, tagIDs)
 	return args.Error(0)
 }
