@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -16,16 +17,6 @@ type Manager struct {
 	createdAt       time.Time
 	updatedAt       time.Time
 	deletedAt       *time.Time
-
-	// 向後兼容的公共欄位
-	ID              uint64     `json:"id"                   deprecated:"use GetID() method instead"`
-	MerchantID      uint64     `json:"merchant_id"          deprecated:"use GetMerchantID() method instead"`
-	GlobalManagerID string     `json:"global_manager_id"    deprecated:"use GetGlobalManagerID() method instead"`
-	Account         string     `json:"account"              deprecated:"use GetAccount() method instead"`
-	Email           *string    `json:"email,omitempty"      deprecated:"use GetEmail() method instead"`
-	CreatedAt       time.Time  `json:"created_at"           deprecated:"use GetCreatedAt() method instead"`
-	UpdatedAt       time.Time  `json:"updated_at"           deprecated:"use GetUpdatedAt() method instead"`
-	DeletedAt       *time.Time `json:"deleted_at,omitempty" deprecated:"use GetDeletedAt() method instead"`
 }
 
 // NewManager 建立新的Manager實體
@@ -41,7 +32,6 @@ func NewManager(merchantID uint64, globalManagerID, account string, email *strin
 		updatedAt:       now,
 	}
 
-	manager.syncManagerFields()
 	return manager
 }
 
@@ -62,7 +52,6 @@ func NewManagerWithTimes(
 		updatedAt:       updatedAt,
 	}
 
-	manager.syncManagerFields()
 	return manager
 }
 
@@ -80,13 +69,11 @@ func (m *Manager) GetDeletedAt() *time.Time   { return m.deletedAt }
 func (m *Manager) UpdateEmail(newEmail *string) {
 	m.email = newEmail
 	m.updatedAt = time.Now()
-	m.syncManagerFields()
 }
 
 func (m *Manager) SetDeletedAt(deletedAt *time.Time) {
 	m.deletedAt = deletedAt
 	m.updatedAt = time.Now()
-	m.syncManagerFields()
 }
 
 // IsValid 驗證方法 for Manager
@@ -107,19 +94,60 @@ func (m *Manager) IsDeleted() bool {
 	return m.deletedAt != nil
 }
 
-// 同步方法 for Manager
-func (m *Manager) syncManagerFields() {
-	m.ID = m.id
-	m.MerchantID = m.merchantID
-	m.GlobalManagerID = m.globalManagerID
-	m.Account = m.account
-	m.Email = m.email
-	m.CreatedAt = m.createdAt
-	m.UpdatedAt = m.updatedAt
-	m.DeletedAt = m.deletedAt
-}
-
 func (m *Manager) SetID(id uint64) {
 	m.id = id
-	m.syncManagerFields()
+}
+
+// MarshalJSON
+//  1. Go 的 json 包無法序列化私有欄位
+//  2. 當物件實作了 json.Marshaler 和 json.Unmarshaler interface 時，json.Marshal 和 json.Unmarshal 會自動使用這些方法
+//  3. 沒有這些方法，HTTP API 返回的會是零值
+func (m *Manager) MarshalJSON() ([]byte, error) {
+	type Alias struct {
+		ID              uint64     `json:"id"`
+		MerchantID      uint64     `json:"global_merchant_id"`
+		GlobalManagerID string     `json:"name"`
+		Account         string     `json:"display_name"`
+		Email           *string    `json:"email,omitempty"`
+		CreatedAt       time.Time  `json:"created_at"`
+		UpdatedAt       time.Time  `json:"updated_at"`
+		DeletedAt       *time.Time `json:"deleted_at,omitempty"`
+	}
+	return json.Marshal(Alias{
+		ID:              m.id,
+		MerchantID:      m.merchantID,
+		GlobalManagerID: m.globalManagerID,
+		Account:         m.account,
+		Email:           m.email,
+		CreatedAt:       m.createdAt,
+		UpdatedAt:       m.updatedAt,
+		DeletedAt:       m.deletedAt,
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling
+func (m *Manager) UnmarshalJSON(data []byte) error {
+	type Alias struct {
+		ID              uint64     `json:"id"`
+		MerchantID      uint64     `json:"global_merchant_id"`
+		GlobalManagerID string     `json:"name"`
+		Account         string     `json:"display_name"`
+		Email           *string    `json:"email,omitempty"`
+		CreatedAt       time.Time  `json:"created_at"`
+		UpdatedAt       time.Time  `json:"updated_at"`
+		DeletedAt       *time.Time `json:"deleted_at,omitempty"`
+	}
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	m.id = aux.ID
+	m.merchantID = aux.MerchantID
+	m.globalManagerID = aux.GlobalManagerID
+	m.account = aux.Account
+	m.email = aux.Email
+	m.createdAt = aux.CreatedAt
+	m.updatedAt = aux.UpdatedAt
+	m.deletedAt = aux.DeletedAt
+	return nil
 }

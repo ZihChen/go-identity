@@ -48,16 +48,7 @@ func CreateTestMerchant() *entity.Merchant {
 
 func CreateTestManager() *entity.Manager {
 	email := "manager@example.com"
-	now := time.Now()
-	return &entity.Manager{
-		ID:              1,
-		MerchantID:      2,
-		GlobalManagerID: "FATCAT-MANAGER-1",
-		Account:         "TestManager",
-		Email:           &email,
-		CreatedAt:       now,
-		UpdatedAt:       now,
-	}
+	return entity.NewManager(1, "FATCAT-MANAGER-1", "TestManager", &email)
 }
 
 func CreateTestLevel() *entity.Level {

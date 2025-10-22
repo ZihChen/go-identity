@@ -58,13 +58,13 @@ func (r *ManagerRepository) FindByGlobalID(
 // FirstOrCreate 取得或創建，避免重複插入
 func (r *ManagerRepository) FirstOrCreate(ctx context.Context, manager *entity.Manager) error {
 	managerModel := mapToDBManager(manager)
-	result := r.db.WithContext(ctx).Where("global_manager_id = ?", manager.GlobalManagerID).
+	result := r.db.WithContext(ctx).Where("global_manager_id = ?", manager.GetGlobalManagerID()).
 		FirstOrCreate(managerModel)
 	if result.Error != nil {
 		return result.Error
 	}
 
-	manager.ID = managerModel.ID
+	manager.SetID(managerModel.ID)
 	return nil
 }
 
@@ -77,7 +77,7 @@ func (r *ManagerRepository) Create(ctx context.Context, manager *entity.Manager)
 	}
 
 	// 更新ID
-	manager.ID = managerModel.ID
+	manager.SetID(managerModel.ID)
 
 	return nil
 }
@@ -143,33 +143,36 @@ func mapToDomainManager(manager *models.Manager) *entity.Manager {
 		deletedAt = &deletedTime
 	}
 
-	return &entity.Manager{
-		ID:              manager.ID,
-		MerchantID:      manager.MerchantID,
-		GlobalManagerID: manager.GlobalManagerID,
-		Account:         manager.Account,
-		Email:           manager.Email,
-		CreatedAt:       manager.CreatedAt,
-		UpdatedAt:       manager.UpdatedAt,
-		DeletedAt:       deletedAt,
+	managerEntity := entity.NewManagerWithTimes(
+		manager.MerchantID,
+		manager.GlobalManagerID,
+		manager.Account,
+		manager.Email,
+		manager.CreatedAt,
+		manager.UpdatedAt,
+	)
+	managerEntity.SetID(manager.ID)
+	if deletedAt != nil {
+		managerEntity.SetDeletedAt(deletedAt)
 	}
+	return managerEntity
 }
 
 // 將領域模型映射到DB模型
 func mapToDBManager(manager *entity.Manager) *models.Manager {
 	dbManager := &models.Manager{
-		ID:              manager.ID,
-		MerchantID:      manager.MerchantID,
-		GlobalManagerID: manager.GlobalManagerID,
-		Account:         manager.Account,
-		Email:           manager.Email,
-		CreatedAt:       manager.CreatedAt,
-		UpdatedAt:       manager.UpdatedAt,
+		ID:              manager.GetID(),
+		MerchantID:      manager.GetMerchantID(),
+		GlobalManagerID: manager.GetGlobalManagerID(),
+		Account:         manager.GetAccount(),
+		Email:           manager.GetEmail(),
+		CreatedAt:       manager.GetCreatedAt(),
+		UpdatedAt:       manager.GetUpdatedAt(),
 	}
 
-	if manager.DeletedAt != nil {
+	if manager.GetDeletedAt() != nil {
 		dbManager.DeletedAt = gorm.DeletedAt{
-			Time:  *manager.DeletedAt,
+			Time:  *manager.GetDeletedAt(),
 			Valid: true,
 		}
 	}

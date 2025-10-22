@@ -82,10 +82,10 @@ func TestManagerRepository_FindByID(t *testing.T) {
 	// 驗證結果
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, expectedManager.MerchantID, result.MerchantID)
-	assert.Equal(t, expectedManager.GlobalManagerID, result.GlobalManagerID)
-	assert.Equal(t, expectedManager.Account, result.Account)
-	assert.Equal(t, *expectedManager.Email, *result.Email)
+	assert.Equal(t, expectedManager.MerchantID, result.GetMerchantID())
+	assert.Equal(t, expectedManager.GlobalManagerID, result.GetGlobalManagerID())
+	assert.Equal(t, expectedManager.Account, result.GetAccount())
+	assert.Equal(t, *expectedManager.Email, *result.GetEmail())
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -135,11 +135,11 @@ func TestManagerRepository_FindByGlobalID(t *testing.T) {
 	// 驗證結果
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, expectedManager.ID, result.ID)
-	assert.Equal(t, expectedManager.MerchantID, result.MerchantID)
-	assert.Equal(t, expectedManager.GlobalManagerID, result.GlobalManagerID)
-	assert.Equal(t, expectedManager.Account, result.Account)
-	assert.Equal(t, *expectedManager.Email, *result.Email)
+	assert.Equal(t, expectedManager.ID, result.GetID())
+	assert.Equal(t, expectedManager.MerchantID, result.GetMerchantID())
+	assert.Equal(t, expectedManager.GlobalManagerID, result.GetGlobalManagerID())
+	assert.Equal(t, expectedManager.Account, result.GetAccount())
+	assert.Equal(t, *expectedManager.Email, *result.GetEmail())
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -174,15 +174,15 @@ func TestManagerRepository_Create(t *testing.T) {
 		UpdatedAt:       now,
 	}
 
-	// Convert to domain entity for the test
-	domainManager := &entity.Manager{
-		MerchantID:      manager.MerchantID,
-		GlobalManagerID: manager.GlobalManagerID,
-		Account:         manager.Account,
-		Email:           manager.Email,
-		CreatedAt:       manager.CreatedAt,
-		UpdatedAt:       manager.UpdatedAt,
-	}
+	// Convert to domain entity for the test using constructor
+	domainManager := entity.NewManagerWithTimes(
+		manager.MerchantID,
+		manager.GlobalManagerID,
+		manager.Account,
+		manager.Email,
+		manager.CreatedAt,
+		manager.UpdatedAt,
+	)
 
 	// Mock the SQL execution
 	mock.ExpectBegin()
@@ -195,7 +195,7 @@ func TestManagerRepository_Create(t *testing.T) {
 
 	// 驗證結果
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), domainManager.ID) // ID should be updated
+	assert.Equal(t, uint64(1), domainManager.GetID()) // ID should be updated
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -222,15 +222,15 @@ func TestManagerRepository_Update(t *testing.T) {
 	now := time.Now()
 	managerID := uint64(1)
 	email := "updated@example.com"
-	manager := &entity.Manager{
-		ID:              managerID,
-		MerchantID:      uint64(2),
-		GlobalManagerID: "FATCAT-MANAGER-1",
-		Account:         "UpdatedManager",
-		Email:           &email,
-		CreatedAt:       now,
-		UpdatedAt:       now,
-	}
+	manager := entity.NewManagerWithTimes(
+		uint64(2),
+		"FATCAT-MANAGER-1",
+		"UpdatedManager",
+		&email,
+		now,
+		now,
+	)
+	manager.SetID(managerID)
 
 	// Mock the SQL execution
 	mock.ExpectBegin()
@@ -293,14 +293,17 @@ func TestManagerRepository_Upsert(t *testing.T) {
 	testCases := []ManagerTestCase{
 		{
 			name: "successful upsert",
-			expectedManager: &entity.Manager{
-				MerchantID:      100,
-				GlobalManagerID: "global-manager-1",
-				Account:         "testaccount",
-				Email:           &email,
-				CreatedAt:       now,
-				UpdatedAt:       now,
-			},
+			expectedManager: func() *entity.Manager {
+				manager := entity.NewManagerWithTimes(
+					100,
+					"global-manager-1",
+					"testaccount",
+					&email,
+					now,
+					now,
+				)
+				return manager
+			}(),
 			setupMock: func(mock sqlmock.Sqlmock) {
 				// Expect upsert
 				mock.ExpectBegin()
@@ -355,16 +358,18 @@ func TestManagerRepository_FirstOrCreate(t *testing.T) {
 				WithArgs("global-manager-1", 1, 1).
 				WillReturnRows(rows)
 		},
-		expectedManager: &entity.Manager{
-			ID:              1,
-			MerchantID:      100,
-			GlobalManagerID: "global-manager-1",
-			Account:         "testaccount",
-			Email:           &email,
-			CreatedAt:       now,
-			UpdatedAt:       now,
-			DeletedAt:       nil,
-		},
+		expectedManager: func() *entity.Manager {
+			manager := entity.NewManagerWithTimes(
+				100,
+				"global-manager-1",
+				"testaccount",
+				&email,
+				now,
+				now,
+			)
+			manager.SetID(1)
+			return manager
+		}(),
 		expectedError: nil,
 	}
 

@@ -567,9 +567,9 @@ func TestHTTPHandler_GetManagerByID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, manager.ID, response.ID)
-	assert.Equal(t, manager.GlobalManagerID, response.GlobalManagerID)
-	assert.Equal(t, manager.Account, response.Account)
+	assert.Equal(t, manager.GetID(), response.GetID())
+	assert.Equal(t, manager.GetGlobalManagerID(), response.GetGlobalManagerID())
+	assert.Equal(t, manager.GetAccount(), response.GetAccount())
 
 	managerUseCase.AssertExpectations()
 }
@@ -669,9 +669,9 @@ func TestHTTPHandler_GetManagerByGlobalID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, manager.ID, response.ID)
-	assert.Equal(t, manager.GlobalManagerID, response.GlobalManagerID)
-	assert.Equal(t, manager.Account, response.Account)
+	assert.Equal(t, manager.GetID(), response.GetID())
+	assert.Equal(t, manager.GetGlobalManagerID(), response.GetGlobalManagerID())
+	assert.Equal(t, manager.GetAccount(), response.GetAccount())
 
 	managerUseCase.AssertExpectations()
 }
