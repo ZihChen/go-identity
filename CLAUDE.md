@@ -523,3 +523,88 @@ entity.NewLevelWithTimes(merchantID, name, globalPlayerLevelID, globalMerchantID
 - **Enhanced Maintainability**: Changes to entity internal structure don't affect use cases
 - **Clean Architecture Compliance**: Domain layer encapsulation properly enforced
 - **Future-Proof Design**: Easy to extend entities without breaking existing code
+
+### Tag Entity Deprecated Fields Removal (2025-10-22) ✅
+**Domain Model Enhancement**: Successfully removed deprecated public fields from Tag entity and standardized field access patterns
+
+#### Tag Entity Refactoring Completed
+- ✅ **Deprecated Fields Removal**: Removed all public deprecated fields from `internal/domain/entity/tag.go`
+  - Removed: `ID`, `MerchantID`, `Name`, `GlobalTagID`, `CreatedAt`, `UpdatedAt`, `DeletedAt`
+  - Removed: `syncTagFields()` synchronization method
+- ✅ **Field Access Migration**: Updated all direct field access to use getter methods
+  - **UseCase Updates**: `TagUseCase` now uses `tag.GetID()` instead of `tag.ID`
+  - **Repository Updates**: `TagRepository` mapping functions use getter methods
+  - **Test Updates**: All test files updated to use getter methods for assertions
+- ✅ **Repository Architecture Enhancement**: 
+  - Updated `FindByGlobalIDs()` to use proper model-to-entity mapping
+  - Added `mapToDomainTag()` function for database model conversion
+  - Fixed GORM integration with private fields through proper mapping
+- ✅ **Setter Methods Addition**: Added comprehensive setter methods for repository operations
+  - `SetMerchantID()`, `SetName()`, `SetGlobalTagID()`, `SetCreatedAt()`, `SetUpdatedAt()`
+- ✅ **Factory Pattern Updates**: Test factories now use constructors instead of struct literals
+
+#### JSON Serialization Strategy Analysis
+**Key Discovery**: Different entities require different JSON handling approaches based on usage patterns
+
+**Merchant Entity** - Requires JSON methods:
+- **MarshalJSON**: Needed for HTTP API responses (`c.JSON(http.StatusOK, merchant)`)
+- **UnmarshalJSON**: Needed for HTTP tests (`json.Unmarshal(w.Body.Bytes(), &response)`)
+- **Usage**: Direct HTTP API exposure requires custom JSON serialization of private fields
+
+**Tag Entity** - No JSON methods needed:
+- **No HTTP API Exposure**: Tag entities are not directly returned by HTTP endpoints
+- **Internal Use Only**: Used only in business logic and repository operations
+- **Result**: Cleaner code without unnecessary JSON methods
+
+#### Technical Implementation Details
+**Repository Pattern Enhancement**:
+```go
+// Before: Direct GORM mapping to entity (fails with private fields)
+func (r *TagRepository) FindByGlobalIDs(...) ([]*entity.Tag, error) {
+    var tags []*entity.Tag
+    result := r.db.Find(&tags)  // ❌ Cannot map to private fields
+}
+
+// After: Model-to-Entity mapping pattern
+func (r *TagRepository) FindByGlobalIDs(...) ([]*entity.Tag, error) {
+    var tagModels []*models.Tag
+    result := r.db.Find(&tagModels)  // ✅ Maps to public model fields
+    
+    tags := make([]*entity.Tag, len(tagModels))
+    for i, model := range tagModels {
+        tags[i] = mapToDomainTag(model)  // ✅ Proper entity construction
+    }
+}
+```
+
+**Entity Construction Pattern**:
+```go
+// Proper entity construction with time-aware constructors
+func mapToDomainTag(tag *models.Tag) *entity.Tag {
+    tagEntity := entity.NewTagWithTimes(
+        tag.MerchantID, tag.Name, tag.GlobalTagID, tag.UpdatedAt,
+    )
+    tagEntity.SetID(tag.ID)
+    tagEntity.SetCreatedAt(tag.CreatedAt)
+    if tag.DeletedAt.Valid {
+        deletedTime := tag.DeletedAt.Time
+        tagEntity.SetDeletedAt(&deletedTime)
+    }
+    return tagEntity
+}
+```
+
+#### Architecture Quality Achievements
+- **Complete Encapsulation**: All Tag entity fields are now private with controlled access
+- **Repository Pattern Compliance**: Proper separation between domain entities and database models
+- **Test Suite Integrity**: All tests pass with new encapsulated design
+- **Performance Maintained**: No performance impact from encapsulation changes
+- **Clean Architecture**: Clear separation between domain logic and infrastructure concerns
+- **Future-Proof Design**: Easy to extend Tag entity without breaking existing code
+
+#### Verification Results
+- **Compilation**: ✅ `go build ./...` passes without errors
+- **Unit Tests**: ✅ All tag-related tests pass
+- **Integration Tests**: ✅ Repository and UseCase tests working correctly
+- **HTTP Tests**: ✅ No impact on HTTP layer (Tag not exposed via API)
+- **Code Quality**: ✅ Improved encapsulation and maintainability
