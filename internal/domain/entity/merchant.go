@@ -141,7 +141,10 @@ func (m *Merchant) SetID(id uint64) {
 	m.id = id
 }
 
-// MarshalJSON implements custom JSON marshaling
+// MarshalJSON
+//  1. Go 的 json 包無法序列化私有欄位
+//  2. 當物件實作了 json.Marshaler 和 json.Unmarshaler interface 時，json.Marshal 和 json.Unmarshal 會自動使用這些方法
+//  3. 沒有這些方法，HTTP API 返回的會是零值
 func (m *Merchant) MarshalJSON() ([]byte, error) {
 	type Alias struct {
 		ID               uint64     `json:"id"`

@@ -41,6 +41,15 @@ func setupTagMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, *sql.DB) {
 
 func TestTagRepository_Upsert(t *testing.T) {
 	now := time.Now()
+	
+	expectedTag := entity.NewTagWithTimes(
+		1,
+		"test-tag-01",
+		"Test-Tag-01",
+		now,
+	)
+	expectedTag.SetID(2)
+
 	testCases := []TagTestCase{
 		{
 			name: "tag upsert",
@@ -56,15 +65,7 @@ func TestTagRepository_Upsert(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectCommit()
 			},
-			expectedTag: &entity.Tag{
-				ID:          2,
-				MerchantID:  1,
-				Name:        "test-tag-01",
-				GlobalTagID: "Test-Tag-01",
-				CreatedAt:   now,
-				UpdatedAt:   now,
-				DeletedAt:   nil,
-			},
+			expectedTag:   expectedTag,
 			expectedError: nil,
 		},
 	}
@@ -92,6 +93,23 @@ func TestTagRepository_Upsert(t *testing.T) {
 
 func TestTagRepository_BatchUpsert(t *testing.T) {
 	now := time.Now()
+	
+	expectedTag1 := entity.NewTagWithTimes(
+		1,
+		"test-tag-01",
+		"Test-Tag-01",
+		now,
+	)
+	expectedTag1.SetID(2)
+	
+	expectedTag2 := entity.NewTagWithTimes(
+		1,
+		"test-tag-02",
+		"Test-Tag-02",
+		now,
+	)
+	expectedTag2.SetID(3)
+
 	testCase := TagTestCase{
 		name: "tags upsert",
 		id:   1,
@@ -106,26 +124,7 @@ func TestTagRepository_BatchUpsert(t *testing.T) {
 				WillReturnResult(sqlmock.NewResult(1, 2))
 			mock.ExpectCommit()
 		},
-		expectedTags: []*entity.Tag{
-			{
-				ID:          2,
-				MerchantID:  1,
-				GlobalTagID: "Test-Tag-01",
-				Name:        "test-tag-01",
-				CreatedAt:   now,
-				UpdatedAt:   now,
-				DeletedAt:   nil,
-			},
-			{
-				ID:          3,
-				MerchantID:  1,
-				GlobalTagID: "Test-Tag-02",
-				Name:        "test-tag-02",
-				CreatedAt:   now,
-				UpdatedAt:   now,
-				DeletedAt:   nil,
-			},
-		},
+		expectedTags:  []*entity.Tag{expectedTag1, expectedTag2},
 		expectedError: nil,
 	}
 
@@ -147,6 +146,23 @@ func TestTagRepository_BatchUpsert(t *testing.T) {
 
 func TestTagRepository_FindByGlobalIDs(t *testing.T) {
 	now := time.Now()
+	
+	expectedTag1 := entity.NewTagWithTimes(
+		1,
+		"test-tag-01",
+		"Test-Tag-01",
+		now,
+	)
+	expectedTag1.SetID(2)
+	
+	expectedTag2 := entity.NewTagWithTimes(
+		1,
+		"test-tag-02",
+		"Test-Tag-02",
+		now,
+	)
+	expectedTag2.SetID(3)
+
 	testCase := TagTestCase{
 		name: "tag found",
 		id:   1,
@@ -159,26 +175,7 @@ func TestTagRepository_FindByGlobalIDs(t *testing.T) {
 				WithArgs("Test-Tag-01", "Test-Tag-02").
 				WillReturnRows(rows)
 		},
-		expectedTags: []*entity.Tag{
-			{
-				ID:          2,
-				MerchantID:  1,
-				GlobalTagID: "Test-Tag-01",
-				Name:        "test-tag-01",
-				CreatedAt:   now,
-				UpdatedAt:   now,
-				DeletedAt:   nil,
-			},
-			{
-				ID:          3,
-				MerchantID:  1,
-				GlobalTagID: "Test-Tag-02",
-				Name:        "test-tag-02",
-				CreatedAt:   now,
-				UpdatedAt:   now,
-				DeletedAt:   nil,
-			},
-		},
+		expectedTags:  []*entity.Tag{expectedTag1, expectedTag2},
 		expectedError: nil,
 	}
 
@@ -191,9 +188,9 @@ func TestTagRepository_FindByGlobalIDs(t *testing.T) {
 
 	tags, err := repo.FindByGlobalIDs(context.Background(), []string{"Test-Tag-01", "Test-Tag-02"})
 	for k, tag := range tags {
-		assert.Equal(t, testCase.expectedTags[k].ID, tag.ID)
-		assert.Equal(t, testCase.expectedTags[k].GlobalTagID, tag.GlobalTagID)
-		assert.Equal(t, testCase.expectedTags[k].Name, tag.Name)
+		assert.Equal(t, testCase.expectedTags[k].GetID(), tag.GetID())
+		assert.Equal(t, testCase.expectedTags[k].GetGlobalTagID(), tag.GetGlobalTagID())
+		assert.Equal(t, testCase.expectedTags[k].GetName(), tag.GetName())
 	}
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())

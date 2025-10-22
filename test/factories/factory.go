@@ -81,14 +81,14 @@ func CreateTestLevel() *entity.Level {
 
 func CreateTestTag() *entity.Tag {
 	now := time.Now()
-	return &entity.Tag{
-		ID:          1,
-		MerchantID:  2,
-		GlobalTagID: "FATCAT-TAG-1",
-		Name:        "VIP",
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
+	tag := entity.NewTagWithTimes(
+		2,
+		"VIP",
+		"FATCAT-TAG-1",
+		now,
+	)
+	tag.SetID(1)
+	return tag
 }
 
 func CreateTestPlayerTag() *entity.PlayerTag {

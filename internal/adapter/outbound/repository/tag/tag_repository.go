@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
@@ -74,32 +75,61 @@ func (r *TagRepository) FindByGlobalIDs(
 	ctx context.Context,
 	globalIDs []string,
 ) ([]*entity.Tag, error) {
-	tags := make([]*entity.Tag, len(globalIDs))
+	var tagModels []*models.Tag
 
 	result := r.db.WithContext(ctx).
 		Where("global_tag_id IN ?", globalIDs).
 		Where("deleted_at IS NULL"). // 如果使用了软删除，确保只查询未删除的记录
-		Find(&tags)
+		Find(&tagModels)
 	if result.Error != nil {
-		return tags, fmt.Errorf("find tags by global ids failed: %w", result.Error)
+		return nil, fmt.Errorf("find tags by global ids failed: %w", result.Error)
 	}
+
+	// Map models to domain entities
+	tags := make([]*entity.Tag, len(tagModels))
+	for i, tagModel := range tagModels {
+		tags[i] = mapToDomainTag(tagModel)
+	}
+
 	return tags, nil
 }
 
 func mapToDBTag(tag *entity.Tag) *models.Tag {
 	dbTag := &models.Tag{
-		ID:          tag.ID,
-		MerchantID:  tag.MerchantID,
-		GlobalTagID: tag.GlobalTagID,
-		Name:        tag.Name,
-		CreatedAt:   tag.CreatedAt,
-		UpdatedAt:   tag.UpdatedAt,
+		ID:          tag.GetID(),
+		MerchantID:  tag.GetMerchantID(),
+		GlobalTagID: tag.GetGlobalTagID(),
+		Name:        tag.GetName(),
+		CreatedAt:   tag.GetCreatedAt(),
+		UpdatedAt:   tag.GetUpdatedAt(),
 	}
-	if tag.DeletedAt != nil {
+	if tag.GetDeletedAt() != nil {
 		dbTag.DeletedAt = gorm.DeletedAt{
-			Time:  *tag.DeletedAt,
+			Time:  *tag.GetDeletedAt(),
 			Valid: true,
 		}
 	}
 	return dbTag
+}
+
+// mapToDomainTag maps from models.Tag to entity.Tag
+func mapToDomainTag(tag *models.Tag) *entity.Tag {
+	var deletedAt *time.Time
+	if tag.DeletedAt.Valid {
+		deletedTime := tag.DeletedAt.Time
+		deletedAt = &deletedTime
+	}
+
+	tagEntity := entity.NewTagWithTimes(
+		tag.MerchantID,
+		tag.Name,
+		tag.GlobalTagID,
+		tag.UpdatedAt,
+	)
+	tagEntity.SetID(tag.ID)
+	tagEntity.SetCreatedAt(tag.CreatedAt)
+	if deletedAt != nil {
+		tagEntity.SetDeletedAt(deletedAt)
+	}
+	return tagEntity
 }

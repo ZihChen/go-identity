@@ -15,14 +15,6 @@ type Tag struct {
 	updatedAt   time.Time
 	deletedAt   *time.Time
 
-	// 向後兼容的公共欄位
-	ID          uint64     `json:"id"                   deprecated:"use GetID() method instead"`
-	MerchantID  uint64     `json:"merchant_id"          deprecated:"use GetMerchantID() method instead"`
-	Name        string     `json:"name"                 deprecated:"use GetName() method instead"`
-	GlobalTagID string     `json:"global_tag_id"        deprecated:"use GetGlobalTagID() method instead"`
-	CreatedAt   time.Time  `json:"created_at"           deprecated:"use GetCreatedAt() method instead"`
-	UpdatedAt   time.Time  `json:"updated_at"           deprecated:"use GetUpdatedAt() method instead"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty" deprecated:"use GetDeletedAt() method instead"`
 }
 
 // NewTag 建立新的Tag實體
@@ -37,7 +29,6 @@ func NewTag(merchantID uint64, name, globalTagID string) *Tag {
 		updatedAt:   now,
 	}
 
-	tag.syncTagFields()
 	return tag
 }
 
@@ -52,7 +43,6 @@ func NewTagWithTimes(merchantID uint64, name, globalTagID string, updatedAt time
 		updatedAt:   updatedAt,
 	}
 
-	tag.syncTagFields()
 	return tag
 }
 
@@ -72,14 +62,12 @@ func (t *Tag) UpdateName(newName string) error {
 	}
 	t.name = newName
 	t.updatedAt = time.Now()
-	t.syncTagFields()
 	return nil
 }
 
 func (t *Tag) SetDeletedAt(deletedAt *time.Time) {
 	t.deletedAt = deletedAt
 	t.updatedAt = time.Now()
-	t.syncTagFields()
 }
 
 // IsValid 驗證方法 for Tag
@@ -104,18 +92,29 @@ func (t *Tag) IsDeleted() bool {
 	return t.deletedAt != nil
 }
 
-// 同步方法 for Tag
-func (t *Tag) syncTagFields() {
-	t.ID = t.id
-	t.MerchantID = t.merchantID
-	t.Name = t.name
-	t.GlobalTagID = t.globalTagID
-	t.CreatedAt = t.createdAt
-	t.UpdatedAt = t.updatedAt
-	t.DeletedAt = t.deletedAt
-}
 
 func (t *Tag) SetID(id uint64) {
 	t.id = id
-	t.syncTagFields()
 }
+
+// Additional setter methods for repository mapping
+func (t *Tag) SetMerchantID(merchantID uint64) {
+	t.merchantID = merchantID
+}
+
+func (t *Tag) SetName(name string) {
+	t.name = name
+}
+
+func (t *Tag) SetGlobalTagID(globalTagID string) {
+	t.globalTagID = globalTagID
+}
+
+func (t *Tag) SetCreatedAt(createdAt time.Time) {
+	t.createdAt = createdAt
+}
+
+func (t *Tag) SetUpdatedAt(updatedAt time.Time) {
+	t.updatedAt = updatedAt
+}
+

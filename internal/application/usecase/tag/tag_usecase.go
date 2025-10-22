@@ -108,7 +108,7 @@ func (u *TagUseCase) SyncPlayerTag(
 
 	tagIDs := make([]uint64, len(tags))
 	for k, tag := range tags {
-		tagIDs[k] = tag.ID
+		tagIDs[k] = tag.GetID()
 	}
 
 	// 建立Player Tags關聯
