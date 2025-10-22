@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -9,7 +10,6 @@ import (
 
 // Merchant 商戶模型
 type Merchant struct {
-	// 私有欄位
 	id               uint64
 	globalMerchantID string
 	name             string
@@ -18,16 +18,6 @@ type Merchant struct {
 	createdAt        time.Time
 	updatedAt        time.Time
 	deletedAt        *time.Time
-
-	// 向後兼容的公共欄位（標記為 deprecated）
-	ID               uint64     `json:"id"                   deprecated:"use GetID() method instead"`
-	GlobalMerchantID string     `json:"global_merchant_id"   deprecated:"use GetGlobalMerchantID() method instead"`
-	Name             string     `json:"name"                 deprecated:"use GetName() method instead"`
-	DisplayName      string     `json:"display_name"         deprecated:"use GetDisplayName() method instead"`
-	APIKey           string     `json:"api_key"              deprecated:"use GetAPIKey() method instead"`
-	CreatedAt        time.Time  `json:"created_at"           deprecated:"use GetCreatedAt() method instead"`
-	UpdatedAt        time.Time  `json:"updated_at"           deprecated:"use GetUpdatedAt() method instead"`
-	DeletedAt        *time.Time `json:"deleted_at,omitempty" deprecated:"use GetDeletedAt() method instead"`
 }
 
 // NewMerchant 建立新的Merchant實體
@@ -43,7 +33,6 @@ func NewMerchant(globalMerchantID, name string) *Merchant {
 		updatedAt:        now,
 	}
 
-	merchant.syncMerchantFields()
 	return merchant
 }
 
@@ -62,7 +51,6 @@ func NewMerchantWithTimes(
 		updatedAt:        updatedAt,
 	}
 
-	merchant.syncMerchantFields()
 	return merchant
 }
 
@@ -83,7 +71,6 @@ func (m *Merchant) UpdateName(newName string) error {
 	}
 	m.name = newName
 	m.updatedAt = time.Now()
-	m.syncMerchantFields()
 	return nil
 }
 
@@ -93,20 +80,42 @@ func (m *Merchant) UpdateDisplayName(newDisplayName string) error {
 	}
 	m.displayName = newDisplayName
 	m.updatedAt = time.Now()
-	m.syncMerchantFields()
 	return nil
 }
 
 func (m *Merchant) RegenerateAPIKey() {
 	m.apiKey = uuid.New().String()
 	m.updatedAt = time.Now()
-	m.syncMerchantFields()
 }
 
 func (m *Merchant) SetDeletedAt(deletedAt *time.Time) {
 	m.deletedAt = deletedAt
 	m.updatedAt = time.Now()
-	m.syncMerchantFields()
+}
+
+// Additional setter methods for repository mapping
+func (m *Merchant) SetGlobalMerchantID(globalMerchantID string) {
+	m.globalMerchantID = globalMerchantID
+}
+
+func (m *Merchant) SetName(name string) {
+	m.name = name
+}
+
+func (m *Merchant) SetDisplayName(displayName string) {
+	m.displayName = displayName
+}
+
+func (m *Merchant) SetAPIKey(apiKey string) {
+	m.apiKey = apiKey
+}
+
+func (m *Merchant) SetCreatedAt(createdAt time.Time) {
+	m.createdAt = createdAt
+}
+
+func (m *Merchant) SetUpdatedAt(updatedAt time.Time) {
+	m.updatedAt = updatedAt
 }
 
 // IsValid 驗證方法
@@ -127,20 +136,58 @@ func (m *Merchant) IsDeleted() bool {
 	return m.deletedAt != nil
 }
 
-// 同步方法確保資料一致性 for Merchant
-func (m *Merchant) syncMerchantFields() {
-	m.ID = m.id
-	m.GlobalMerchantID = m.globalMerchantID
-	m.Name = m.name
-	m.DisplayName = m.displayName
-	m.APIKey = m.apiKey
-	m.CreatedAt = m.createdAt
-	m.UpdatedAt = m.updatedAt
-	m.DeletedAt = m.deletedAt
-}
-
 // SetID 設置ID（用於資料庫操作） for Merchant
 func (m *Merchant) SetID(id uint64) {
 	m.id = id
-	m.syncMerchantFields()
+}
+
+// MarshalJSON implements custom JSON marshaling
+func (m *Merchant) MarshalJSON() ([]byte, error) {
+	type Alias struct {
+		ID               uint64     `json:"id"`
+		GlobalMerchantID string     `json:"global_merchant_id"`
+		Name             string     `json:"name"`
+		DisplayName      string     `json:"display_name"`
+		APIKey           string     `json:"api_key"`
+		CreatedAt        time.Time  `json:"created_at"`
+		UpdatedAt        time.Time  `json:"updated_at"`
+		DeletedAt        *time.Time `json:"deleted_at,omitempty"`
+	}
+	return json.Marshal(Alias{
+		ID:               m.id,
+		GlobalMerchantID: m.globalMerchantID,
+		Name:             m.name,
+		DisplayName:      m.displayName,
+		APIKey:           m.apiKey,
+		CreatedAt:        m.createdAt,
+		UpdatedAt:        m.updatedAt,
+		DeletedAt:        m.deletedAt,
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling
+func (m *Merchant) UnmarshalJSON(data []byte) error {
+	type Alias struct {
+		ID               uint64     `json:"id"`
+		GlobalMerchantID string     `json:"global_merchant_id"`
+		Name             string     `json:"name"`
+		DisplayName      string     `json:"display_name"`
+		APIKey           string     `json:"api_key"`
+		CreatedAt        time.Time  `json:"created_at"`
+		UpdatedAt        time.Time  `json:"updated_at"`
+		DeletedAt        *time.Time `json:"deleted_at,omitempty"`
+	}
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	m.id = aux.ID
+	m.globalMerchantID = aux.GlobalMerchantID
+	m.name = aux.Name
+	m.displayName = aux.DisplayName
+	m.apiKey = aux.APIKey
+	m.createdAt = aux.CreatedAt
+	m.updatedAt = aux.UpdatedAt
+	m.deletedAt = aux.DeletedAt
+	return nil
 }

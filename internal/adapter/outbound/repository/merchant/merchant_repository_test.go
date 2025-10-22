@@ -83,10 +83,10 @@ func TestMerchantRepository_FindByID(t *testing.T) {
 	// 驗證結果
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, expectedMerchant.Name, result.Name)
-	assert.Equal(t, expectedMerchant.DisplayName, result.DisplayName)
-	assert.Equal(t, expectedMerchant.GlobalMerchantID, result.GlobalMerchantID)
-	assert.Equal(t, expectedMerchant.APIKey, result.APIKey)
+	assert.Equal(t, expectedMerchant.Name, result.GetName())
+	assert.Equal(t, expectedMerchant.DisplayName, result.GetDisplayName())
+	assert.Equal(t, expectedMerchant.GlobalMerchantID, result.GetGlobalMerchantID())
+	assert.Equal(t, expectedMerchant.APIKey, result.GetAPIKey())
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -135,11 +135,11 @@ func TestMerchantRepository_FindByGlobalID(t *testing.T) {
 	// 驗證結果
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, expectedMerchant.ID, result.ID)
-	assert.Equal(t, expectedMerchant.Name, result.Name)
-	assert.Equal(t, expectedMerchant.DisplayName, result.DisplayName)
-	assert.Equal(t, expectedMerchant.GlobalMerchantID, result.GlobalMerchantID)
-	assert.Equal(t, expectedMerchant.APIKey, result.APIKey)
+	assert.Equal(t, expectedMerchant.ID, result.GetID())
+	assert.Equal(t, expectedMerchant.Name, result.GetName())
+	assert.Equal(t, expectedMerchant.DisplayName, result.GetDisplayName())
+	assert.Equal(t, expectedMerchant.GlobalMerchantID, result.GetGlobalMerchantID())
+	assert.Equal(t, expectedMerchant.APIKey, result.GetAPIKey())
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -174,14 +174,14 @@ func TestMerchantRepository_Create(t *testing.T) {
 	}
 
 	// Convert to domain entity for the test
-	domainMerchant := &entity.Merchant{
-		GlobalMerchantID: merchant.GlobalMerchantID,
-		Name:             merchant.Name,
-		DisplayName:      merchant.DisplayName,
-		APIKey:           merchant.APIKey,
-		CreatedAt:        merchant.CreatedAt,
-		UpdatedAt:        merchant.UpdatedAt,
-	}
+	domainMerchant := entity.NewMerchantWithTimes(
+		merchant.GlobalMerchantID,
+		merchant.Name,
+		merchant.DisplayName,
+		merchant.UpdatedAt,
+	)
+	domainMerchant.SetAPIKey(merchant.APIKey)
+	domainMerchant.SetCreatedAt(merchant.CreatedAt)
 
 	// Mock the SQL execution
 	mock.ExpectBegin()
@@ -194,7 +194,7 @@ func TestMerchantRepository_Create(t *testing.T) {
 
 	// 驗證結果
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), domainMerchant.ID) // ID should be updated
+	assert.Equal(t, uint64(1), domainMerchant.GetID()) // ID should be updated
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -220,15 +220,15 @@ func TestMerchantRepository_Update(t *testing.T) {
 
 	now := time.Now()
 	merchantID := uint64(1)
-	merchant := &entity.Merchant{
-		ID:               merchantID,
-		GlobalMerchantID: "FATCAT-MERCHANT-1",
-		Name:             "UpdatedMerchant",
-		DisplayName:      "Updated Merchant",
-		APIKey:           "updated-api-key",
-		CreatedAt:        now,
-		UpdatedAt:        now,
-	}
+	merchant := entity.NewMerchantWithTimes(
+		"FATCAT-MERCHANT-1",
+		"UpdatedMerchant",
+		"Updated Merchant",
+		now,
+	)
+	merchant.SetID(merchantID)
+	merchant.SetAPIKey("updated-api-key")
+	merchant.SetCreatedAt(now)
 
 	// Mock the SQL execution
 	mock.ExpectBegin()
@@ -286,6 +286,16 @@ func TestMerchantRepository_Delete(t *testing.T) {
 
 func TestMerchantRepository_FirstOrCreate(t *testing.T) {
 	now := time.Now()
+	expectedMerchant := entity.NewMerchantWithTimes(
+		"Test-Merchant-01",
+		"Merchant-01",
+		"Merchant-Nickname",
+		now,
+	)
+	expectedMerchant.SetID(1)
+	expectedMerchant.SetAPIKey("123")
+	expectedMerchant.SetCreatedAt(now)
+
 	testCases := MerchantTestCase{
 		name: "merchant first or create",
 		id:   1,
@@ -297,16 +307,8 @@ func TestMerchantRepository_FirstOrCreate(t *testing.T) {
 				WithArgs("Test-Merchant-01", 1, 1).
 				WillReturnRows(rows)
 		},
-		expectedMerchant: &entity.Merchant{
-			ID:               1,
-			GlobalMerchantID: "Test-Merchant-01",
-			Name:             "Merchant-01",
-			DisplayName:      "Merchant-Nickname",
-			CreatedAt:        now,
-			UpdatedAt:        now,
-			DeletedAt:        nil,
-		},
-		expectedError: nil,
+		expectedMerchant: expectedMerchant,
+		expectedError:    nil,
 	}
 
 	db, mock, sqlDB := setupMerchantMockDB(t)
@@ -328,6 +330,16 @@ func TestMerchantRepository_FirstOrCreate(t *testing.T) {
 
 func TestMerchantRepository_Upsert(t *testing.T) {
 	now := time.Now()
+
+	expectedMerchant := entity.NewMerchantWithTimes(
+		"Test-Merchant-01",
+		"Merchant-01",
+		"Merchant-Nickname",
+		now,
+	)
+	expectedMerchant.SetID(1)
+	expectedMerchant.SetCreatedAt(now)
+
 	testCases := []MerchantTestCase{
 		{
 			name: "merchant update",
@@ -343,16 +355,8 @@ func TestMerchantRepository_Upsert(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectCommit()
 			},
-			expectedMerchant: &entity.Merchant{
-				ID:               1,
-				GlobalMerchantID: "Test-Merchant-01",
-				Name:             "Merchant-01",
-				DisplayName:      "Merchant-Nickname",
-				CreatedAt:        now,
-				UpdatedAt:        now,
-				DeletedAt:        nil,
-			},
-			expectedError: nil,
+			expectedMerchant: expectedMerchant,
+			expectedError:    nil,
 		},
 	}
 

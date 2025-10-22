@@ -68,7 +68,7 @@ func (u *PlayerUseCase) SyncPlayer(
 	level := &entity.Level{}
 	if data.PlayerLevel.GlobalPlayerLevelID != "" {
 		// 檢查有無Level，沒有則建立
-		level, err = u.findOrCreateLevel(ctx, span, data, merchant.ID)
+		level, err = u.findOrCreateLevel(ctx, span, data, merchant.GetID())
 		if err != nil {
 			u.tracing.RecordSpanError(span, err)
 			return fmt.Errorf("find or create level: %w", err)
@@ -82,7 +82,7 @@ func (u *PlayerUseCase) SyncPlayer(
 
 	// 使用 NewPlayerWithTimes 建構子建立 Player 實體
 	player := entity.NewPlayerWithTimes(
-		merchant.ID,
+		merchant.GetID(),
 		data.Player.GlobalPlayerID,
 		data.Player.Account,
 		level.ID,

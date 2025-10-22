@@ -64,7 +64,7 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyn
 
 	// 使用 NewManagerWithTimes 建構子建立 Manager 實體
 	manager := entity.NewManagerWithTimes(
-		merchant.ID,
+		merchant.GetID(),
 		data.Manager.GlobalManagerID,
 		data.Manager.Account,
 		&data.Manager.Email,

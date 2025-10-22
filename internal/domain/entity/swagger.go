@@ -27,14 +27,11 @@ type HealthResponse struct {
 // @Description 商戶示例
 func merchantExample() {
 	// 用於 Swagger 文檔顯示的商戶示例
-	_ = Merchant{
-		ID:               1,
-		GlobalMerchantID: "FATCAT-MERCHANT-1",
-		Name:             "JV Diamond",
-		DisplayName:      "JV Diamond",
-		APIKey:           "api-key-example",
-		// 其他字段...
-	}
+	merchant := NewMerchant("FATCAT-MERCHANT-1", "JV Diamond")
+	merchant.SetID(1)
+	merchant.SetAPIKey("api-key-example")
+	merchant.SetDisplayName("JV Diamond")
+	_ = merchant
 }
 
 // @Description 玩家示例

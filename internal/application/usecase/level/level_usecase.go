@@ -53,7 +53,7 @@ func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent
 	}
 	// 使用 NewLevelWithTimes 建構子建立 Level 實體
 	level := entity.NewLevelWithTimes(
-		merchant.ID,
+		merchant.GetID(),
 		data.PlayerLevel.Name,
 		data.PlayerLevel.GlobalPlayerLevelID,
 		data.GlobalMerchantID,

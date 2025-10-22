@@ -57,13 +57,13 @@ func (r *merchantRepository) FindByGlobalID(
 
 func (r *merchantRepository) FirstOrCreate(ctx context.Context, merchant *entity.Merchant) error {
 	merchantModel := mapToDBMerchant(merchant)
-	result := r.db.WithContext(ctx).Where("global_merchant_id = ?", merchant.GlobalMerchantID).
+	result := r.db.WithContext(ctx).Where("global_merchant_id = ?", merchant.GetGlobalMerchantID()).
 		FirstOrCreate(merchantModel)
 	if result.Error != nil {
 		return result.Error
 	}
 
-	merchant.ID = merchantModel.ID
+	merchant.SetID(merchantModel.ID)
 	return nil
 }
 
@@ -76,7 +76,7 @@ func (r *merchantRepository) Create(ctx context.Context, merchant *entity.Mercha
 	}
 
 	// 更新ID
-	merchant.ID = merchantModel.ID
+	merchant.SetID(merchantModel.ID)
 
 	return nil
 }
@@ -141,33 +141,36 @@ func mapToDomainMerchant(merchant *models.Merchant) *entity.Merchant {
 		deletedAt = &deletedTime
 	}
 
-	return &entity.Merchant{
-		ID:               merchant.ID,
-		GlobalMerchantID: merchant.GlobalMerchantID,
-		Name:             merchant.Name,
-		DisplayName:      merchant.DisplayName,
-		APIKey:           merchant.APIKey,
-		CreatedAt:        merchant.CreatedAt,
-		UpdatedAt:        merchant.UpdatedAt,
-		DeletedAt:        deletedAt,
+	// Create a new merchant entity with basic fields
+	merchantEntity := &entity.Merchant{}
+	merchantEntity.SetID(merchant.ID)
+	merchantEntity.SetGlobalMerchantID(merchant.GlobalMerchantID)
+	merchantEntity.SetName(merchant.Name)
+	merchantEntity.SetDisplayName(merchant.DisplayName)
+	merchantEntity.SetAPIKey(merchant.APIKey)
+	merchantEntity.SetCreatedAt(merchant.CreatedAt)
+	merchantEntity.SetUpdatedAt(merchant.UpdatedAt)
+	if deletedAt != nil {
+		merchantEntity.SetDeletedAt(deletedAt)
 	}
+	return merchantEntity
 }
 
 // 將領域模型映射到DB模型
 func mapToDBMerchant(merchant *entity.Merchant) *models.Merchant {
 	dbMerchant := &models.Merchant{
-		ID:               merchant.ID,
-		GlobalMerchantID: merchant.GlobalMerchantID,
-		Name:             merchant.Name,
-		DisplayName:      merchant.DisplayName,
-		APIKey:           merchant.APIKey,
-		CreatedAt:        merchant.CreatedAt,
-		UpdatedAt:        merchant.UpdatedAt,
+		ID:               merchant.GetID(),
+		GlobalMerchantID: merchant.GetGlobalMerchantID(),
+		Name:             merchant.GetName(),
+		DisplayName:      merchant.GetDisplayName(),
+		APIKey:           merchant.GetAPIKey(),
+		CreatedAt:        merchant.GetCreatedAt(),
+		UpdatedAt:        merchant.GetUpdatedAt(),
 	}
 
-	if merchant.DeletedAt != nil {
+	if merchant.GetDeletedAt() != nil {
 		dbMerchant.DeletedAt = gorm.DeletedAt{
-			Time:  *merchant.DeletedAt,
+			Time:  *merchant.GetDeletedAt(),
 			Valid: true,
 		}
 	}

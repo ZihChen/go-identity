@@ -79,7 +79,7 @@ func (u *TagUseCase) SyncPlayerTag(
 	for k, item := range data {
 		// 使用 NewTagWithTimes 建構子建立 Tag 實體
 		tagsToInsert[k] = entity.NewTagWithTimes(
-			merchant.ID,
+			merchant.GetID(),
 			item.Tag.Name,
 			item.Tag.GlobalTagID,
 			item.Tag.UpdatedAt,
@@ -154,7 +154,7 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 
 	// 使用 NewTagWithTimes 建構子建立 Tag 實體
 	tagToInsert := entity.NewTagWithTimes(
-		merchant.ID,
+		merchant.GetID(),
 		data.Tag.Name,
 		data.Tag.GlobalTagID,
 		data.Tag.UpdatedAt,

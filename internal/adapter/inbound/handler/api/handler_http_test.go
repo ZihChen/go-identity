@@ -65,9 +65,9 @@ func TestHTTPHandler_GetMerchantByID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, merchant.ID, response.ID)
-	assert.Equal(t, merchant.GlobalMerchantID, response.GlobalMerchantID)
-	assert.Equal(t, merchant.Name, response.Name)
+	assert.Equal(t, merchant.GetID(), response.GetID())
+	assert.Equal(t, merchant.GetGlobalMerchantID(), response.GetGlobalMerchantID())
+	assert.Equal(t, merchant.GetName(), response.GetName())
 
 	merchantUseCase.AssertExpectations()
 }
@@ -167,9 +167,9 @@ func TestHTTPHandler_GetMerchantByGlobalID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, merchant.ID, response.ID)
-	assert.Equal(t, merchant.GlobalMerchantID, response.GlobalMerchantID)
-	assert.Equal(t, merchant.Name, response.Name)
+	assert.Equal(t, merchant.GetID(), response.GetID())
+	assert.Equal(t, merchant.GetGlobalMerchantID(), response.GetGlobalMerchantID())
+	assert.Equal(t, merchant.GetName(), response.GetName())
 
 	merchantUseCase.AssertExpectations()
 }

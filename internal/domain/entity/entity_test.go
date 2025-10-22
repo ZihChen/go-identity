@@ -339,9 +339,9 @@ func TestNewMerchant(t *testing.T) {
 			assert.False(t, merchant.GetCreatedAt().IsZero())
 			assert.False(t, merchant.GetUpdatedAt().IsZero())
 
-			// Test backward compatibility
-			assert.Equal(t, merchant.GetGlobalMerchantID(), merchant.GlobalMerchantID)
-			assert.Equal(t, merchant.GetName(), merchant.Name)
+			// Test backward compatibility - deprecated fields removed
+			// assert.Equal(t, merchant.GetGlobalMerchantID(), merchant.GlobalMerchantID)
+			// assert.Equal(t, merchant.GetName(), merchant.Name)
 
 			// Test validation
 			err := merchant.IsValid()

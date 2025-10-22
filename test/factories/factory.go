@@ -40,15 +40,16 @@ func CreateTestPlayer() *entity.Player {
 
 func CreateTestMerchant() *entity.Merchant {
 	now := time.Now()
-	return &entity.Merchant{
-		ID:               2,
-		GlobalMerchantID: "FATCAT-MERCHANT-1",
-		Name:             "TestMerchant",
-		DisplayName:      "Test Merchant",
-		APIKey:           "merchant-api-key",
-		CreatedAt:        now,
-		UpdatedAt:        now,
-	}
+	merchant := entity.NewMerchantWithTimes(
+		"FATCAT-MERCHANT-1",
+		"TestMerchant",
+		"Test Merchant",
+		now,
+	)
+	merchant.SetID(2)
+	merchant.SetAPIKey("merchant-api-key")
+	merchant.SetCreatedAt(now)
+	return merchant
 }
 
 func CreateTestManager() *entity.Manager {
