@@ -49,14 +49,13 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.Merchant
 		attribute.String("merchant.global_id", data.GlobalMerchantID),
 		attribute.String("merchant.name", data.Merchant.Name))
 
-	merchant := &entity.Merchant{
-		GlobalMerchantID: data.GlobalMerchantID,
-		Name:             data.Merchant.Name,
-		DisplayName:      data.Merchant.DisplayName,
-		APIKey:           uuid.New().String(),
-		CreatedAt:        data.Merchant.UpdatedAt,
-		UpdatedAt:        data.Merchant.UpdatedAt,
-	}
+	// 使用 NewMerchantWithDisplayName 建構子建立 Merchant 實體
+	merchant := entity.NewMerchantWithTimes(
+		data.GlobalMerchantID,
+		data.Merchant.Name,
+		data.Merchant.DisplayName,
+		data.Merchant.UpdatedAt,
+	)
 
 	u.tracing.TraceEvent(span, "Upsert merchant")
 	if err := u.merchantRepo.Upsert(ctx, merchant); err != nil {
@@ -65,8 +64,8 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.Merchant
 	}
 
 	u.logger.InfoWithContext(ctx, "Merchant upserted successfully",
-		u.logger.String("global_id", merchant.GlobalMerchantID),
-		u.logger.String("name", merchant.Name))
+		u.logger.String("global_id", merchant.GetGlobalMerchantID()),
+		u.logger.String("name", merchant.GetName()))
 	u.tracing.TraceEvent(span, "Database operation completed")
 
 	// 發布商戶同步事件到KDS
@@ -92,17 +91,17 @@ func (u *MerchantUseCase) publishMerchantSyncEvent(
 
 	// 構建事件數據
 	syncEvent := event.IdentityMerchantSyncEvent{
-		GlobalMerchantID: merchant.GlobalMerchantID,
-		ID:               merchant.ID,
-		Name:             merchant.Name,
-		DisplayName:      merchant.DisplayName,
-		APIKey:           merchant.APIKey,
-		CreatedAt:        merchant.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        merchant.UpdatedAt.Format(time.RFC3339),
+		GlobalMerchantID: merchant.GetGlobalMerchantID(),
+		ID:               merchant.GetID(),
+		Name:             merchant.GetName(),
+		DisplayName:      merchant.GetDisplayName(),
+		APIKey:           merchant.GetAPIKey(),
+		CreatedAt:        merchant.GetCreatedAt().Format(time.RFC3339),
+		UpdatedAt:        merchant.GetUpdatedAt().Format(time.RFC3339),
 	}
 
-	if merchant.DeletedAt != nil {
-		syncEvent.DeletedAt = merchant.DeletedAt.Format(time.RFC3339)
+	if merchant.GetDeletedAt() != nil {
+		syncEvent.DeletedAt = merchant.GetDeletedAt().Format(time.RFC3339)
 	}
 
 	// 構建CloudEvent
@@ -134,7 +133,7 @@ func (u *MerchantUseCase) publishMerchantSyncEvent(
 	u.tracing.TraceEvent(span, "Merchant sync event published successfully")
 
 	u.logger.InfoLog("Merchant sync event published",
-		u.logger.String("global_id", merchant.GlobalMerchantID),
+		u.logger.String("global_id", merchant.GetGlobalMerchantID()),
 		u.logger.String("event_id", cloudEvent.ID))
 
 	return nil
@@ -158,8 +157,8 @@ func (u *MerchantUseCase) GetMerchantByID(
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("merchant.global_id", merchant.GlobalMerchantID),
-		attribute.String("merchant.name", merchant.Name),
+		attribute.String("merchant.global_id", merchant.GetGlobalMerchantID()),
+		attribute.String("merchant.name", merchant.GetName()),
 	)
 
 	return merchant, nil
@@ -184,7 +183,7 @@ func (u *MerchantUseCase) GetMerchantByGlobalID(
 
 	// 添加商戶信息到 span
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("merchant.name", merchant.Name),
+		attribute.String("merchant.name", merchant.GetName()),
 	)
 
 	return merchant, nil

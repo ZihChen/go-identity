@@ -77,13 +77,13 @@ func (u *TagUseCase) SyncPlayerTag(
 
 	tagsToInsert, tagsGlobalIDs := make([]*entity.Tag, len(data)), make([]string, len(data))
 	for k, item := range data {
-		tagsToInsert[k] = &entity.Tag{
-			GlobalTagID: item.Tag.GlobalTagID,
-			Name:        item.Tag.Name,
-			MerchantID:  merchant.ID,
-			CreatedAt:   item.Tag.UpdatedAt,
-			UpdatedAt:   item.Tag.UpdatedAt,
-		}
+		// 使用 NewTagWithTimes 建構子建立 Tag 實體
+		tagsToInsert[k] = entity.NewTagWithTimes(
+			merchant.ID,
+			item.Tag.Name,
+			item.Tag.GlobalTagID,
+			item.Tag.UpdatedAt,
+		)
 		tagsGlobalIDs[k] = item.Tag.GlobalTagID
 	}
 
@@ -152,18 +152,17 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
-	tagToInsert := &entity.Tag{
-		GlobalTagID: data.Tag.GlobalTagID,
-		Name:        data.Tag.Name,
-		MerchantID:  merchant.ID,
-		CreatedAt:   data.Tag.UpdatedAt,
-		UpdatedAt:   data.Tag.UpdatedAt,
-		DeletedAt: func() *time.Time {
-			if data.Tag.IsOpen {
-				return nil
-			}
-			return &data.Tag.UpdatedAt
-		}(),
+	// 使用 NewTagWithTimes 建構子建立 Tag 實體
+	tagToInsert := entity.NewTagWithTimes(
+		merchant.ID,
+		data.Tag.Name,
+		data.Tag.GlobalTagID,
+		data.Tag.UpdatedAt,
+	)
+
+	// 設置 DeletedAt
+	if !data.Tag.IsOpen {
+		tagToInsert.SetDeletedAt(&data.Tag.UpdatedAt)
 	}
 
 	if err = u.tagRepo.Upsert(ctx, tagToInsert); err != nil {
@@ -191,10 +190,10 @@ func (u *TagUseCase) publishPlayerTagsSyncEvent(
 	syncEvents := make([]*event.IdentityTagDataSyncEvent, len(tags))
 	for i, tag := range tags {
 		syncEvents[i] = &event.IdentityTagDataSyncEvent{
-			GlobalTagID: tag.GlobalTagID,
-			Name:        tag.Name,
-			CreatedAt:   tag.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:   tag.UpdatedAt.Format(time.RFC3339),
+			GlobalTagID: tag.GetGlobalTagID(),
+			Name:        tag.GetName(),
+			CreatedAt:   tag.GetCreatedAt().Format(time.RFC3339),
+			UpdatedAt:   tag.GetUpdatedAt().Format(time.RFC3339),
 		}
 	}
 
@@ -249,15 +248,15 @@ func (u *TagUseCase) publishTagSyncEvent(
 		Data: event.IdentityTagSyncEvent{
 			GlobalMerchantID: globalMerchantID,
 			Tag: &event.IdentityTagDataSyncEvent{
-				GlobalTagID: tag.GlobalTagID,
-				Name:        tag.Name,
-				CreatedAt:   tag.CreatedAt.Format(time.RFC3339),
-				UpdatedAt:   tag.UpdatedAt.Format(time.RFC3339),
+				GlobalTagID: tag.GetGlobalTagID(),
+				Name:        tag.GetName(),
+				CreatedAt:   tag.GetCreatedAt().Format(time.RFC3339),
+				UpdatedAt:   tag.GetUpdatedAt().Format(time.RFC3339),
 				DeletedAt: func() string {
-					if tag.DeletedAt == nil {
+					if tag.GetDeletedAt() == nil {
 						return ""
 					}
-					return tag.DeletedAt.Format(time.RFC3339)
+					return tag.GetDeletedAt().Format(time.RFC3339)
 				}(),
 			},
 		},

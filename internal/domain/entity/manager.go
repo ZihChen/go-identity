@@ -18,13 +18,13 @@ type Manager struct {
 	deletedAt       *time.Time
 
 	// 向後兼容的公共欄位
-	ID              uint64     `json:"id" deprecated:"use GetID() method instead"`
-	MerchantID      uint64     `json:"merchant_id" deprecated:"use GetMerchantID() method instead"`
-	GlobalManagerID string     `json:"global_manager_id" deprecated:"use GetGlobalManagerID() method instead"`
-	Account         string     `json:"account" deprecated:"use GetAccount() method instead"`
-	Email           *string    `json:"email,omitempty" deprecated:"use GetEmail() method instead"`
-	CreatedAt       time.Time  `json:"created_at" deprecated:"use GetCreatedAt() method instead"`
-	UpdatedAt       time.Time  `json:"updated_at" deprecated:"use GetUpdatedAt() method instead"`
+	ID              uint64     `json:"id"                   deprecated:"use GetID() method instead"`
+	MerchantID      uint64     `json:"merchant_id"          deprecated:"use GetMerchantID() method instead"`
+	GlobalManagerID string     `json:"global_manager_id"    deprecated:"use GetGlobalManagerID() method instead"`
+	Account         string     `json:"account"              deprecated:"use GetAccount() method instead"`
+	Email           *string    `json:"email,omitempty"      deprecated:"use GetEmail() method instead"`
+	CreatedAt       time.Time  `json:"created_at"           deprecated:"use GetCreatedAt() method instead"`
+	UpdatedAt       time.Time  `json:"updated_at"           deprecated:"use GetUpdatedAt() method instead"`
 	DeletedAt       *time.Time `json:"deleted_at,omitempty" deprecated:"use GetDeletedAt() method instead"`
 }
 
@@ -39,6 +39,27 @@ func NewManager(merchantID uint64, globalManagerID, account string, email *strin
 		email:           email,
 		createdAt:       now,
 		updatedAt:       now,
+	}
+
+	manager.syncManagerFields()
+	return manager
+}
+
+// NewManagerWithTimes 建立帶有指定時間戳的Manager實體
+func NewManagerWithTimes(
+	merchantID uint64,
+	globalManagerID, account string,
+	email *string,
+	createdAt, updatedAt time.Time,
+) *Manager {
+	manager := &Manager{
+		id:              0,
+		merchantID:      merchantID,
+		globalManagerID: globalManagerID,
+		account:         account,
+		email:           email,
+		createdAt:       createdAt,
+		updatedAt:       updatedAt,
 	}
 
 	manager.syncManagerFields()

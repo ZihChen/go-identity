@@ -51,13 +51,18 @@ func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
-	level := &entity.Level{
-		GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
-		GlobalMerchantID:    data.GlobalMerchantID,
-		Name:                data.PlayerLevel.Name,
-		MerchantID:          merchant.ID,
-		CreatedAt:           data.PlayerLevel.UpdatedAt,
-		UpdatedAt:           data.PlayerLevel.UpdatedAt,
+	// 使用 NewLevelWithTimes 建構子建立 Level 實體
+	level := entity.NewLevelWithTimes(
+		merchant.ID,
+		data.PlayerLevel.Name,
+		data.PlayerLevel.GlobalPlayerLevelID,
+		data.GlobalMerchantID,
+		data.PlayerLevel.UpdatedAt,
+		data.PlayerLevel.UpdatedAt,
+	)
+	if err = level.IsValid(); err != nil {
+		u.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("validate level: %w", err)
 	}
 	err = u.levelRepo.Upsert(ctx, level)
 	if err != nil {
@@ -87,11 +92,11 @@ func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 	u.tracing.TraceEvent(span, "Preparing player level sync event for KDS")
 
 	syncEvent := event.IdentityPlayerLevelSyncEvent{
-		GlobalMerchantID:    level.GlobalMerchantID,
-		GlobalPlayerLevelID: level.GlobalPlayerLevelID,
-		Name:                level.Name,
-		CreatedAt:           level.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:           level.UpdatedAt.Format(time.RFC3339),
+		GlobalMerchantID:    level.GetGlobalMerchantID(),
+		GlobalPlayerLevelID: level.GetGlobalPlayerLevelID(),
+		Name:                level.GetName(),
+		CreatedAt:           level.GetCreatedAt().Format(time.RFC3339),
+		UpdatedAt:           level.GetUpdatedAt().Format(time.RFC3339),
 	}
 
 	eventID := uuid.New().String()
@@ -117,7 +122,7 @@ func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 	}
 
 	u.logger.InfoWithContext(ctx, "Player level sync event published",
-		u.logger.String("global_id", level.GlobalPlayerLevelID),
+		u.logger.String("global_id", level.GetGlobalPlayerLevelID()),
 		u.logger.String("event_id", cloudEvent.ID))
 	return nil
 }

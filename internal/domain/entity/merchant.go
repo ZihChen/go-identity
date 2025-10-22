@@ -20,13 +20,13 @@ type Merchant struct {
 	deletedAt        *time.Time
 
 	// 向後兼容的公共欄位（標記為 deprecated）
-	ID               uint64     `json:"id" deprecated:"use GetID() method instead"`
-	GlobalMerchantID string     `json:"global_merchant_id" deprecated:"use GetGlobalMerchantID() method instead"`
-	Name             string     `json:"name" deprecated:"use GetName() method instead"`
-	DisplayName      string     `json:"display_name" deprecated:"use GetDisplayName() method instead"`
-	APIKey           string     `json:"api_key" deprecated:"use GetAPIKey() method instead"`
-	CreatedAt        time.Time  `json:"created_at" deprecated:"use GetCreatedAt() method instead"`
-	UpdatedAt        time.Time  `json:"updated_at" deprecated:"use GetUpdatedAt() method instead"`
+	ID               uint64     `json:"id"                   deprecated:"use GetID() method instead"`
+	GlobalMerchantID string     `json:"global_merchant_id"   deprecated:"use GetGlobalMerchantID() method instead"`
+	Name             string     `json:"name"                 deprecated:"use GetName() method instead"`
+	DisplayName      string     `json:"display_name"         deprecated:"use GetDisplayName() method instead"`
+	APIKey           string     `json:"api_key"              deprecated:"use GetAPIKey() method instead"`
+	CreatedAt        time.Time  `json:"created_at"           deprecated:"use GetCreatedAt() method instead"`
+	UpdatedAt        time.Time  `json:"updated_at"           deprecated:"use GetUpdatedAt() method instead"`
 	DeletedAt        *time.Time `json:"deleted_at,omitempty" deprecated:"use GetDeletedAt() method instead"`
 }
 
@@ -47,15 +47,18 @@ func NewMerchant(globalMerchantID, name string) *Merchant {
 	return merchant
 }
 
-// NewMerchantWithTimes 建立新的Merchant實體（包含指定時間）
-func NewMerchantWithTimes(globalMerchantID, name string, createdAt, updatedAt time.Time) *Merchant {
+// NewMerchantWithTimes 建立新的Merchant實體（包含指定時間和顯示名稱）
+func NewMerchantWithTimes(
+	globalMerchantID, name, displayName string,
+	updatedAt time.Time,
+) *Merchant {
 	merchant := &Merchant{
 		id:               0,
 		globalMerchantID: globalMerchantID,
 		name:             name,
-		displayName:      name,
+		displayName:      displayName,
 		apiKey:           uuid.New().String(),
-		createdAt:        createdAt,
+		createdAt:        updatedAt,
 		updatedAt:        updatedAt,
 	}
 

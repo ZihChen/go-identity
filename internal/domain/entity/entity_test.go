@@ -94,7 +94,7 @@ func TestPlayer_UpdateLastActive(t *testing.T) {
 
 	assert.NotNil(t, player.GetLastActiveAt())
 	assert.True(t, player.GetUpdatedAt().After(oldUpdatedAt))
-	
+
 	// Test backward compatibility
 	assert.Equal(t, player.GetLastActiveAt(), player.LastActiveAt)
 	assert.Equal(t, player.GetUpdatedAt(), player.UpdatedAt)
@@ -133,7 +133,7 @@ func TestPlayer_ChangeLevel(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.newLevelID, player.GetLevelID())
 				assert.True(t, player.GetUpdatedAt().After(oldUpdatedAt))
-				
+
 				// Test backward compatibility
 				assert.Equal(t, player.GetLevelID(), player.LevelID)
 			}
@@ -151,7 +151,7 @@ func TestPlayer_SetEmail(t *testing.T) {
 
 	assert.Equal(t, newEmail, player.GetEmail())
 	assert.True(t, player.GetUpdatedAt().After(oldUpdatedAt))
-	
+
 	// Test backward compatibility
 	assert.Equal(t, player.GetEmail(), player.Email)
 }
@@ -170,7 +170,7 @@ func TestPlayer_SetPlayerLevel(t *testing.T) {
 
 	assert.Equal(t, newLevel, player.GetPlayerLevel())
 	assert.True(t, player.GetUpdatedAt().After(oldUpdatedAt))
-	
+
 	// Test backward compatibility
 	assert.Equal(t, player.GetPlayerLevel(), player.PlayerLevel)
 }
@@ -186,7 +186,7 @@ func TestPlayer_RegenerateAPIKey(t *testing.T) {
 	assert.NotEqual(t, oldAPIKey, player.GetAPIKey())
 	assert.NotEmpty(t, player.GetAPIKey())
 	assert.True(t, player.GetUpdatedAt().After(oldUpdatedAt))
-	
+
 	// Test backward compatibility
 	assert.Equal(t, player.GetAPIKey(), player.APIKey)
 }
@@ -266,12 +266,12 @@ func TestPlayer_IsDeleted(t *testing.T) {
 
 func TestPlayer_SetID(t *testing.T) {
 	player := NewPlayer(1, "global123", "test@example.com", 2, nil)
-	
+
 	newID := uint64(42)
 	player.SetID(newID)
-	
+
 	assert.Equal(t, newID, player.GetID())
-	
+
 	// Test backward compatibility
 	assert.Equal(t, player.GetID(), player.ID)
 }
@@ -286,7 +286,7 @@ func TestPlayer_SetLastActiveAt(t *testing.T) {
 
 	assert.Equal(t, &lastActive, player.GetLastActiveAt())
 	assert.True(t, player.GetUpdatedAt().After(oldUpdatedAt))
-	
+
 	// Test backward compatibility
 	assert.Equal(t, player.GetLastActiveAt(), player.LastActiveAt)
 }
@@ -301,7 +301,7 @@ func TestPlayer_SetDeletedAt(t *testing.T) {
 
 	assert.Equal(t, &deletedAt, player.GetDeletedAt())
 	assert.True(t, player.GetUpdatedAt().After(oldUpdatedAt))
-	
+
 	// Test backward compatibility
 	assert.Equal(t, player.GetDeletedAt(), player.DeletedAt)
 }
@@ -315,10 +315,10 @@ func stringPtr(s string) *string {
 
 func TestNewMerchant(t *testing.T) {
 	tests := []struct {
-		name               string
-		globalMerchantID   string
-		merchantName       string
-		expectError        bool
+		name             string
+		globalMerchantID string
+		merchantName     string
+		expectError      bool
 	}{
 		{
 			name:             "Valid merchant creation",
@@ -604,7 +604,12 @@ func TestLevel_IsValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			level := NewLevel(tt.merchantID, tt.levelName, tt.globalPlayerLevelID, tt.globalMerchantID)
+			level := NewLevel(
+				tt.merchantID,
+				tt.levelName,
+				tt.globalPlayerLevelID,
+				tt.globalMerchantID,
+			)
 			err := level.IsValid()
 
 			if tt.expectError {

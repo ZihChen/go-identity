@@ -17,14 +17,14 @@ type Level struct {
 	deletedAt           *time.Time
 
 	// 向後兼容的公共欄位
-	ID                  uint64     `json:"id" deprecated:"use GetID() method instead"`
-	MerchantID          uint64     `json:"merchant_id" deprecated:"use GetMerchantID() method instead"`
-	Name                string     `json:"name" deprecated:"use GetName() method instead"`
+	ID                  uint64     `json:"id"                     deprecated:"use GetID() method instead"`
+	MerchantID          uint64     `json:"merchant_id"            deprecated:"use GetMerchantID() method instead"`
+	Name                string     `json:"name"                   deprecated:"use GetName() method instead"`
 	GlobalPlayerLevelID string     `json:"global_player_level_id" deprecated:"use GetGlobalPlayerLevelID() method instead"`
-	GlobalMerchantID    string     `json:"global_merchant_id" deprecated:"use GetGlobalMerchantID() method instead"`
-	CreatedAt           time.Time  `json:"created_at" deprecated:"use GetCreatedAt() method instead"`
-	UpdatedAt           time.Time  `json:"updated_at" deprecated:"use GetUpdatedAt() method instead"`
-	DeletedAt           *time.Time `json:"deleted_at,omitempty" deprecated:"use GetDeletedAt() method instead"`
+	GlobalMerchantID    string     `json:"global_merchant_id"     deprecated:"use GetGlobalMerchantID() method instead"`
+	CreatedAt           time.Time  `json:"created_at"             deprecated:"use GetCreatedAt() method instead"`
+	UpdatedAt           time.Time  `json:"updated_at"             deprecated:"use GetUpdatedAt() method instead"`
+	DeletedAt           *time.Time `json:"deleted_at,omitempty"   deprecated:"use GetDeletedAt() method instead"`
 }
 
 // NewLevel 建立新的Level實體
@@ -38,6 +38,26 @@ func NewLevel(merchantID uint64, name, globalPlayerLevelID, globalMerchantID str
 		globalMerchantID:    globalMerchantID,
 		createdAt:           now,
 		updatedAt:           now,
+	}
+
+	level.syncLevelFields()
+	return level
+}
+
+// NewLevelWithTimes 建立帶有指定時間戳的Level實體
+func NewLevelWithTimes(
+	merchantID uint64,
+	name, globalPlayerLevelID, globalMerchantID string,
+	createdAt, updatedAt time.Time,
+) *Level {
+	level := &Level{
+		id:                  0,
+		merchantID:          merchantID,
+		name:                name,
+		globalPlayerLevelID: globalPlayerLevelID,
+		globalMerchantID:    globalMerchantID,
+		createdAt:           createdAt,
+		updatedAt:           updatedAt,
 	}
 
 	level.syncLevelFields()

@@ -62,19 +62,24 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyn
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
-	manager := &entity.Manager{
-		MerchantID:      merchant.ID,
-		GlobalManagerID: data.Manager.GlobalManagerID,
-		Account:         data.Manager.Account,
-		Email:           &data.Manager.Email,
-		CreatedAt:       data.Manager.UpdatedAt,
-		UpdatedAt:       data.Manager.UpdatedAt,
-		DeletedAt: func() *time.Time {
-			if data.Manager.DeletedAt == "" {
-				return nil
-			}
-			return &data.Manager.UpdatedAt
-		}(),
+	// 使用 NewManagerWithTimes 建構子建立 Manager 實體
+	manager := entity.NewManagerWithTimes(
+		merchant.ID,
+		data.Manager.GlobalManagerID,
+		data.Manager.Account,
+		&data.Manager.Email,
+		data.Manager.UpdatedAt,
+		data.Manager.UpdatedAt,
+	)
+
+	if err = manager.IsValid(); err != nil {
+		u.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("validate manager: %w", err)
+	}
+
+	// 設置 DeletedAt
+	if data.Manager.DeletedAt != "" {
+		manager.SetDeletedAt(&data.Manager.UpdatedAt)
 	}
 
 	u.tracing.TraceEvent(span, "Upsert manager")
@@ -84,12 +89,12 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyn
 	}
 
 	u.logger.InfoLog("Manager upserted successfully",
-		u.logger.String("global_id", manager.GlobalManagerID),
-		u.logger.String("account", manager.Account))
+		u.logger.String("global_id", manager.GetGlobalManagerID()),
+		u.logger.String("account", manager.GetAccount()))
 	u.tracing.TraceEvent(span, "Database operation completed")
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("manager.global_id", manager.GlobalManagerID),
-		attribute.String("manager.account", manager.Account))
+		attribute.String("manager.global_id", manager.GetGlobalManagerID()),
+		attribute.String("manager.account", manager.GetAccount()))
 
 	// 發布管理員同步事件到KDS
 	u.tracing.TraceEvent(span, "Publishing manager sync event to KDS")
@@ -117,17 +122,17 @@ func (u *ManagerUseCase) publishManagerSyncEvent(
 	// 構建事件數據
 	syncEvent := event.IdentityManagerSyncEvent{
 		GlobalMerchantID: globalMerchantID,
-		GlobalManagerID:  manager.GlobalManagerID,
-		ID:               manager.ID,
-		MerchantID:       manager.MerchantID,
-		Account:          manager.Account,
-		Email:            manager.Email,
-		CreatedAt:        manager.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        manager.UpdatedAt.Format(time.RFC3339),
+		GlobalManagerID:  manager.GetGlobalManagerID(),
+		ID:               manager.GetID(),
+		MerchantID:       manager.GetMerchantID(),
+		Account:          manager.GetAccount(),
+		Email:            manager.GetEmail(),
+		CreatedAt:        manager.GetCreatedAt().Format(time.RFC3339),
+		UpdatedAt:        manager.GetUpdatedAt().Format(time.RFC3339),
 	}
 
-	if manager.DeletedAt != nil {
-		syncEvent.DeletedAt = manager.DeletedAt.Format(time.RFC3339)
+	if manager.GetDeletedAt() != nil {
+		syncEvent.DeletedAt = manager.GetDeletedAt().Format(time.RFC3339)
 	}
 
 	// 構建CloudEvent
@@ -158,7 +163,7 @@ func (u *ManagerUseCase) publishManagerSyncEvent(
 	u.tracing.TraceEvent(span, "Manager sync event published successfully")
 
 	u.logger.InfoLog("Manager sync event published",
-		u.logger.String("global_id", manager.GlobalManagerID),
+		u.logger.String("global_id", manager.GetGlobalManagerID()),
 		u.logger.String("event_id", cloudEvent.ID))
 
 	return nil
@@ -178,8 +183,8 @@ func (u *ManagerUseCase) GetManagerByID(ctx context.Context, id uint64) (*entity
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("manager.global_id", manager.GlobalManagerID),
-		attribute.String("manager.account", manager.Account))
+		attribute.String("manager.global_id", manager.GetGlobalManagerID()),
+		attribute.String("manager.account", manager.GetAccount()))
 	return manager, nil
 }
 
@@ -200,6 +205,6 @@ func (u *ManagerUseCase) GetManagerByGlobalID(
 		return nil, fmt.Errorf("find manager: %w", err)
 	}
 
-	u.tracing.RecordSpanAttributes(span, attribute.String("manager.account", manager.Account))
+	u.tracing.RecordSpanAttributes(span, attribute.String("manager.account", manager.GetAccount()))
 	return manager, nil
 }

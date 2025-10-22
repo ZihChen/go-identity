@@ -2,8 +2,9 @@ package entity
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Player 玩家模型
@@ -23,18 +24,18 @@ type Player struct {
 	playerLevel    PlayerLevel
 
 	// 向後兼容的公共欄位（標記為 deprecated）
-	ID             uint64      `json:"id" deprecated:"use ID() method instead"`
-	MerchantID     uint64      `json:"merchant_id" deprecated:"use MerchantID() method instead"`
-	GlobalPlayerID string      `json:"global_player_id" deprecated:"use GlobalPlayerID() method instead"`
-	LevelID        uint64      `json:"level_id" deprecated:"use LevelID() method instead"`
-	APIKey         string      `json:"api_key" deprecated:"use APIKey() method instead"`
-	Account        string      `json:"account" deprecated:"use Account() method instead"`
-	Email          *string     `json:"email,omitempty" deprecated:"use Email() method instead"`
+	ID             uint64      `json:"id"                       deprecated:"use ID() method instead"`
+	MerchantID     uint64      `json:"merchant_id"              deprecated:"use MerchantID() method instead"`
+	GlobalPlayerID string      `json:"global_player_id"         deprecated:"use GlobalPlayerID() method instead"`
+	LevelID        uint64      `json:"level_id"                 deprecated:"use LevelID() method instead"`
+	APIKey         string      `json:"api_key"                  deprecated:"use APIKey() method instead"`
+	Account        string      `json:"account"                  deprecated:"use Account() method instead"`
+	Email          *string     `json:"email,omitempty"          deprecated:"use Email() method instead"`
 	LastActiveAt   *time.Time  `json:"last_active_at,omitempty" deprecated:"use LastActiveAt() method instead"`
-	CreatedAt      time.Time   `json:"created_at" deprecated:"use CreatedAt() method instead"`
-	UpdatedAt      time.Time   `json:"updated_at" deprecated:"use UpdatedAt() method instead"`
-	DeletedAt      *time.Time  `json:"deleted_at,omitempty" deprecated:"use DeletedAt() method instead"`
-	PlayerLevel    PlayerLevel `json:"player_level,omitempty" deprecated:"use PlayerLevel() method instead"`
+	CreatedAt      time.Time   `json:"created_at"               deprecated:"use CreatedAt() method instead"`
+	UpdatedAt      time.Time   `json:"updated_at"               deprecated:"use UpdatedAt() method instead"`
+	DeletedAt      *time.Time  `json:"deleted_at,omitempty"     deprecated:"use DeletedAt() method instead"`
+	PlayerLevel    PlayerLevel `json:"player_level,omitempty"   deprecated:"use PlayerLevel() method instead"`
 }
 
 type PlayerLevel struct {
@@ -43,7 +44,13 @@ type PlayerLevel struct {
 }
 
 // NewPlayer 建立新的Player實體
-func NewPlayer(merchantID uint64, globalPlayerID string, account string, levelID uint64, email *string) *Player {
+func NewPlayer(
+	merchantID uint64,
+	globalPlayerID string,
+	account string,
+	levelID uint64,
+	email *string,
+) *Player {
 	now := time.Now()
 	player := &Player{
 		id:             0, // 將在資料庫中自動分配
@@ -63,7 +70,14 @@ func NewPlayer(merchantID uint64, globalPlayerID string, account string, levelID
 }
 
 // NewPlayerWithTimes 建立新的Player實體（包含指定時間）
-func NewPlayerWithTimes(merchantID uint64, globalPlayerID string, account string, levelID uint64, email *string, createdAt, updatedAt time.Time) *Player {
+func NewPlayerWithTimes(
+	merchantID uint64,
+	globalPlayerID string,
+	account string,
+	levelID uint64,
+	email *string,
+	createdAt, updatedAt time.Time,
+) *Player {
 	player := &Player{
 		id:             0,
 		merchantID:     merchantID,

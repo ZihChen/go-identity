@@ -16,12 +16,12 @@ type Tag struct {
 	deletedAt   *time.Time
 
 	// 向後兼容的公共欄位
-	ID          uint64     `json:"id" deprecated:"use GetID() method instead"`
-	MerchantID  uint64     `json:"merchant_id" deprecated:"use GetMerchantID() method instead"`
-	Name        string     `json:"name" deprecated:"use GetName() method instead"`
-	GlobalTagID string     `json:"global_tag_id" deprecated:"use GetGlobalTagID() method instead"`
-	CreatedAt   time.Time  `json:"created_at" deprecated:"use GetCreatedAt() method instead"`
-	UpdatedAt   time.Time  `json:"updated_at" deprecated:"use GetUpdatedAt() method instead"`
+	ID          uint64     `json:"id"                   deprecated:"use GetID() method instead"`
+	MerchantID  uint64     `json:"merchant_id"          deprecated:"use GetMerchantID() method instead"`
+	Name        string     `json:"name"                 deprecated:"use GetName() method instead"`
+	GlobalTagID string     `json:"global_tag_id"        deprecated:"use GetGlobalTagID() method instead"`
+	CreatedAt   time.Time  `json:"created_at"           deprecated:"use GetCreatedAt() method instead"`
+	UpdatedAt   time.Time  `json:"updated_at"           deprecated:"use GetUpdatedAt() method instead"`
 	DeletedAt   *time.Time `json:"deleted_at,omitempty" deprecated:"use GetDeletedAt() method instead"`
 }
 
@@ -41,6 +41,21 @@ func NewTag(merchantID uint64, name, globalTagID string) *Tag {
 	return tag
 }
 
+// NewTagWithTimes 建立帶有指定時間戳的Tag實體
+func NewTagWithTimes(merchantID uint64, name, globalTagID string, updatedAt time.Time) *Tag {
+	tag := &Tag{
+		id:          0,
+		merchantID:  merchantID,
+		name:        name,
+		globalTagID: globalTagID,
+		createdAt:   updatedAt,
+		updatedAt:   updatedAt,
+	}
+
+	tag.syncTagFields()
+	return tag
+}
+
 // Getter methods for Tag
 func (t *Tag) GetID() uint64            { return t.id }
 func (t *Tag) GetMerchantID() uint64    { return t.merchantID }
@@ -50,7 +65,7 @@ func (t *Tag) GetCreatedAt() time.Time  { return t.createdAt }
 func (t *Tag) GetUpdatedAt() time.Time  { return t.updatedAt }
 func (t *Tag) GetDeletedAt() *time.Time { return t.deletedAt }
 
-// 業務方法 for Tag
+// UpdateName 業務方法 for Tag
 func (t *Tag) UpdateName(newName string) error {
 	if newName == "" {
 		return errors.New("tag name cannot be empty")
@@ -67,7 +82,7 @@ func (t *Tag) SetDeletedAt(deletedAt *time.Time) {
 	t.syncTagFields()
 }
 
-// 驗證方法 for Tag
+// IsValid 驗證方法 for Tag
 func (t *Tag) IsValid() error {
 	if t.merchantID == 0 {
 		return errors.New("tag must belong to a merchant")

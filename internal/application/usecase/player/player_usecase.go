@@ -91,6 +91,11 @@ func (u *PlayerUseCase) SyncPlayer(
 		data.Player.UpdatedAt,
 	)
 
+	if err = player.IsValid(); err != nil {
+		u.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("player is invalid: %w", err)
+	}
+
 	// 設置 LastActiveAt
 	if !data.Player.LastActiveAt.IsZero() {
 		player.SetLastActiveAt(&data.Player.LastActiveAt)
