@@ -1,9 +1,26 @@
 # CLAUDE-CURRENT.md
 
-## 當前任務階段：安全中間件系統完成，Consumer 性能優化穩定運行
-Security v3.0 中間件系統 + Consumer v2.0 + 代碼重構全面完成並部署生產，所有優化目標達成
+## 當前任務階段：領域模型標準化完成，系統架構現代化達成
+Domain Model v4.0 標準化 + Security v3.0 中間件系統 + Consumer v2.0 + 代碼重構全面完成並部署生產，所有優化目標達成
 
 ### 最新完成任務
+- [x] ✅ **領域模型標準化 v4.0** (2025-10-22)
+  - [x] 統一領域模型調用方式實作
+  - [x] 時間感知建構子完整實作
+    - [x] NewTagWithTimes(merchantID, name, globalTagID, updatedAt)
+    - [x] NewMerchantWithTimes(globalMerchantID, name, displayName, updatedAt)  
+    - [x] NewManagerWithTimes(merchantID, globalManagerID, account, email, createdAt, updatedAt)
+    - [x] NewLevelWithTimes(merchantID, name, globalLevelID, globalMerchantID, createdAt, updatedAt)
+  - [x] 實體封裝與 getter 方法全面實作
+  - [x] 所有 use case 模式統一化
+    - [x] PlayerUseCase - 參考實作模式
+    - [x] TagUseCase - 統一建構子與 getter 使用
+    - [x] MerchantUseCase - 領域模型方式調用
+    - [x] ManagerUseCase - 標準化實體建立與存取
+    - [x] LevelUseCase - 統一領域模型模式
+  - [x] 實體驗證整合 (IsValid() 方法)
+  - [x] 向後兼容性維護 (deprecated 公共欄位)
+
 - [x] ✅ **安全中間件系統 v3.0** (2025-10-20)
   - [x] 環境感知 CORS 中間件實作
   - [x] API Key 認證中間件與商戶隔離
@@ -42,14 +59,15 @@ Security v3.0 中間件系統 + Consumer v2.0 + 代碼重構全面完成並部�
   - [x] 背景任務處理 (Redis Queue)
 
 ### 當前狀態
-1. **安全中間件系統**: ✅ v3.0 完成，生產級安全配置部署
-2. **Consumer 性能優化**: ✅ 完成並部署生產，所有目標達成
-3. **系統整體效能**: ✅ 3.3倍吞吐量提升，錯誤率 <0.23%
-4. **代碼品質**: ✅ 測試覆蓋率 >85%，零編譯警告
-5. **架構穩定性**: ✅ 生產環境運行穩定，性能表現優異
-6. **安全合規性**: ✅ 安全審計完成，DSN 密碼洩露已修復
-7. **文檔完整性**: ✅ 完整的重構歷史和技術文檔歸檔
-8. **系統就緒度**: ✅ 所有服務 (Web/Consumer/Worker) 協作正常
+1. **領域模型標準化**: ✅ v4.0 完成，統一調用方式全面實作
+2. **安全中間件系統**: ✅ v3.0 完成，生產級安全配置部署
+3. **Consumer 性能優化**: ✅ 完成並部署生產，所有目標達成
+4. **系統整體效能**: ✅ 3.3倍吞吐量提升，錯誤率 <0.23%
+5. **代碼品質**: ✅ 測試覆蓋率 >85%，零編譯警告
+6. **架構現代化**: ✅ Clean Architecture + 領域模型封裝完成
+7. **安全合規性**: ✅ 安全審計完成，DSN 密碼洩露已修復
+8. **文檔完整性**: ✅ 完整的重構歷史和技術文檔歸檔
+9. **系統就緒度**: ✅ 所有服務 (Web/Consumer/Worker) 協作正常
 
 ### 已完成任務
 
@@ -308,8 +326,8 @@ Consumer v2.0 性能優化已全面完成並部署生產：
 
 ---
 **專案**: Fat Identity Cat - 身份管理微服務  
-**架構**: Clean Architecture + 高效能事件處理 + 多服務  
+**架構**: Clean Architecture + 領域模型標準化 + 高效能事件處理 + 多服務  
 **核心功能**: Merchant/Player/Manager 身份管理、Level/Tag 系統、高性能 KDS Consumer  
 **Consumer 性能**: 10,000+ records/sec (3.3倍提升), <0.23% 錯誤率  
-**更新日期**: 2025-09-12  
-**版本**: Consumer v2.0 + 代碼重構完成
+**更新日期**: 2025-10-22  
+**版本**: Domain Model v4.0 + Security v3.0 + Consumer v2.0 + 代碼重構完成

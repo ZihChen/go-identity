@@ -185,7 +185,15 @@ All database operations go through repository interfaces defined in `internal/do
 ### Use Case Pattern
 Business logic is encapsulated in use cases that implement interfaces from `internal/domain/ports/inbound/` and orchestrate repositories and services
 
-### Unified Router Management Pattern ✨ **RECENTLY IMPLEMENTED**
+### Domain Model Encapsulation Pattern ✨ **RECENTLY IMPLEMENTED**
+Standardized domain entity management with:
+- **Time-Aware Constructors** - Separate constructors for current time vs explicit timestamps
+- **Getter Method Access** - All field access through encapsulated methods
+- **Entity Validation** - Built-in `IsValid()` methods integrated into use case flows
+- **Setter Method State Changes** - Controlled state modification through entity methods
+- **Backward Compatibility** - Deprecated public fields maintain API compatibility
+
+### Unified Router Management Pattern ✨ **IMPLEMENTED**
 Centralized router architecture with:
 - **Router Manager** - Central coordinator for all route registration with `SetupRoutersWithMiddleware()` method
 - **Component Routers** - Individual routers for specific functionality (API, Swagger, health)
@@ -272,14 +280,26 @@ Successfully completed comprehensive Consumer optimization through three phases,
 ## Development Workflow
 
 ### Adding New Features
-1. Define domain entities in `internal/domain/entity/`
+1. **Define domain entities** in `internal/domain/entity/` following the standardized pattern:
+   - Private fields with public deprecated fields for backward compatibility
+   - `New[Entity]()` constructor for current time initialization
+   - `New[Entity]WithTimes()` constructor for explicit timestamp initialization  
+   - Getter methods for all field access (`Get[FieldName]()`)
+   - Setter methods for state changes (`Set[FieldName]()`, `Update[FieldName]()`)
+   - `IsValid()` method for entity validation
+   - `sync[Entity]Fields()` method to maintain backward compatibility
 2. Create repository interfaces in `internal/domain/ports/outbound/repository/`
 3. Implement repositories in `internal/adapter/outbound/repository/`
 4. Create use case interfaces in `internal/domain/ports/inbound/`
-5. Implement use cases and wire dependencies in `internal/di/`
-6. Add HTTP handlers in `internal/adapter/inbound/handler/api/`
-7. Register routes in appropriate router files
-8. Update Swagger documentation
+5. **Implement use cases** following the domain model pattern:
+   - Use time-aware constructors for entity creation
+   - Access fields through getter methods only
+   - Modify state through setter methods
+   - Add entity validation calls where appropriate
+6. Wire dependencies in `internal/di/`
+7. Add HTTP handlers in `internal/adapter/inbound/handler/api/`
+8. Register routes in appropriate router files
+9. Update Swagger documentation
 
 ### Testing Strategy
 - **Unit Tests**: Test individual components and business logic
@@ -299,6 +319,7 @@ While both services share similar architectural patterns, Fat Identity Cat focus
 
 ## Current Status
 
+**✅ Domain Model Standardization (v4.0)**: Unified domain model calling approach across all use cases with enhanced encapsulation  
 **✅ Security and Middleware Enhancement (v3.0)**: Advanced middleware system with production-ready security controls  
 **✅ Consumer Refactoring Completed & Production Deployed (v2.0 + Code Quality Improvements)**: Three-phase optimization delivering production-ready performance enhancements - **Now running in production with 3.3x performance improvement**  
 **✅ Router Architecture Migration Completed (v2.0)**: Unified router management system implemented  
@@ -443,3 +464,62 @@ tracingService, err := tracing.NewTracingService(cfg)  // Both provider and inte
 - **Interface Compliance**: ✅ All 13 TracingService methods properly implemented
 - **Architecture Validation**: ✅ No direct infrastructure dependencies in domain/application layers
 - **Service Integration**: ✅ All cmd services (web, consumer, worker) successfully migrated
+
+### Domain Model Calling Approach Standardization (2025-10-22) ✅
+**Clean Architecture Enhancement**: Implemented standardized domain model calling approach across all use cases for improved encapsulation and consistency
+
+#### Domain Model Modernization Completed
+- ✅ **Entity Constructor Enhancement**: Added time-aware constructors for all domain entities
+  - `NewTagWithTimes(merchantID, name, globalTagID, updatedAt)` 
+  - `NewMerchantWithTimes(globalMerchantID, name, displayName, updatedAt)`
+  - `NewManagerWithTimes(merchantID, globalManagerID, account, email, createdAt, updatedAt)`
+  - `NewLevelWithTimes(merchantID, name, globalPlayerLevelID, globalMerchantID, createdAt, updatedAt)`
+- ✅ **Use Case Pattern Unification**: All use cases now follow consistent domain model patterns
+  - `PlayerUseCase` - Reference implementation with `NewPlayerWithTimes()`
+  - `TagUseCase` - Updated to use constructor and getter methods  
+  - `MerchantUseCase` - Migrated to domain model approach
+  - `ManagerUseCase` - Standardized entity creation and access
+  - `LevelUseCase` - Unified with domain model patterns
+- ✅ **Field Access Modernization**: Replaced direct field access with getter methods
+  - All event publishing uses `entity.GetFieldName()` methods
+  - Logging operations use getter methods for consistency
+  - Tracing attributes use encapsulated field access
+- ✅ **Entity Validation Integration**: Added `IsValid()` validation calls where appropriate
+  - Player entity validation in sync operations
+  - Manager entity validation before database operations  
+  - Level entity validation for data integrity
+- ✅ **Setter Method Usage**: Standardized state modification through entity methods
+  - `SetDeletedAt()` for soft deletion across all entities
+  - `SetLastActiveAt()` for player activity tracking
+  - `SetPlayerLevel()` for player level associations
+
+#### Domain Model Architecture Benefits
+- **Encapsulation Enforcement**: Private fields with controlled access through methods
+- **Consistency Assurance**: Uniform entity creation and modification patterns  
+- **Validation Integration**: Built-in validation at entity level prevents invalid states
+- **Backward Compatibility**: Deprecated public fields maintain existing API compatibility
+- **Type Safety**: Constructor parameters ensure proper entity initialization
+- **Testability Enhancement**: Easier to mock and test individual entity behaviors
+
+#### Entity Constructor Patterns
+**Time-Aware Constructors**: All entities now support both current time and explicit timestamp initialization
+```go
+// Current time constructors (for new entities)
+entity.NewTag(merchantID, name, globalTagID)
+entity.NewMerchant(globalMerchantID, name)
+entity.NewManager(merchantID, globalManagerID, account, email)
+entity.NewLevel(merchantID, name, globalPlayerLevelID, globalMerchantID)
+
+// Explicit time constructors (for sync operations)
+entity.NewTagWithTimes(merchantID, name, globalTagID, updatedAt)
+entity.NewMerchantWithTimes(globalMerchantID, name, displayName, updatedAt)
+entity.NewManagerWithTimes(merchantID, globalManagerID, account, email, createdAt, updatedAt)
+entity.NewLevelWithTimes(merchantID, name, globalPlayerLevelID, globalMerchantID, createdAt, updatedAt)
+```
+
+#### Code Quality Improvements
+- **Consistent Patterns**: All use cases follow identical entity creation and access patterns
+- **Reduced Coupling**: Use cases depend on entity interfaces rather than struct fields
+- **Enhanced Maintainability**: Changes to entity internal structure don't affect use cases
+- **Clean Architecture Compliance**: Domain layer encapsulation properly enforced
+- **Future-Proof Design**: Easy to extend entities without breaking existing code

@@ -3,11 +3,13 @@
 ## 快速開發指南
 
 ### 當前狀態
+- **Domain Model v4.0**: 領域模型標準化 ✅ 已完成 (2025-10-22)
+- **Security v3.0**: 安全中間件系統 ✅ 已完成 (2025-10-20)
 - **Consumer v2.0**: 性能優化 + 代碼重構 ✅ 已完成 (2025-09-12)
 - **Router v2.0**: 統一路由管理系統 ✅ 已完成 (2025-09-09)
 - **Core v1.0**: 核心身份管理系統 ✅ 已完成 (2025-09-02)
-- **當前階段**: Consumer 性能驗證與生產部署準備 🔄 進行中
-- **下一里程碑**: 監控告警配置與操作手冊編寫
+- **當前狀態**: 系統架構現代化全面完成 ✅ 穩定運行
+- **下一階段**: 持續優化與功能擴展
 
 ### 快速命令
 
@@ -306,6 +308,52 @@ routerManager.SetupRoutersWithMiddleware(ginEngine, config)
 - 漸進式升級路徑
 - 不影響現有程式碼運作
 
+### 領域模型標準化 ✨ v4.0 NEW
+
+#### 統一領域模型調用方式
+所有實體現在都遵循統一的領域模型模式：
+
+**實體建構子模式:**
+```go
+// 當前時間建構子 (新建實體)
+player := entity.NewPlayer(merchantID, globalPlayerID, account, email)
+merchant := entity.NewMerchant(globalMerchantID, name)
+
+// 指定時間建構子 (同步操作)
+player := entity.NewPlayerWithTimes(merchantID, globalPlayerID, account, levelID, email, createdAt, updatedAt)
+merchant := entity.NewMerchantWithTimes(globalMerchantID, name, displayName, updatedAt)
+tag := entity.NewTagWithTimes(merchantID, name, globalTagID, updatedAt)
+manager := entity.NewManagerWithTimes(merchantID, globalManagerID, account, email, createdAt, updatedAt)
+level := entity.NewLevelWithTimes(merchantID, name, globalLevelID, globalMerchantID, createdAt, updatedAt)
+```
+
+**欄位存取模式:**
+```go
+// 使用 getter 方法而非直接欄位存取
+playerID := player.GetID()
+playerName := player.GetAccount()
+merchantKey := merchant.GetAPIKey()
+
+// 狀態修改使用 setter 方法
+player.SetLastActiveAt(&time.Now())
+player.SetDeletedAt(&time.Now())
+merchant.RegenerateAPIKey()
+```
+
+**實體驗證集成:**
+```go
+// 建立實體後驗證
+player := entity.NewPlayerWithTimes(...)
+if err := player.IsValid(); err != nil {
+    return fmt.Errorf("invalid player: %w", err)
+}
+```
+
+#### 向後兼容性
+- 保留已棄用的公共欄位
+- 漸進式升級路徑
+- 現有 API 完全相容
+
 ### Clean Architecture 實現 ✨ v1.0
 
 #### Hexagonal Architecture 模式
@@ -376,9 +424,9 @@ docker exec -it redis redis-cli
 
 ---
 **專案**: Fat Identity Cat - 身份管理微服務  
-**架構**: Clean Architecture + 高性能事件處理 + 多服務協作  
+**架構**: Clean Architecture + 領域模型標準化 + 高性能事件處理 + 多服務協作  
 **核心功能**: Merchant/Player/Manager 身份管理、Level/Tag 系統、高性能 KDS Consumer  
 **Consumer 性能**: 10,000+ records/sec (3.3倍提升), <0.23% 錯誤率  
-**更新日期**: 2025-09-12  
-**版本**: Consumer v2.0 + Router v2.0 + Core v1.0  
+**更新日期**: 2025-10-22  
+**版本**: Domain Model v4.0 + Security v3.0 + Consumer v2.0 + Router v2.0 + Core v1.0  
 **用途**: 日常開發快速參考
