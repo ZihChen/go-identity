@@ -113,14 +113,14 @@ func (u *TagUseCase) SyncPlayerTag(
 
 	// 建立Player Tags關聯
 	u.tracing.TraceEvent(span, "Start sync player tags relation")
-	if err = u.executeLocked(ctx, player.ID, func() error {
-		err = u.playerTagRepo.BatchUpdate(ctx, player.ID, tagIDs)
+	if err = u.executeLocked(ctx, player.GetID(), func() error {
+		err = u.playerTagRepo.BatchUpdate(ctx, player.GetID(), tagIDs)
 		if err != nil {
 			u.tracing.RecordSpanError(span, err)
 			return fmt.Errorf("batch update player tags failed: %w", err)
 		}
 		u.logger.InfoWithContext(ctx, "Batch upsert player tags completed",
-			u.logger.UInt64("player_id", player.ID),
+			u.logger.UInt64("player_id", player.GetID()),
 			u.logger.Int("count", len(tagIDs)),
 			u.logger.Any("tag_ids", tagIDs),
 		)

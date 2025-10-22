@@ -58,13 +58,13 @@ func (r *PlayerRepository) FindByGlobalID(
 // FirstOrCreate 取得或創建，避免重複插入
 func (r *PlayerRepository) FirstOrCreate(ctx context.Context, player *entity.Player) error {
 	playerModel := mapToDBPlayer(player)
-	result := r.db.WithContext(ctx).Where("global_player_id = ?", player.GlobalPlayerID).
+	result := r.db.WithContext(ctx).Where("global_player_id = ?", player.GetGlobalPlayerID()).
 		FirstOrCreate(playerModel)
 	if result.Error != nil {
 		return result.Error
 	}
 
-	player.ID = playerModel.ID
+	player.SetID(playerModel.ID)
 	return nil
 }
 
@@ -77,7 +77,7 @@ func (r *PlayerRepository) Create(ctx context.Context, player *entity.Player) er
 	}
 
 	// 更新ID
-	player.ID = playerModel.ID
+	player.SetID(playerModel.ID)
 
 	return nil
 }
@@ -153,38 +153,50 @@ func mapToDomainPlayer(player *models.Player) *entity.Player {
 		deletedAt = &deletedTime
 	}
 
-	return &entity.Player{
-		ID:             player.ID,
-		MerchantID:     player.MerchantID,
-		GlobalPlayerID: player.GlobalPlayerID,
-		APIKey:         player.APIKey,
-		Account:        player.Account,
-		Email:          player.Email,
-		LastActiveAt:   player.LastActiveAt,
-		CreatedAt:      player.CreatedAt,
-		UpdatedAt:      player.UpdatedAt,
-		DeletedAt:      deletedAt,
+	// 使用時間感知建構子建立Player實體
+	playerEntity := entity.NewPlayerWithTimes(
+		player.MerchantID,
+		player.GlobalPlayerID,
+		player.Account,
+		player.LevelID,
+		player.Email,
+		player.CreatedAt,
+		player.UpdatedAt,
+	)
+
+	// 設定其他欄位
+	playerEntity.SetID(player.ID)
+	if player.APIKey != "" {
+		playerEntity.SetAPIKey(player.APIKey)
 	}
+	if player.LastActiveAt != nil {
+		playerEntity.SetLastActiveAt(player.LastActiveAt)
+	}
+	if deletedAt != nil {
+		playerEntity.SetDeletedAt(deletedAt)
+	}
+
+	return playerEntity
 }
 
 // 將領域模型映射到DB模型
 func mapToDBPlayer(player *entity.Player) *models.Player {
 	dbPlayer := &models.Player{
-		ID:             player.ID,
-		MerchantID:     player.MerchantID,
-		GlobalPlayerID: player.GlobalPlayerID,
-		LevelID:        player.LevelID,
-		APIKey:         player.APIKey,
-		Account:        player.Account,
-		Email:          player.Email,
-		LastActiveAt:   player.LastActiveAt,
-		CreatedAt:      player.CreatedAt,
-		UpdatedAt:      player.UpdatedAt,
+		ID:             player.GetID(),
+		MerchantID:     player.GetMerchantID(),
+		GlobalPlayerID: player.GetGlobalPlayerID(),
+		LevelID:        player.GetLevelID(),
+		APIKey:         player.GetAPIKey(),
+		Account:        player.GetAccount(),
+		Email:          player.GetEmail(),
+		LastActiveAt:   player.GetLastActiveAt(),
+		CreatedAt:      player.GetCreatedAt(),
+		UpdatedAt:      player.GetUpdatedAt(),
 	}
 
-	if player.DeletedAt != nil {
+	if player.GetDeletedAt() != nil {
 		dbPlayer.DeletedAt = gorm.DeletedAt{
-			Time:  *player.DeletedAt,
+			Time:  *player.GetDeletedAt(),
 			Valid: true,
 		}
 	}

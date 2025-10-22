@@ -46,8 +46,8 @@ func (m *PlayerRepositoryMock) FirstOrCreate(ctx context.Context, player *entity
 
 func (m *PlayerRepositoryMock) Create(ctx context.Context, player *entity.Player) error {
 	args := m.Called(ctx, player)
-	if player.ID == 0 {
-		player.ID = 1
+	if player.GetID() == 0 {
+		player.SetID(1)
 	}
 	return args.Error(0)
 }

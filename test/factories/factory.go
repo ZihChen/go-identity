@@ -25,17 +25,11 @@ func CreateTestPlayer() *entity.Player {
 	email := "test@example.com"
 	now := time.Now()
 	lastActive := now.Add(-1 * time.Hour)
-	return &entity.Player{
-		ID:             1,
-		MerchantID:     2,
-		GlobalPlayerID: "FATCAT-PLAYER-1",
-		APIKey:         "player-api-key",
-		Account:        "TestPlayer",
-		Email:          &email,
-		LastActiveAt:   &lastActive,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}
+	player := entity.NewPlayerWithTimes(2, "FATCAT-PLAYER-1", "TestPlayer", 0, &email, now, now)
+	player.SetID(1)
+	player.SetAPIKey("player-api-key")
+	player.SetLastActiveAt(&lastActive)
+	return player
 }
 
 func CreateTestMerchant() *entity.Merchant {

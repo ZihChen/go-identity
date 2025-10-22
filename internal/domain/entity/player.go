@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -22,20 +23,6 @@ type Player struct {
 	updatedAt      time.Time
 	deletedAt      *time.Time
 	playerLevel    PlayerLevel
-
-	// 向後兼容的公共欄位（標記為 deprecated）
-	ID             uint64      `json:"id"                       deprecated:"use ID() method instead"`
-	MerchantID     uint64      `json:"merchant_id"              deprecated:"use MerchantID() method instead"`
-	GlobalPlayerID string      `json:"global_player_id"         deprecated:"use GlobalPlayerID() method instead"`
-	LevelID        uint64      `json:"level_id"                 deprecated:"use LevelID() method instead"`
-	APIKey         string      `json:"api_key"                  deprecated:"use APIKey() method instead"`
-	Account        string      `json:"account"                  deprecated:"use Account() method instead"`
-	Email          *string     `json:"email,omitempty"          deprecated:"use Email() method instead"`
-	LastActiveAt   *time.Time  `json:"last_active_at,omitempty" deprecated:"use LastActiveAt() method instead"`
-	CreatedAt      time.Time   `json:"created_at"               deprecated:"use CreatedAt() method instead"`
-	UpdatedAt      time.Time   `json:"updated_at"               deprecated:"use UpdatedAt() method instead"`
-	DeletedAt      *time.Time  `json:"deleted_at,omitempty"     deprecated:"use DeletedAt() method instead"`
-	PlayerLevel    PlayerLevel `json:"player_level,omitempty"   deprecated:"use PlayerLevel() method instead"`
 }
 
 type PlayerLevel struct {
@@ -64,8 +51,6 @@ func NewPlayer(
 		updatedAt:      now,
 	}
 
-	// 同步到公共欄位以保持向後兼容性
-	player.syncFields()
 	return player
 }
 
@@ -90,7 +75,6 @@ func NewPlayerWithTimes(
 		updatedAt:      updatedAt,
 	}
 
-	player.syncFields()
 	return player
 }
 
@@ -113,7 +97,6 @@ func (p *Player) UpdateLastActive() {
 	now := time.Now()
 	p.lastActiveAt = &now
 	p.updatedAt = now
-	p.syncFields()
 }
 
 func (p *Player) ChangeLevel(newLevelID uint64) error {
@@ -122,38 +105,32 @@ func (p *Player) ChangeLevel(newLevelID uint64) error {
 	}
 	p.levelID = newLevelID
 	p.updatedAt = time.Now()
-	p.syncFields()
 	return nil
 }
 
 func (p *Player) SetEmail(email *string) {
 	p.email = email
 	p.updatedAt = time.Now()
-	p.syncFields()
 }
 
 func (p *Player) SetPlayerLevel(playerLevel PlayerLevel) {
 	p.playerLevel = playerLevel
 	p.updatedAt = time.Now()
-	p.syncFields()
 }
 
 func (p *Player) SetLastActiveAt(lastActiveAt *time.Time) {
 	p.lastActiveAt = lastActiveAt
 	p.updatedAt = time.Now()
-	p.syncFields()
 }
 
 func (p *Player) SetDeletedAt(deletedAt *time.Time) {
 	p.deletedAt = deletedAt
 	p.updatedAt = time.Now()
-	p.syncFields()
 }
 
 func (p *Player) RegenerateAPIKey() {
 	p.apiKey = uuid.New().String()
 	p.updatedAt = time.Now()
-	p.syncFields()
 }
 
 // IsValid 驗證方法
@@ -174,24 +151,106 @@ func (p *Player) IsDeleted() bool {
 	return p.deletedAt != nil
 }
 
-// 同步方法確保資料一致性
-func (p *Player) syncFields() {
-	p.ID = p.id
-	p.MerchantID = p.merchantID
-	p.GlobalPlayerID = p.globalPlayerID
-	p.LevelID = p.levelID
-	p.APIKey = p.apiKey
-	p.Account = p.account
-	p.Email = p.email
-	p.LastActiveAt = p.lastActiveAt
-	p.CreatedAt = p.createdAt
-	p.UpdatedAt = p.updatedAt
-	p.DeletedAt = p.deletedAt
-	p.PlayerLevel = p.playerLevel
-}
-
 // SetID 設置ID（用於資料庫操作）
 func (p *Player) SetID(id uint64) {
 	p.id = id
-	p.syncFields()
+}
+
+// Additional setter methods for repository mapping
+func (p *Player) SetAPIKey(apiKey string) {
+	p.apiKey = apiKey
+}
+
+func (p *Player) SetMerchantID(merchantID uint64) {
+	p.merchantID = merchantID
+}
+
+func (p *Player) SetGlobalPlayerID(globalPlayerID string) {
+	p.globalPlayerID = globalPlayerID
+}
+
+func (p *Player) SetLevelID(levelID uint64) {
+	p.levelID = levelID
+}
+
+func (p *Player) SetAccount(account string) {
+	p.account = account
+}
+
+func (p *Player) SetCreatedAt(createdAt time.Time) {
+	p.createdAt = createdAt
+}
+
+func (p *Player) SetUpdatedAt(updatedAt time.Time) {
+	p.updatedAt = updatedAt
+}
+
+// MarshalJSON
+//  1. Go 的 json 包無法序列化私有欄位
+//  2. 當物件實作了 json.Marshaler 和 json.Unmarshaler interface 時，json.Marshal 和 json.Unmarshal 會自動使用這些方法
+//  3. 沒有這些方法，HTTP API 返回的會是零值
+func (p *Player) MarshalJSON() ([]byte, error) {
+	type Alias struct {
+		ID             uint64      `json:"id"`
+		MerchantID     uint64      `json:"merchant_id"`
+		GlobalPlayerID string      `json:"global_player_id"`
+		LevelID        uint64      `json:"level_id"`
+		APIKey         string      `json:"api_key"`
+		Account        string      `json:"account"`
+		Email          *string     `json:"email,omitempty"`
+		LastActiveAt   *time.Time  `json:"last_active_at,omitempty"`
+		CreatedAt      time.Time   `json:"created_at"`
+		UpdatedAt      time.Time   `json:"updated_at"`
+		DeletedAt      *time.Time  `json:"deleted_at,omitempty"`
+		PlayerLevel    PlayerLevel `json:"player_level,omitempty"`
+	}
+	return json.Marshal(Alias{
+		ID:             p.id,
+		MerchantID:     p.merchantID,
+		GlobalPlayerID: p.globalPlayerID,
+		LevelID:        p.levelID,
+		APIKey:         p.apiKey,
+		Account:        p.account,
+		Email:          p.email,
+		LastActiveAt:   p.lastActiveAt,
+		CreatedAt:      p.createdAt,
+		UpdatedAt:      p.updatedAt,
+		DeletedAt:      p.deletedAt,
+		PlayerLevel:    p.playerLevel,
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for HTTP API requests
+func (p *Player) UnmarshalJSON(data []byte) error {
+	type Alias struct {
+		ID             uint64      `json:"id"`
+		MerchantID     uint64      `json:"merchant_id"`
+		GlobalPlayerID string      `json:"global_player_id"`
+		LevelID        uint64      `json:"level_id"`
+		APIKey         string      `json:"api_key"`
+		Account        string      `json:"account"`
+		Email          *string     `json:"email,omitempty"`
+		LastActiveAt   *time.Time  `json:"last_active_at,omitempty"`
+		CreatedAt      time.Time   `json:"created_at"`
+		UpdatedAt      time.Time   `json:"updated_at"`
+		DeletedAt      *time.Time  `json:"deleted_at,omitempty"`
+		PlayerLevel    PlayerLevel `json:"player_level,omitempty"`
+	}
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	p.id = aux.ID
+	p.merchantID = aux.MerchantID
+	p.globalPlayerID = aux.GlobalPlayerID
+	p.levelID = aux.LevelID
+	p.apiKey = aux.APIKey
+	p.account = aux.Account
+	p.email = aux.Email
+	p.lastActiveAt = aux.LastActiveAt
+	p.createdAt = aux.CreatedAt
+	p.updatedAt = aux.UpdatedAt
+	p.deletedAt = aux.DeletedAt
+	p.playerLevel = aux.PlayerLevel
+	return nil
 }

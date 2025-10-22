@@ -14,7 +14,6 @@ type Tag struct {
 	createdAt   time.Time
 	updatedAt   time.Time
 	deletedAt   *time.Time
-
 }
 
 // NewTag 建立新的Tag實體
@@ -92,7 +91,6 @@ func (t *Tag) IsDeleted() bool {
 	return t.deletedAt != nil
 }
 
-
 func (t *Tag) SetID(id uint64) {
 	t.id = id
 }
@@ -117,4 +115,3 @@ func (t *Tag) SetCreatedAt(createdAt time.Time) {
 func (t *Tag) SetUpdatedAt(updatedAt time.Time) {
 	t.updatedAt = updatedAt
 }
-

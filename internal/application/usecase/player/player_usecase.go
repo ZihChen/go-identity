@@ -210,26 +210,26 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 	// 構建事件數據
 	syncEvent := event.IdentityPlayerSyncEvent{
 		GlobalMerchantID: globalMerchantID,
-		GlobalPlayerID:   player.GlobalPlayerID,
-		ID:               player.ID,
-		MerchantID:       player.MerchantID,
-		APIKey:           player.APIKey,
-		Account:          player.Account,
-		Email:            player.Email,
-		CreatedAt:        player.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        player.UpdatedAt.Format(time.RFC3339),
+		GlobalPlayerID:   player.GetGlobalPlayerID(),
+		ID:               player.GetID(),
+		MerchantID:       player.GetMerchantID(),
+		APIKey:           player.GetAPIKey(),
+		Account:          player.GetAccount(),
+		Email:            player.GetEmail(),
+		CreatedAt:        player.GetCreatedAt().Format(time.RFC3339),
+		UpdatedAt:        player.GetUpdatedAt().Format(time.RFC3339),
 		PlayerLevel: event.PlayerLevel{
-			GlobalPlayerLevelID: player.PlayerLevel.GlobalPlayerLevelID,
-			Name:                player.PlayerLevel.Name,
+			GlobalPlayerLevelID: player.GetPlayerLevel().GlobalPlayerLevelID,
+			Name:                player.GetPlayerLevel().Name,
 		},
 	}
 
-	if player.LastActiveAt != nil && !player.LastActiveAt.IsZero() {
-		syncEvent.LastActiveAt = player.LastActiveAt.Format(time.RFC3339)
+	if player.GetLastActiveAt() != nil && !player.GetLastActiveAt().IsZero() {
+		syncEvent.LastActiveAt = player.GetLastActiveAt().Format(time.RFC3339)
 	}
 
-	if player.DeletedAt != nil {
-		syncEvent.DeletedAt = player.DeletedAt.Format(time.RFC3339)
+	if player.GetDeletedAt() != nil {
+		syncEvent.DeletedAt = player.GetDeletedAt().Format(time.RFC3339)
 	}
 
 	// 構建CloudEvent
@@ -261,7 +261,7 @@ func (u *PlayerUseCase) publishPlayerSyncEvent(
 	u.tracing.TraceEvent(span, "Player sync event published successfully")
 
 	u.logger.InfoLog("Player sync event published",
-		u.logger.String("global_id", player.GlobalPlayerID),
+		u.logger.String("global_id", player.GetGlobalPlayerID()),
 		u.logger.String("event_id", cloudEvent.ID))
 
 	return nil

@@ -87,12 +87,12 @@ func TestPlayerRepository_FindByID(t *testing.T) {
 	// 驗證結果
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, expectedPlayer.MerchantID, result.MerchantID)
-	assert.Equal(t, expectedPlayer.GlobalPlayerID, result.GlobalPlayerID)
-	assert.Equal(t, expectedPlayer.APIKey, result.APIKey)
-	assert.Equal(t, expectedPlayer.Account, result.Account)
-	assert.Equal(t, *expectedPlayer.Email, *result.Email)
-	assert.Equal(t, expectedPlayer.LastActiveAt.Unix(), result.LastActiveAt.Unix())
+	assert.Equal(t, expectedPlayer.MerchantID, result.GetMerchantID())
+	assert.Equal(t, expectedPlayer.GlobalPlayerID, result.GetGlobalPlayerID())
+	assert.Equal(t, expectedPlayer.APIKey, result.GetAPIKey())
+	assert.Equal(t, expectedPlayer.Account, result.GetAccount())
+	assert.Equal(t, *expectedPlayer.Email, *result.GetEmail())
+	assert.Equal(t, expectedPlayer.LastActiveAt.Unix(), result.GetLastActiveAt().Unix())
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -145,13 +145,13 @@ func TestPlayerRepository_FindByGlobalID(t *testing.T) {
 	// 驗證結果
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, expectedPlayer.ID, result.ID)
-	assert.Equal(t, expectedPlayer.MerchantID, result.MerchantID)
-	assert.Equal(t, expectedPlayer.GlobalPlayerID, result.GlobalPlayerID)
-	assert.Equal(t, expectedPlayer.APIKey, result.APIKey)
-	assert.Equal(t, expectedPlayer.Account, result.Account)
-	assert.Equal(t, *expectedPlayer.Email, *result.Email)
-	assert.Equal(t, expectedPlayer.LastActiveAt.Unix(), result.LastActiveAt.Unix())
+	assert.Equal(t, expectedPlayer.ID, result.GetID())
+	assert.Equal(t, expectedPlayer.MerchantID, result.GetMerchantID())
+	assert.Equal(t, expectedPlayer.GlobalPlayerID, result.GetGlobalPlayerID())
+	assert.Equal(t, expectedPlayer.APIKey, result.GetAPIKey())
+	assert.Equal(t, expectedPlayer.Account, result.GetAccount())
+	assert.Equal(t, *expectedPlayer.Email, *result.GetEmail())
+	assert.Equal(t, expectedPlayer.LastActiveAt.Unix(), result.GetLastActiveAt().Unix())
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -172,16 +172,20 @@ func TestPlayerRepository_FirstOrCreate(t *testing.T) {
 					WithArgs("Test-Player-01", 2, 1).
 					WillReturnRows(rows)
 			},
-			expectedPlayer: &entity.Player{
-				ID:             2,
-				MerchantID:     1,
-				GlobalPlayerID: "Test-Player-01",
-				Account:        "test-player-01",
-				APIKey:         "abc123",
-				CreatedAt:      now,
-				UpdatedAt:      now,
-				DeletedAt:      nil,
-			},
+			expectedPlayer: func() *entity.Player {
+				player := entity.NewPlayerWithTimes(
+					1,
+					"Test-Player-01",
+					"test-player-01",
+					0,
+					nil,
+					now,
+					now,
+				)
+				player.SetID(2)
+				player.SetAPIKey("abc123")
+				return player
+			}(),
 			expectedError: nil,
 		},
 	}
@@ -241,16 +245,19 @@ func TestPlayerRepository_Create(t *testing.T) {
 		UpdatedAt:      now,
 	}
 
-	// Convert to domain entity for the test
-	domainPlayer := &entity.Player{
-		MerchantID:     player.MerchantID,
-		GlobalPlayerID: player.GlobalPlayerID,
-		APIKey:         player.APIKey,
-		Account:        player.Account,
-		Email:          player.Email,
-		LastActiveAt:   player.LastActiveAt,
-		CreatedAt:      player.CreatedAt,
-		UpdatedAt:      player.UpdatedAt,
+	// Convert to domain entity for the test using constructor
+	domainPlayer := entity.NewPlayerWithTimes(
+		player.MerchantID,
+		player.GlobalPlayerID,
+		player.Account,
+		0, // levelID
+		player.Email,
+		player.CreatedAt,
+		player.UpdatedAt,
+	)
+	domainPlayer.SetAPIKey(player.APIKey)
+	if player.LastActiveAt != nil {
+		domainPlayer.SetLastActiveAt(player.LastActiveAt)
 	}
 
 	// Mock the SQL execution
@@ -264,7 +271,7 @@ func TestPlayerRepository_Create(t *testing.T) {
 
 	// 驗證結果
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), domainPlayer.ID) // ID should be updated
+	assert.Equal(t, uint64(1), domainPlayer.GetID()) // ID should be updated
 
 	// 驗證所有 SQL 期望都被滿足
 	err = mock.ExpectationsWereMet()
@@ -292,17 +299,18 @@ func TestPlayerRepository_Update(t *testing.T) {
 	playerID := uint64(1)
 	email := "updated@example.com"
 	lastActiveAt := now
-	player := &entity.Player{
-		ID:             playerID,
-		MerchantID:     uint64(2),
-		GlobalPlayerID: "FATCAT-PLAYER-1",
-		APIKey:         "updated-api-key",
-		Account:        "UpdatedPlayer",
-		Email:          &email,
-		LastActiveAt:   &lastActiveAt,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}
+	player := entity.NewPlayerWithTimes(
+		uint64(2),
+		"FATCAT-PLAYER-1",
+		"UpdatedPlayer",
+		0,
+		&email,
+		now,
+		now,
+	)
+	player.SetID(playerID)
+	player.SetAPIKey("updated-api-key")
+	player.SetLastActiveAt(&lastActiveAt)
 
 	// Mock the SQL execution
 	mock.ExpectBegin()
@@ -375,16 +383,20 @@ func TestPlayerRepository_Upsert(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectCommit()
 			},
-			expectedPlayer: &entity.Player{
-				ID:             2,
-				MerchantID:     1,
-				GlobalPlayerID: "Test-Player-01",
-				Account:        "test-player-01",
-				APIKey:         "abc123",
-				CreatedAt:      now,
-				UpdatedAt:      now,
-				DeletedAt:      nil,
-			},
+			expectedPlayer: func() *entity.Player {
+				player := entity.NewPlayerWithTimes(
+					1,
+					"Test-Player-01",
+					"test-player-01",
+					0,
+					nil,
+					now,
+					now,
+				)
+				player.SetID(2)
+				player.SetAPIKey("abc123")
+				return player
+			}(),
 			expectedError: nil,
 		},
 	}

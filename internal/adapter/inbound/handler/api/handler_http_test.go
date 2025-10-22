@@ -268,9 +268,9 @@ func TestHTTPHandler_GetPlayerByID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, player.ID, response.ID)
-	assert.Equal(t, player.GlobalPlayerID, response.GlobalPlayerID)
-	assert.Equal(t, player.Account, response.Account)
+	assert.Equal(t, player.GetID(), response.GetID())
+	assert.Equal(t, player.GetGlobalPlayerID(), response.GetGlobalPlayerID())
+	assert.Equal(t, player.GetAccount(), response.GetAccount())
 
 	playerUseCase.AssertExpectations()
 }
@@ -369,9 +369,9 @@ func TestHTTPHandler_GetPlayerByGlobalID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, player.ID, response.ID)
-	assert.Equal(t, player.GlobalPlayerID, response.GlobalPlayerID)
-	assert.Equal(t, player.Account, response.Account)
+	assert.Equal(t, player.GetID(), response.GetID())
+	assert.Equal(t, player.GetGlobalPlayerID(), response.GetGlobalPlayerID())
+	assert.Equal(t, player.GetAccount(), response.GetAccount())
 
 	playerUseCase.AssertExpectations()
 }

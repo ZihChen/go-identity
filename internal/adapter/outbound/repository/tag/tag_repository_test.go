@@ -41,7 +41,7 @@ func setupTagMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, *sql.DB) {
 
 func TestTagRepository_Upsert(t *testing.T) {
 	now := time.Now()
-	
+
 	expectedTag := entity.NewTagWithTimes(
 		1,
 		"test-tag-01",
@@ -93,7 +93,7 @@ func TestTagRepository_Upsert(t *testing.T) {
 
 func TestTagRepository_BatchUpsert(t *testing.T) {
 	now := time.Now()
-	
+
 	expectedTag1 := entity.NewTagWithTimes(
 		1,
 		"test-tag-01",
@@ -101,7 +101,7 @@ func TestTagRepository_BatchUpsert(t *testing.T) {
 		now,
 	)
 	expectedTag1.SetID(2)
-	
+
 	expectedTag2 := entity.NewTagWithTimes(
 		1,
 		"test-tag-02",
@@ -146,7 +146,7 @@ func TestTagRepository_BatchUpsert(t *testing.T) {
 
 func TestTagRepository_FindByGlobalIDs(t *testing.T) {
 	now := time.Now()
-	
+
 	expectedTag1 := entity.NewTagWithTimes(
 		1,
 		"test-tag-01",
@@ -154,7 +154,7 @@ func TestTagRepository_FindByGlobalIDs(t *testing.T) {
 		now,
 	)
 	expectedTag1.SetID(2)
-	
+
 	expectedTag2 := entity.NewTagWithTimes(
 		1,
 		"test-tag-02",
