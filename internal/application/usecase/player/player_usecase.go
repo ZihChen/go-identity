@@ -80,52 +80,52 @@ func (u *PlayerUseCase) SyncPlayer(
 		email = &data.Player.Email
 	}
 
-	var lastActiveAt *time.Time
+	// 使用 NewPlayerWithTimes 建構子建立 Player 實體
+	player := entity.NewPlayerWithTimes(
+		merchant.ID,
+		data.Player.GlobalPlayerID,
+		data.Player.Account,
+		level.ID,
+		email,
+		data.Player.UpdatedAt,
+		data.Player.UpdatedAt,
+	)
+
+	// 設置 LastActiveAt
 	if !data.Player.LastActiveAt.IsZero() {
-		lastActiveAt = &data.Player.LastActiveAt
+		player.SetLastActiveAt(&data.Player.LastActiveAt)
 	}
 
-	player := entity.Player{
-		MerchantID:     merchant.ID,
-		GlobalPlayerID: data.Player.GlobalPlayerID,
-		LevelID:        level.ID,
-		APIKey:         uuid.New().String(), // 生成新的API密鑰
-		Account:        data.Player.Account,
-		Email:          email,
-		CreatedAt:      data.Player.UpdatedAt,
-		UpdatedAt:      data.Player.UpdatedAt,
-		LastActiveAt:   lastActiveAt,
-		DeletedAt: func() *time.Time {
-			if data.Player.DeletedAt == "" {
-				return nil
-			}
-			nowTime := time.Now()
-			return &nowTime
-		}(),
-		PlayerLevel: entity.PlayerLevel{
-			GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
-			Name:                data.PlayerLevel.Name,
-		},
+	// 設置 DeletedAt
+	if data.Player.DeletedAt != "" {
+		nowTime := time.Now()
+		player.SetDeletedAt(&nowTime)
 	}
+
+	// 設置 PlayerLevel
+	player.SetPlayerLevel(entity.PlayerLevel{
+		GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
+		Name:                data.PlayerLevel.Name,
+	})
 
 	u.tracing.TraceEvent(span, "Upsert player")
-	if err = u.playerRepo.Upsert(ctx, &player); err != nil {
+	if err = u.playerRepo.Upsert(ctx, player); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("upsert player: %w", err)
 	}
 
 	// 記錄資料庫操作完成
 	u.logger.InfoLog("Player upserted successfully",
-		u.logger.String("global_id", player.GlobalPlayerID),
-		u.logger.String("account", player.Account))
+		u.logger.String("global_id", player.GetGlobalPlayerID()),
+		u.logger.String("account", player.GetAccount()))
 	u.tracing.TraceEvent(span, "Database operation completed")
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("player.global_id", player.GlobalPlayerID),
-		attribute.String("player.account", player.Account))
+		attribute.String("player.global_id", player.GetGlobalPlayerID()),
+		attribute.String("player.account", player.GetAccount()))
 
 	// 發布玩家同步事件到KDS
 	u.tracing.TraceEvent(span, "Publishing player sync event to KDS")
-	if err = u.publishPlayerSyncEvent(ctx, &player, data.GlobalMerchantID); err != nil {
+	if err = u.publishPlayerSyncEvent(ctx, player, data.GlobalMerchantID); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player sync event: %w", err)
 	}
@@ -278,8 +278,8 @@ func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.P
 
 	// 添加玩家信息到 span
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("player.global_id", player.GlobalPlayerID),
-		attribute.String("player.account", player.Account),
+		attribute.String("player.global_id", player.GetGlobalPlayerID()),
+		attribute.String("player.account", player.GetAccount()),
 	)
 
 	return player, nil
@@ -304,7 +304,7 @@ func (u *PlayerUseCase) GetPlayerByGlobalID(
 
 	// 添加玩家信息到 span
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("player.account", player.Account),
+		attribute.String("player.account", player.GetAccount()),
 	)
 
 	return player, nil
@@ -327,14 +327,12 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 
 	// 添加玩家信息到 span
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("player.global_id", player.GlobalPlayerID),
-		attribute.String("player.account", player.Account),
+		attribute.String("player.global_id", player.GetGlobalPlayerID()),
+		attribute.String("player.account", player.GetAccount()),
 	)
 
 	// 更新最後活躍時間
-	now := time.Now()
-	player.LastActiveAt = &now
-	player.UpdatedAt = now
+	player.UpdateLastActive()
 
 	if err := u.playerRepo.Update(ctx, player); err != nil {
 		u.tracing.RecordSpanError(span, err)
@@ -342,8 +340,8 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 	}
 
 	u.logger.InfoLog("Player last active time updated",
-		u.logger.String("global_id", player.GlobalPlayerID),
-		u.logger.String("last_active_at", now.String()))
+		u.logger.String("global_id", player.GetGlobalPlayerID()),
+		u.logger.String("last_active_at", player.GetLastActiveAt().String()))
 
 	return nil
 }
