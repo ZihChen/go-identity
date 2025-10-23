@@ -53,15 +53,15 @@ func CreateTestManager() *entity.Manager {
 
 func CreateTestLevel() *entity.Level {
 	now := time.Now()
-	return &entity.Level{
-		ID:                  1,
-		MerchantID:          2,
-		GlobalPlayerLevelID: "FATCAT-LEVEL-1",
-		GlobalMerchantID:    "FATCAT-MERCHANT-1",
-		Name:                "Bronze",
-		CreatedAt:           now,
-		UpdatedAt:           now,
-	}
+	level := entity.NewLevelWithTimes(
+		2,
+		"Bronze",
+		"FATCAT-LEVEL-1",
+		now,
+		now,
+	)
+	level.SetID(1)
+	return level
 }
 
 func CreateTestTag() *entity.Tag {

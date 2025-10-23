@@ -41,14 +41,12 @@ func TestLevelRepository_Upsert(t *testing.T) {
 	}{
 		{
 			name: "successful upsert",
-			level: &entity.Level{
-				ID:                  1,
-				MerchantID:          100,
-				GlobalPlayerLevelID: "global-level-1",
-				Name:                "VIP",
-				CreatedAt:           time.Now(),
-				UpdatedAt:           time.Now(),
-			},
+			level: func() *entity.Level {
+				now := time.Now()
+				level := entity.NewLevelWithTimes(100, "VIP", "global-level-1", now, now)
+				level.SetID(1)
+				return level
+			}(),
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `level` (`merchant_id`,`name`,`global_player_level_id`,`deleted_at`,`id`,`created_at`,`updated_at`) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE `name`=CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END,`updated_at`=CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END")).
@@ -68,14 +66,12 @@ func TestLevelRepository_Upsert(t *testing.T) {
 		},
 		{
 			name: "upsert error",
-			level: &entity.Level{
-				ID:                  1,
-				MerchantID:          100,
-				GlobalPlayerLevelID: "global-level-1",
-				Name:                "VIP",
-				CreatedAt:           time.Now(),
-				UpdatedAt:           time.Now(),
-			},
+			level: func() *entity.Level {
+				now := time.Now()
+				level := entity.NewLevelWithTimes(100, "VIP", "global-level-1", now, now)
+				level.SetID(1)
+				return level
+			}(),
 			setupMock: func(mock sqlmock.Sqlmock) {
 				// Expect the SQL query for upsert but return an error
 				mock.ExpectBegin()
@@ -140,15 +136,11 @@ func TestLevelRepository_FindByGlobalID(t *testing.T) {
 					WithArgs("global-level-1", 1).
 					WillReturnRows(rows)
 			},
-			expectedLevel: &entity.Level{
-				ID:                  1,
-				MerchantID:          100,
-				GlobalPlayerLevelID: "global-level-1",
-				Name:                "VIP",
-				CreatedAt:           now,
-				UpdatedAt:           now,
-				DeletedAt:           nil,
-			},
+			expectedLevel: func() *entity.Level {
+				level := entity.NewLevelWithTimes(100, "VIP", "global-level-1", now, now)
+				level.SetID(1)
+				return level
+			}(),
 			expectedError: nil,
 		},
 		{
@@ -195,10 +187,10 @@ func TestLevelRepository_FindByGlobalID(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedLevel.ID, level.ID)
-				assert.Equal(t, tc.expectedLevel.MerchantID, level.MerchantID)
-				assert.Equal(t, tc.expectedLevel.GlobalPlayerLevelID, level.GlobalPlayerLevelID)
-				assert.Equal(t, tc.expectedLevel.Name, level.Name)
+				assert.Equal(t, tc.expectedLevel.GetID(), level.GetID())
+				assert.Equal(t, tc.expectedLevel.GetMerchantID(), level.GetMerchantID())
+				assert.Equal(t, tc.expectedLevel.GetGlobalPlayerLevelID(), level.GetGlobalPlayerLevelID())
+				assert.Equal(t, tc.expectedLevel.GetName(), level.GetName())
 			}
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})

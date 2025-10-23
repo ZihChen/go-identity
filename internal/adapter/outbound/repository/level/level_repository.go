@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
@@ -55,34 +54,33 @@ func (r *LevelRepository) FindByGlobalID(
 }
 
 func mapToDomainLevel(level *models.Level) *entity.Level {
-	var deletedAt *time.Time
+	levelEntity := entity.NewLevelWithTimes(
+		level.MerchantID,
+		level.Name,
+		level.GlobalPlayerLevelID,
+		level.CreatedAt,
+		level.UpdatedAt,
+	)
+	levelEntity.SetID(level.ID)
 	if level.DeletedAt.Valid {
 		deletedTime := level.DeletedAt.Time
-		deletedAt = &deletedTime
+		levelEntity.SetDeletedAt(&deletedTime)
 	}
-	return &entity.Level{
-		ID:                  level.ID,
-		GlobalPlayerLevelID: level.GlobalPlayerLevelID,
-		Name:                level.Name,
-		MerchantID:          level.MerchantID,
-		CreatedAt:           level.CreatedAt,
-		UpdatedAt:           level.UpdatedAt,
-		DeletedAt:           deletedAt,
-	}
+	return levelEntity
 }
 
 func mapToDBLevel(level *entity.Level) *models.Level {
 	dbLevel := &models.Level{
-		ID:                  level.ID,
-		MerchantID:          level.MerchantID,
-		GlobalPlayerLevelID: level.GlobalPlayerLevelID,
-		Name:                level.Name,
-		CreatedAt:           level.CreatedAt,
-		UpdatedAt:           level.UpdatedAt,
+		ID:                  level.GetID(),
+		MerchantID:          level.GetMerchantID(),
+		GlobalPlayerLevelID: level.GetGlobalPlayerLevelID(),
+		Name:                level.GetName(),
+		CreatedAt:           level.GetCreatedAt(),
+		UpdatedAt:           level.GetUpdatedAt(),
 	}
-	if level.DeletedAt != nil {
+	if level.GetDeletedAt() != nil {
 		dbLevel.DeletedAt = gorm.DeletedAt{
-			Time:  *level.DeletedAt,
+			Time:  *level.GetDeletedAt(),
 			Valid: true,
 		}
 	}

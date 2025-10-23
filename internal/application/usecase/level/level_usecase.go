@@ -56,7 +56,6 @@ func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent
 		merchant.GetID(),
 		data.PlayerLevel.Name,
 		data.PlayerLevel.GlobalPlayerLevelID,
-		data.GlobalMerchantID,
 		data.PlayerLevel.UpdatedAt,
 		data.PlayerLevel.UpdatedAt,
 	)
@@ -92,7 +91,6 @@ func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 	u.tracing.TraceEvent(span, "Preparing player level sync event for KDS")
 
 	syncEvent := event.IdentityPlayerLevelSyncEvent{
-		GlobalMerchantID:    level.GetGlobalMerchantID(),
 		GlobalPlayerLevelID: level.GetGlobalPlayerLevelID(),
 		Name:                level.GetName(),
 		CreatedAt:           level.GetCreatedAt().Format(time.RFC3339),

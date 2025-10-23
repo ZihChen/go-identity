@@ -519,18 +519,17 @@ func TestTag_IsValidForMerchant(t *testing.T) {
 // ===== Level Tests =====
 
 func TestNewLevel(t *testing.T) {
-	level := NewLevel(1, "Bronze", "global_level_123", "global_merchant_456")
+	level := NewLevel(1, "Bronze", "global_level_123")
 
 	assert.Equal(t, uint64(1), level.GetMerchantID())
 	assert.Equal(t, "Bronze", level.GetName())
 	assert.Equal(t, "global_level_123", level.GetGlobalPlayerLevelID())
-	assert.Equal(t, "global_merchant_456", level.GetGlobalMerchantID())
 	assert.False(t, level.GetCreatedAt().IsZero())
 	assert.NoError(t, level.IsValid())
 }
 
 func TestLevel_UpdateName(t *testing.T) {
-	level := NewLevel(1, "Bronze", "global_level_123", "global_merchant_456")
+	level := NewLevel(1, "Bronze", "global_level_123")
 	oldUpdatedAt := level.GetUpdatedAt()
 
 	time.Sleep(1 * time.Millisecond)
@@ -552,7 +551,6 @@ func TestLevel_IsValid(t *testing.T) {
 		merchantID          uint64
 		levelName           string
 		globalPlayerLevelID string
-		globalMerchantID    string
 		expectError         bool
 		errorContains       string
 	}{
@@ -561,7 +559,6 @@ func TestLevel_IsValid(t *testing.T) {
 			merchantID:          1,
 			levelName:           "Bronze",
 			globalPlayerLevelID: "global_level_123",
-			globalMerchantID:    "global_merchant_456",
 			expectError:         false,
 		},
 		{
@@ -569,7 +566,6 @@ func TestLevel_IsValid(t *testing.T) {
 			merchantID:          0,
 			levelName:           "Bronze",
 			globalPlayerLevelID: "global_level_123",
-			globalMerchantID:    "global_merchant_456",
 			expectError:         true,
 			errorContains:       "must belong to a merchant",
 		},
@@ -578,7 +574,6 @@ func TestLevel_IsValid(t *testing.T) {
 			merchantID:          1,
 			levelName:           "",
 			globalPlayerLevelID: "global_level_123",
-			globalMerchantID:    "global_merchant_456",
 			expectError:         true,
 			errorContains:       "name cannot be empty",
 		},
@@ -587,18 +582,8 @@ func TestLevel_IsValid(t *testing.T) {
 			merchantID:          1,
 			levelName:           "Bronze",
 			globalPlayerLevelID: "",
-			globalMerchantID:    "global_merchant_456",
 			expectError:         true,
 			errorContains:       "global player level ID cannot be empty",
-		},
-		{
-			name:                "Empty global merchant ID",
-			merchantID:          1,
-			levelName:           "Bronze",
-			globalPlayerLevelID: "global_level_123",
-			globalMerchantID:    "",
-			expectError:         true,
-			errorContains:       "global merchant ID cannot be empty",
 		},
 	}
 
@@ -608,7 +593,6 @@ func TestLevel_IsValid(t *testing.T) {
 				tt.merchantID,
 				tt.levelName,
 				tt.globalPlayerLevelID,
-				tt.globalMerchantID,
 			)
 			err := level.IsValid()
 

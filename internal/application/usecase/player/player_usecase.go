@@ -85,7 +85,7 @@ func (u *PlayerUseCase) SyncPlayer(
 		merchant.GetID(),
 		data.Player.GlobalPlayerID,
 		data.Player.Account,
-		level.ID,
+		level.GetID(),
 		email,
 		data.Player.UpdatedAt,
 		data.Player.UpdatedAt,
@@ -156,14 +156,13 @@ func (u *PlayerUseCase) findOrCreateLevel(
 	}
 
 	u.tracing.TraceEvent(span, "Upsert player")
-	newLevel := &entity.Level{
-		GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
-		GlobalMerchantID:    data.GlobalMerchantID,
-		MerchantID:          merchantID,
-		Name:                data.PlayerLevel.Name,
-		CreatedAt:           data.Player.UpdatedAt,
-		UpdatedAt:           data.Player.UpdatedAt,
-	}
+	newLevel := entity.NewLevelWithTimes(
+		merchantID,
+		data.PlayerLevel.Name,
+		data.PlayerLevel.GlobalPlayerLevelID,
+		data.Player.UpdatedAt,
+		data.Player.UpdatedAt,
+	)
 
 	if err = u.levelRepo.Upsert(ctx, newLevel); err != nil {
 		u.tracing.RecordSpanError(span, err)
