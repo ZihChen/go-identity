@@ -2,9 +2,11 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
@@ -14,21 +16,24 @@ import (
 
 // AgentUseCase 代理用例
 type AgentUseCase struct {
-	agentRepo repository.AgentRepository
-	logger    infrastructure.Logger
-	tracing   infrastructure.TracingService
+	agentRepo    repository.AgentRepository
+	merchantRepo repository.MerchantRepository
+	logger       infrastructure.Logger
+	tracing      infrastructure.TracingService
 }
 
 // NewAgentUseCase 創建代理用例
 func NewAgentUseCase(
 	agentRepo repository.AgentRepository,
+	merchantRepo repository.MerchantRepository,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
 ) inbound.AgentUseCase {
 	return &AgentUseCase{
-		agentRepo: agentRepo,
-		logger:    logger,
-		tracing:   tracing,
+		agentRepo:    agentRepo,
+		merchantRepo: merchantRepo,
+		logger:       logger,
+		tracing:      tracing,
 	}
 }
 
@@ -42,11 +47,22 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 	u.tracing.RecordSpanAttributes(span,
 		attribute.String("agent.global_id", event.Agent.GlobalAgentID),
 		attribute.String("agent.account", event.Agent.Account),
-		attribute.Int64("merchant.id", int64(event.Merchant.ID)))
+		attribute.String("merchant.global_id", event.Merchant.GlobalMerchantID))
 
-	// 構建Agent實體
+	// 透過 GlobalMerchantID 取得 merchant 的資料庫 ID
+	u.tracing.TraceEvent(span, "Checking if merchant exists")
+	merchant, err := u.merchantRepo.FindByGlobalID(ctx, event.Merchant.GlobalMerchantID)
+	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
+		u.tracing.RecordSpanError(span, err)
+		u.logger.ErrorWithContext(ctx, "Failed to find merchant",
+			u.logger.Error("err", err),
+			u.logger.String("global_merchant_id", event.Merchant.GlobalMerchantID))
+		return fmt.Errorf("find merchant: %w", err)
+	}
+
+	// 構建Agent實體，使用從資料庫查詢到的 merchant ID
 	agent := entity.NewAgentWithTimes(
-		event.Merchant.ID,
+		merchant.GetID(),
 		event.Agent.GlobalAgentID,
 		event.Agent.Account,
 		event.Agent.Ancestry,
@@ -77,7 +93,8 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 	u.logger.InfoWithContext(ctx, "Agent upserted successfully",
 		u.logger.String("global_agent_id", agent.GetGlobalAgentID()),
 		u.logger.String("account", agent.GetAccount()),
-		u.logger.UInt64("merchant_id", agent.GetMerchantID()))
+		u.logger.UInt64("merchant_id", agent.GetMerchantID()),
+		u.logger.String("global_merchant_id", event.Merchant.GlobalMerchantID))
 
 	u.tracing.TraceEvent(span, "Agent sync completed successfully")
 	return nil

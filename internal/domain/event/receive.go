@@ -108,7 +108,7 @@ type LevelSyncEvent struct {
 // AgentSyncEvent 代理同步事件數據
 type AgentSyncEvent struct {
 	Merchant MerchantInfo `json:"merchant"`
-	Agent    AgentData    `json:"agents"`
+	Agent    AgentData    `json:"agent"`
 }
 
 // MerchantInfo 商戶基本資訊
