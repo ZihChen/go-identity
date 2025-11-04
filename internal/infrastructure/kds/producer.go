@@ -165,6 +165,71 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 	return nil
 }
 
+// SendToConsumeStream 發送事件到Consumer Stream
+func (k *KDSService) SendToConsumeStream(ctx context.Context, data []byte, eventType string) error {
+	ctx, span := k.tracing.StartSpan(ctx, "KDS.SendToConsumeStream")
+	defer k.tracing.SpanEnd(span)
+
+	// 添加屬性到 span
+	k.tracing.RecordSpanAttributes(span,
+		attribute.String("messaging.system", "kds"),
+		attribute.String("messaging.operation", "send_to_consume_stream"),
+		attribute.String("messaging.event_type", eventType),
+		attribute.Int("messaging.payload_size_bytes", len(data)),
+	)
+
+	// 嘗試在 JSON 載荷中添加 traceparent
+	var jsonData map[string]interface{}
+	if err := jsoniter.Unmarshal(data, &jsonData); err == nil {
+		traceparent := k.tracing.GetTraceparent(ctx)
+		if traceparent != "" {
+			jsonData["traceparent"] = traceparent
+			if newData, err := jsoniter.Marshal(jsonData); err == nil {
+				data = newData
+				k.tracing.RecordSpanAttributes(
+					span,
+					attribute.Bool("messaging.trace_propagated", true),
+				)
+			}
+		}
+	}
+
+	// 生成隨機分區鍵
+	partitionKey := uuid.New().String()
+
+	// 記錄事件到 span
+	k.tracing.TraceEvent(span, "Sending message to Consumer Stream",
+		attribute.String("messaging.partition_key", partitionKey),
+		attribute.String("messaging.stream_name", k.consumeStream),
+	)
+
+	res, err := k.client.PutRecord(ctx, &kinesis.PutRecordInput{
+		Data:         data,
+		StreamName:   aws.String(k.consumeStream),
+		PartitionKey: aws.String(partitionKey),
+	})
+	if err != nil {
+		k.logger.ErrorLog("Failed to put record to consume stream",
+			k.logger.String("event_type", eventType),
+			k.logger.String("stream_name", k.consumeStream),
+			k.logger.Error("err", err))
+		k.tracing.RecordSpanError(span, err)
+		k.tracing.RecordSpanStatus(span, codes.Error, err.Error())
+		return fmt.Errorf("put record to consume stream: %w", err)
+	}
+
+	// 記錄成功事件
+	k.tracing.TraceEvent(span, "Message sent to Consumer Stream successfully")
+
+	k.logger.InfoLog("Published event to Consumer Stream",
+		k.logger.String("event_type", eventType),
+		k.logger.String("stream_name", k.consumeStream),
+		k.logger.String("partition_key", partitionKey),
+		k.logger.Any("response", res))
+
+	return nil
+}
+
 func extractGlobalMerchantID(event *event.CloudEvent) string {
 	if event == nil || event.Data == nil {
 		return ""

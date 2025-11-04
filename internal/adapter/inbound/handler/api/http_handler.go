@@ -1,15 +1,21 @@
 package api
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 )
 
 // 為 Swagger 提供的類型別名
@@ -34,6 +40,7 @@ type HTTPHandler struct {
 	managerUseCase  inbound.ManagerUseCase
 	logger          infrastructure.Logger
 	tracing         infrastructure.TracingService
+	eventProducer   service.EventProducer
 }
 
 // NewHTTPHandler 創建HTTP處理器
@@ -43,6 +50,7 @@ func NewHTTPHandler(
 	managerUseCase inbound.ManagerUseCase,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
+	eventProducer service.EventProducer,
 ) *HTTPHandler {
 	return &HTTPHandler{
 		merchantUseCase: merchantUseCase,
@@ -50,6 +58,7 @@ func NewHTTPHandler(
 		managerUseCase:  managerUseCase,
 		logger:          logger,
 		tracing:         tracing,
+		eventProducer:   eventProducer,
 	}
 }
 
@@ -370,4 +379,94 @@ func (h *HTTPHandler) GetManagerByGlobalID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, manager)
+}
+
+// SendKDSTestEvent 發送KDS測試事件
+// @Summary 發送KDS測試事件
+// @Description 發送代理同步測試事件到KDS
+// @Tags 測試
+// @Accept json
+// @Produce json
+// @Success 200 {object} SuccessResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/v1/test/kds [post]
+func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
+	// 創建測試事件
+	now := time.Now()
+	eventID := uuid.New().String()
+
+	// 構建測試事件payload
+	testEvent := &event.CloudEvent{
+		SpecVersion:     "1.0",
+		Type:            "tw.jvd.fatcat.agent.sync.v1",
+		Source:          "/fatcat/FATCAT",
+		Subject:         "agent_sync",
+		ID:              eventID,
+		Time:            now,
+		DataContentType: "application/json",
+		Data: map[string]interface{}{
+			"agent": map[string]interface{}{
+				"global_agent_id":    "FATCAT-AGENT-123",
+				"account":            "agent001",
+				"ancestry":           "FATCAT-AGENT-456",
+				"current_sign_in_at": "2025-01-01T00:00:00.000Z",
+				"created_at":         "2025-01-01T00:00:00.000Z",
+				"updated_at":         now.Format(time.RFC3339Nano),
+			},
+			"merchant": map[string]interface{}{
+				"id":                 2,
+				"name":               "FATCAT",
+				"global_merchant_id": "FATCAT-MERCHANT-2",
+			},
+		},
+	}
+
+	// 發送事件到KDS Consumer Stream
+	ctx := c.Request.Context()
+
+	// 使用KDS的SendToConsumeStream方法發送事件
+	kdsService, ok := h.eventProducer.(interface {
+		SendToConsumeStream(ctx context.Context, data []byte, eventType string) error
+	})
+	if !ok {
+		h.logger.ErrorLog("Event producer does not support SendToConsumeStream method")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Event producer not supported",
+		})
+		return
+	}
+
+	// 將事件序列化
+	eventBytes, err := json.Marshal(testEvent)
+	if err != nil {
+		h.logger.ErrorLog("Failed to marshal test event",
+			h.logger.String("event_id", eventID),
+			h.logger.Error("err", err))
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to serialize test event",
+		})
+		return
+	}
+
+	if err := kdsService.SendToConsumeStream(ctx, eventBytes, testEvent.Type); err != nil {
+		h.logger.ErrorLog("Failed to send KDS test event to consume stream",
+			h.logger.String("event_id", eventID),
+			h.logger.Error("err", err))
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to send test event to KDS consume stream",
+		})
+		return
+	}
+
+	h.logger.InfoLog("KDS test event sent successfully",
+		h.logger.String("event_id", eventID),
+		h.logger.String("event_type", testEvent.Type))
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":   "success",
+		"event_id": eventID,
+		"message":  "Test event sent to KDS successfully",
+	})
 }

@@ -35,7 +35,6 @@ func (rm *Manager) SetupRoutersWithMiddleware(
 	// 加入全局Middleware
 	router.Use(
 		middleware.NewCorsMiddleware(cfg),
-		middleware.AuthMiddleware(),
 		middleware.NewTracingMiddleware(handler.GetTracingService()),
 	)
 

@@ -43,4 +43,10 @@ func (r *APIRouter) RegisterRoutes(router *gin.Engine) {
 		managers.GET("/:id", r.handler.GetManagerByID)
 		managers.GET("/global/:global_id", r.handler.GetManagerByGlobalID)
 	}
+
+	// 測試相關路由
+	test := api.Group("/test")
+	{
+		test.POST("/kds", r.handler.SendKDSTestEvent)
+	}
 }
