@@ -232,3 +232,44 @@ func (m *PlayerLevelUseCaseMock) SyncLevel(ctx context.Context, data *event.Leve
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
+
+// AgentUseCaseMock 統一的 Agent UseCase Mock
+type AgentUseCaseMock struct {
+	*BaseMock
+}
+
+// NewAgentUseCaseMock 創建新的 Agent UseCase Mock
+func NewAgentUseCaseMock(t *testing.T) *AgentUseCaseMock {
+	return &AgentUseCaseMock{
+		BaseMock: NewBaseMock(t),
+	}
+}
+
+func (m *AgentUseCaseMock) SyncAgentData(ctx context.Context, event *event.AgentSyncEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *AgentUseCaseMock) GetAgentByID(ctx context.Context, id uint64) (*entity.Agent, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.Agent), args.Error(1)
+}
+
+func (m *AgentUseCaseMock) GetAgentByGlobalID(ctx context.Context, globalID string) (*entity.Agent, error) {
+	args := m.Called(ctx, globalID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.Agent), args.Error(1)
+}
+
+func (m *AgentUseCaseMock) GetAgentsByMerchantID(ctx context.Context, merchantID uint64) ([]*entity.Agent, error) {
+	args := m.Called(ctx, merchantID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entity.Agent), args.Error(1)
+}

@@ -104,3 +104,26 @@ type LevelSyncEvent struct {
 		UpdatedAt           time.Time `json:"updated_at"`
 	} `json:"player_level"`
 }
+
+// AgentSyncEvent 代理同步事件數據
+type AgentSyncEvent struct {
+	Merchant MerchantInfo `json:"merchant"`
+	Agent    AgentData    `json:"agents"`
+}
+
+// MerchantInfo 商戶基本資訊
+type MerchantInfo struct {
+	ID               uint64 `json:"id"`
+	Name             string `json:"name"`
+	GlobalMerchantID string `json:"global_merchant_id"`
+}
+
+// AgentData 從 KDS 接收的代理數據
+type AgentData struct {
+	GlobalAgentID   string     `json:"global_agent_id"`
+	Account         string     `json:"account"`
+	Ancestry        string     `json:"ancestry"`
+	CurrentSignInAt *time.Time `json:"current_sign_in_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}

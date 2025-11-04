@@ -18,6 +18,8 @@ func (k *KDSService) eventEnqueueProcess(ctx context.Context, eventType string, 
 		return k.queueService.EnqueueTagSync(ctx, data)
 	case k.config.Events.LevelSync:
 		return k.queueService.EnqueueLevelSync(ctx, data)
+	case k.config.Events.AgentSync:
+		return k.queueService.EnqueueAgentSync(ctx, data)
 	default:
 		return errmsg.ErrUnknownEventType
 	}

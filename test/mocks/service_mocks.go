@@ -149,6 +149,11 @@ func (m *QueueServiceMock) EnqueueTagSync(ctx context.Context, data []byte) erro
 	return args.Error(0)
 }
 
+func (m *QueueServiceMock) EnqueueAgentSync(ctx context.Context, data []byte) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
 func (m *QueueServiceMock) Close() error {
 	args := m.Called()
 	return args.Error(0)

@@ -23,6 +23,7 @@ const (
 	TypeManagerSync  = "manager:sync"
 	TypeLevelSync    = "level:sync"
 	TypeTagSync      = "tag:sync"
+	TypeAgentSync    = "agent:sync"
 )
 
 // QueueService 佇列服務實現
@@ -84,6 +85,11 @@ func (q *QueueService) EnqueueLevelSync(ctx context.Context, data []byte) error 
 // EnqueueTagSync 將會員標籤同步任務加入佇列
 func (q *QueueService) EnqueueTagSync(ctx context.Context, data []byte) error {
 	return q.enqueueTask(ctx, TypeTagSync, data)
+}
+
+// EnqueueAgentSync 將代理同步任務加入佇列
+func (q *QueueService) EnqueueAgentSync(ctx context.Context, data []byte) error {
+	return q.enqueueTask(ctx, TypeAgentSync, data)
 }
 
 // enqueueTask 通用方法，將任務加入佇列並添加追蹤

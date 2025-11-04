@@ -107,6 +107,7 @@ type EventsConfig struct {
 	ManagerSync          string
 	TagSync              string
 	LevelSync            string
+	AgentSync            string
 	IdentityMerchantSync string
 	IdentityPlayerSync   string
 	IdentityManagerSync  string
@@ -227,6 +228,7 @@ func LoadConfig() (*Config, error) {
 			ManagerSync:          viper.GetString("EVENT_MANAGER_SYNC"),
 			TagSync:              viper.GetString("EVENT_TAG_SYNC"),
 			LevelSync:            viper.GetString("EVENT_LEVEL_SYNC"),
+			AgentSync:            viper.GetString("EVENT_AGENT_SYNC"),
 			IdentityMerchantSync: viper.GetString("EVENT_IDENTITY_MERCHANT_SYNC"),
 			IdentityPlayerSync:   viper.GetString("EVENT_IDENTITY_PLAYER_SYNC"),
 			IdentityManagerSync:  viper.GetString("EVENT_IDENTITY_MANAGER_SYNC"),

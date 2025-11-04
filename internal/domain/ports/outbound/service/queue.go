@@ -21,6 +21,9 @@ type QueueService interface {
 	// EnqueueTagSync 將會員標籤同步任務加入佇列
 	EnqueueTagSync(ctx context.Context, data []byte) error
 
+	// EnqueueAgentSync 將代理同步任務加入隊列
+	EnqueueAgentSync(ctx context.Context, data []byte) error
+
 	// Close 關閉隊列服務並釋放資源
 	Close() error
 }

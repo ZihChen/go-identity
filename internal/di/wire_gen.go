@@ -12,11 +12,13 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/consumer"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
+	repository6 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/agent"
 	repository3 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/level"
 	repository4 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/manager"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/merchant"
 	repository2 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/player"
 	repository5 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/tag"
+	usecase6 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/agent"
 	usecase5 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/level"
 	usecase3 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/manager"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/merchant"
@@ -95,7 +97,9 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 	playerTagRepository := repository2.NewPlayerTagRepository(db)
 	tagUseCase := usecase4.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager)
 	playerLevelUseCase := usecase5.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger, tracingService)
-	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger, tracingService)
+	agentRepository := repository6.NewAgentRepository(db)
+	agentUseCase := usecase6.NewAgentUseCase(agentRepository, logger, tracingService)
+	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, agentUseCase, logger, tracingService)
 	return workerHandler, nil
 }
 
@@ -129,7 +133,9 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 	playerTagRepository := repository2.NewPlayerTagRepository(db)
 	tagUseCase := usecase4.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager)
 	playerLevelUseCase := usecase5.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger, tracingService)
-	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, logger, tracingService)
+	agentRepository := repository6.NewAgentRepository(db)
+	agentUseCase := usecase6.NewAgentUseCase(agentRepository, logger, tracingService)
+	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, agentUseCase, logger, tracingService)
 	server, err := provideWorkerServer(cfg, logger)
 	if err != nil {
 		return nil, err
@@ -168,7 +174,7 @@ type WorkerComponents struct {
 }
 
 var baseSet = wire.NewSet(queue.NewQueueService, provideRedisClient,
-	provideTracingService, repository.NewMerchantRepository, repository2.NewPlayerRepository, repository4.NewManagerRepository, repository5.NewTagRepository, repository3.NewLevelRepository, repository2.NewPlayerTagRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase2.NewPlayerUseCase, usecase3.NewManagerUseCase, usecase4.NewTagUseCase, usecase5.NewLevelUseCase,
+	provideTracingService, repository.NewMerchantRepository, repository2.NewPlayerRepository, repository4.NewManagerRepository, repository5.NewTagRepository, repository3.NewLevelRepository, repository6.NewAgentRepository, repository2.NewPlayerTagRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase2.NewPlayerUseCase, usecase3.NewManagerUseCase, usecase4.NewTagUseCase, usecase5.NewLevelUseCase, usecase6.NewAgentUseCase,
 )
 
 // 事件生產者提供者

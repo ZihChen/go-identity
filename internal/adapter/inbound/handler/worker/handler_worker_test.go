@@ -20,12 +20,13 @@ import (
 // Setup function for tests
 func setupWorkerTest(
 	t *testing.T,
-) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *mocks.TagUseCaseMock, *mocks.TracingServiceMock, *WorkerHandler) {
+) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *mocks.TagUseCaseMock, *mocks.AgentUseCaseMock, *mocks.TracingServiceMock, *WorkerHandler) {
 	merchantUseCase := mocks.NewMerchantUseCaseMock(t)
 	playerUseCase := mocks.NewPlayerUseCaseMock(t)
 	managerUseCase := mocks.NewManagerUseCaseMock(t)
 	tagUseCase := mocks.NewTagUseCaseMock(t)
 	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
+	agentUseCase := mocks.NewAgentUseCaseMock(t)
 	logger := mocks.NewMockLogger(t)
 	mockTracer := mocks.NewTracingServiceMock(t)
 
@@ -35,11 +36,12 @@ func setupWorkerTest(
 		managerUseCase,
 		tagUseCase,
 		mockLevelUseCase,
+		agentUseCase,
 		logger,
 		mockTracer,
 	)
 
-	return merchantUseCase, playerUseCase, managerUseCase, tagUseCase, mockTracer, handler
+	return merchantUseCase, playerUseCase, managerUseCase, tagUseCase, agentUseCase, mockTracer, handler
 }
 
 // setupTracingMocks is a helper to set up common tracing mock expectations

@@ -9,11 +9,13 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/consumer"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
+	agentRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/agent"
 	levelRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/level"
 	managerRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/manager"
 	merchantRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/merchant"
 	playerRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/player"
 	tagRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/tag"
+	agentUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/agent"
 	levelUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/level"
 	managerUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/manager"
 	merchantUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/merchant"
@@ -48,6 +50,7 @@ var baseSet = wire.NewSet(
 	managerRepo.NewManagerRepository,
 	tagRepo.NewTagRepository,
 	levelRepo.NewLevelRepository,
+	agentRepo.NewAgentRepository,
 	playerRepo.NewPlayerTagRepository,
 
 	// 服務
@@ -59,6 +62,7 @@ var baseSet = wire.NewSet(
 	managerUsecase.NewManagerUseCase,
 	tagUsecase.NewTagUseCase,
 	levelUsecase.NewLevelUseCase,
+	agentUsecase.NewAgentUseCase,
 )
 
 // 事件生產者提供者

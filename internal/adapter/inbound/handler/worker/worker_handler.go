@@ -33,6 +33,7 @@ type WorkerHandler struct {
 	managerUseCase  inbound.ManagerUseCase
 	tagUseCase      inbound.TagUseCase
 	levelUseCase    inbound.PlayerLevelUseCase
+	agentUseCase    inbound.AgentUseCase
 	logger          infrastructure.Logger
 	tracing         infrastructure.TracingService
 }
@@ -44,6 +45,7 @@ func NewWorkerHandler(
 	managerUseCase inbound.ManagerUseCase,
 	tagUseCase inbound.TagUseCase,
 	levelUseCase inbound.PlayerLevelUseCase,
+	agentUseCase inbound.AgentUseCase,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
 ) *WorkerHandler {
@@ -53,6 +55,7 @@ func NewWorkerHandler(
 		managerUseCase:  managerUseCase,
 		tagUseCase:      tagUseCase,
 		levelUseCase:    levelUseCase,
+		agentUseCase:    agentUseCase,
 		logger:          logger,
 		tracing:         tracing,
 	}
@@ -80,13 +83,18 @@ func (h *WorkerHandler) RegisterHandlers(mux *asynq.ServeMux) {
 		queue.TypeLevelSync,
 		asynq.HandlerFunc(h.HandleLevelSync),
 	)
+	mux.Handle(
+		queue.TypeAgentSync,
+		asynq.HandlerFunc(h.HandleAgentSync),
+	)
 
 	h.logger.InfoLog("Registered worker handlers",
 		h.logger.String("handler.merchant_sync", queue.TypeMerchantSync),
 		h.logger.String("handler.player_sync", queue.TypePlayerSync),
 		h.logger.String("handler.manager_sync", queue.TypeManagerSync),
 		h.logger.String("handler.level_sync", queue.TypeLevelSync),
-		h.logger.String("handler.tag_sync", queue.TypeTagSync))
+		h.logger.String("handler.tag_sync", queue.TypeTagSync),
+		h.logger.String("handler.agent_sync", queue.TypeAgentSync))
 }
 
 // HandleMerchantSync 處理商戶同步任務
@@ -374,6 +382,91 @@ func (h *WorkerHandler) HandleLevelSync(ctx context.Context, task *asynq.Task) e
 	h.tracing.TraceEvent(span, "Level sync completed successfully")
 	h.logger.InfoLog("Level sync task completed successfully",
 		h.logger.String("task_id", taskID))
+	return nil
+}
+
+// HandleAgentSync 處理代理同步任務
+func (h *WorkerHandler) HandleAgentSync(ctx context.Context, task *asynq.Task) error {
+	if task == nil {
+		return fmt.Errorf("task is empty")
+	}
+	taskID := getTaskID(task)
+
+	ctx, span := h.tracing.TraceWorkerProcessing(ctx, queue.TypeAgentSync, taskID)
+	defer h.tracing.SpanEnd(span)
+
+	h.logger.InfoLog("Processing agent sync task",
+		h.logger.String("task_id", taskID),
+		h.logger.Int("payload_size", len(task.Payload())))
+
+	cloudEvent, err := parseCloudEvent(task.Payload(), span, h.tracing)
+	if err != nil {
+		h.tracing.RecordSpanError(span, err)
+		h.logger.ErrorWithContext(ctx, "Failed to parse cloud event",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID),
+			h.logger.String("data", string(task.Payload())))
+		return err
+	}
+
+	dataBytes, err := jsoniter.Marshal(cloudEvent.Data)
+	if err != nil {
+		h.tracing.RecordSpanError(span, err)
+		h.logger.ErrorWithContext(ctx, "Failed to marshal event data",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID),
+			h.logger.Any("data", cloudEvent.Data))
+		return fmt.Errorf("marshal event data: %w", err)
+	}
+
+	var agentEvent event.AgentSyncEvent
+	if err = jsoniter.Unmarshal(dataBytes, &agentEvent); err != nil {
+		h.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("unmarshal agent event: %w", err)
+	}
+
+	h.tracing.TraceEvent(span, "Starting agent sync processing")
+
+	// 驗證事件數據
+	if err := h.validateAgentSyncEvent(&agentEvent); err != nil {
+		h.tracing.RecordSpanError(span, err)
+		h.logger.ErrorWithContext(ctx, "Invalid agent sync event",
+			h.logger.Error("err", err),
+			h.logger.String("task_id", taskID))
+		return fmt.Errorf("invalid event data: %w", err)
+	}
+
+	// 同步資料
+	if err = h.agentUseCase.SyncAgentData(ctx, &agentEvent); err != nil {
+		h.logger.ErrorLog("Failed to sync agent",
+			h.logger.String("task_id", taskID),
+			h.logger.String("global_agent_id", agentEvent.Agent.GlobalAgentID),
+			h.logger.Error("err", err))
+		h.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("failed to sync agent: %w", err)
+	}
+
+	h.tracing.TraceEvent(span, "Agent sync completed successfully")
+	h.logger.InfoLog("Agent sync task completed successfully",
+		h.logger.String("task_id", taskID),
+		h.logger.String("global_agent_id", agentEvent.Agent.GlobalAgentID))
+	return nil
+}
+
+// validateAgentSyncEvent - 驗證代理同步事件數據完整性
+func (h *WorkerHandler) validateAgentSyncEvent(event *event.AgentSyncEvent) error {
+	if event.Agent.GlobalAgentID == "" {
+		return fmt.Errorf("global_agent_id is required")
+	}
+
+	if event.Agent.Account == "" {
+		return fmt.Errorf("account is required")
+	}
+
+	if event.Merchant.ID == 0 {
+		return fmt.Errorf("merchant_id is required")
+	}
+
 	return nil
 }
 
