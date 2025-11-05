@@ -3,9 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
@@ -70,72 +68,12 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.Merchant
 
 	// 發布商戶同步事件到KDS
 	u.tracing.TraceEvent(span, "Publishing merchant sync event to KDS")
-	if err := u.publishMerchantSyncEvent(ctx, merchant); err != nil {
+	if err := u.eventProducer.PublishMerchantSync(ctx, merchant); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish merchant sync event: %w", err)
 	}
 
 	u.tracing.TraceEvent(span, "Merchant sync completed successfully")
-	return nil
-}
-
-// publishMerchantSyncEvent 發布商戶同步事件
-func (u *MerchantUseCase) publishMerchantSyncEvent(
-	ctx context.Context,
-	merchant *entity.Merchant,
-) error {
-	ctx, span := u.tracing.StartSpan(ctx, "MerchantUseCase.publishMerchantSyncEvent")
-
-	// 記錄發布事件開始
-	u.tracing.TraceEvent(span, "Preparing merchant sync event for KDS")
-
-	// 構建事件數據
-	syncEvent := event.IdentityMerchantSyncEvent{
-		GlobalMerchantID: merchant.GetGlobalMerchantID(),
-		ID:               merchant.GetID(),
-		Name:             merchant.GetName(),
-		DisplayName:      merchant.GetDisplayName(),
-		APIKey:           merchant.GetAPIKey(),
-		CreatedAt:        merchant.GetCreatedAt().Format(time.RFC3339),
-		UpdatedAt:        merchant.GetUpdatedAt().Format(time.RFC3339),
-	}
-
-	if merchant.GetDeletedAt() != nil {
-		syncEvent.DeletedAt = merchant.GetDeletedAt().Format(time.RFC3339)
-	}
-
-	// 構建CloudEvent
-	eventID := uuid.New().String()
-	cloudEvent := event.CloudEvent{
-		SpecVersion:     "1.0",
-		Type:            "tw.jvd.fatidentitycat.merchant.sync.v1",
-		Source:          "/fatidentitycat/FATCAT",
-		Subject:         "merchant_sync",
-		ID:              eventID,
-		Time:            time.Now(),
-		DataContentType: "application/json",
-		TraceParent:     u.tracing.GetTraceparent(ctx),
-		Data:            syncEvent,
-	}
-
-	u.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type),
-	)
-
-	// 發布事件
-	if err := u.eventProducer.PublishMerchantSync(ctx, &cloudEvent); err != nil {
-		u.tracing.RecordSpanError(span, err)
-		return fmt.Errorf("publish merchant sync: %w", err)
-	}
-
-	// 記錄事件發布成功
-	u.tracing.TraceEvent(span, "Merchant sync event published successfully")
-
-	u.logger.InfoLog("Merchant sync event published",
-		u.logger.String("global_id", merchant.GetGlobalMerchantID()),
-		u.logger.String("event_id", cloudEvent.ID))
-
 	return nil
 }
 

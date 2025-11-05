@@ -58,7 +58,7 @@ func TestMerchantUseCase_SyncMerchant_CreateNew(t *testing.T) {
 	merchantRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Merchant")).Return(nil)
 
 	// Expect PublishMerchantSync to be called
-	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*entity.Merchant")).
 		Return(nil)
 
 	// Create the use case
@@ -85,7 +85,7 @@ func TestMerchantUseCase_SyncMerchant_UpdateExisting(t *testing.T) {
 	merchantRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Merchant")).Return(nil)
 
 	// Expect PublishMerchantSync to be called
-	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*entity.Merchant")).
 		Return(nil)
 
 	// Create the use case
@@ -137,7 +137,7 @@ func TestMerchantUseCase_SyncMerchant_PublishError(t *testing.T) {
 		Return(nil)
 
 	// PublishMerchantSync fails
-	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*entity.Merchant")).
 		Return(errors.New("publish error"))
 
 	// Create the use case
@@ -236,55 +236,4 @@ func TestMerchantUseCase_GetMerchantByGlobalID_NotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "find merchant")
 	merchantRepo.AssertExpectations()
-}
-
-func TestMerchantUseCase_publishMerchantSyncEvent(t *testing.T) {
-	ctx := factories.CreateTestContext()
-	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
-
-	// Setup mocks
-	merchant := factories.CreateTestMerchant()
-
-	// Expect PublishMerchantSync to be called
-	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
-		Return(nil)
-
-	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
-
-	// Execute the private function through a test-only wrapper
-	err := useCase.(*MerchantUseCase).publishMerchantSyncEvent(
-		ctx,
-		merchant,
-	)
-
-	// Verify results
-	assert.NoError(t, err)
-	eventProducer.AssertExpectations()
-}
-
-func TestMerchantUseCase_publishMerchantSyncEvent_Error(t *testing.T) {
-	ctx := factories.CreateTestContext()
-	merchantRepo, eventProducer, logger := createMerchantMockDependencies(t)
-
-	// Setup mocks
-	merchant := factories.CreateTestMerchant()
-
-	// PublishMerchantSync fails
-	eventProducer.On("PublishMerchantSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
-		Return(errors.New("publish error"))
-
-	// Create the use case
-	useCase := NewMerchantUseCase(merchantRepo, eventProducer, logger, mocks.NewNilTracingService())
-
-	// Execute the private function through a test-only wrapper
-	err := useCase.(*MerchantUseCase).publishMerchantSyncEvent(
-		ctx,
-		merchant,
-	)
-
-	// Verify results
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "publish merchant sync")
-	eventProducer.AssertExpectations()
 }

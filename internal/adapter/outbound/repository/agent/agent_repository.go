@@ -39,7 +39,10 @@ func (r *agentRepository) FindByID(ctx context.Context, id uint64) (*entity.Agen
 }
 
 // FindByGlobalID 通過全局ID查找代理
-func (r *agentRepository) FindByGlobalID(ctx context.Context, globalID string) (*entity.Agent, error) {
+func (r *agentRepository) FindByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Agent, error) {
 	var agent models.Agent
 	result := r.db.WithContext(ctx).Where("global_agent_id = ?", globalID).First(&agent)
 	if result.Error != nil {
@@ -53,7 +56,10 @@ func (r *agentRepository) FindByGlobalID(ctx context.Context, globalID string) (
 }
 
 // FindByMerchantID 通過商戶ID查找代理列表
-func (r *agentRepository) FindByMerchantID(ctx context.Context, merchantID uint64) ([]*entity.Agent, error) {
+func (r *agentRepository) FindByMerchantID(
+	ctx context.Context,
+	merchantID uint64,
+) ([]*entity.Agent, error) {
 	var agentModels []*models.Agent
 	result := r.db.WithContext(ctx).Where("merchant_id = ?", merchantID).Find(&agentModels)
 	if result.Error != nil {

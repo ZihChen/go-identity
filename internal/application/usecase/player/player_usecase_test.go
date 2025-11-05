@@ -92,7 +92,7 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 		Return(nil)
 
 	// Expect PublishPlayerSync to be called
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*event.CloudEvent")).
+	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*entity.Player"), mock.AnythingOfType("string")).
 		Return(nil)
 
 	// Setup logger

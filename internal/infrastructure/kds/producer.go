@@ -16,25 +16,127 @@ import (
 )
 
 // PublishMerchantSync 發布商戶同步事件
-func (k *KDSService) PublishMerchantSync(ctx context.Context, event *event.CloudEvent) error {
-	ctx, span := k.tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+func (k *KDSService) PublishMerchantSync(ctx context.Context, merchant *entity.Merchant) error {
+	ctx, span := k.tracing.StartSpan(ctx, "KDSService.PublishMerchantSync")
 	defer k.tracing.SpanEnd(span)
 
-	k.logger.InfoWithContext(ctx, "Publishing merchant sync event",
-		k.logger.String("event_id", event.ID),
-		k.logger.String("global_merchant_id", extractGlobalMerchantID(event)))
-	return k.publishEvent(ctx, event)
+	// 構建事件數據
+	syncEvent := event.IdentityMerchantSyncEvent{
+		GlobalMerchantID: merchant.GetGlobalMerchantID(),
+		ID:               merchant.GetID(),
+		Name:             merchant.GetName(),
+		DisplayName:      merchant.GetDisplayName(),
+		APIKey:           merchant.GetAPIKey(),
+		CreatedAt:        merchant.GetCreatedAt().Format(time.RFC3339),
+		UpdatedAt:        merchant.GetUpdatedAt().Format(time.RFC3339),
+	}
+
+	if merchant.GetDeletedAt() != nil {
+		syncEvent.DeletedAt = merchant.GetDeletedAt().Format(time.RFC3339)
+	}
+
+	// 構建CloudEvent
+	eventID := uuid.New().String()
+	cloudEvent := event.CloudEvent{
+		SpecVersion:     "1.0",
+		Type:            k.config.Events.IdentityMerchantSync,
+		Source:          "/fatidentitycat/FATCAT",
+		Subject:         "merchant_sync",
+		ID:              eventID,
+		Time:            time.Now(),
+		DataContentType: "application/json",
+		TraceParent:     k.tracing.GetTraceparent(ctx),
+		Data:            syncEvent,
+	}
+
+	k.tracing.RecordSpanAttributes(span,
+		attribute.String("outgoing.event.id", eventID),
+		attribute.String("outgoing.event.type", cloudEvent.Type),
+		attribute.String("merchant.global_id", merchant.GetGlobalMerchantID()),
+	)
+
+	// 發布事件
+	if err := k.publishEvent(ctx, &cloudEvent); err != nil {
+		k.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("publish agent sync: %w", err)
+	}
+
+	// 記錄事件發布成功
+	k.tracing.TraceEvent(span, "Merchant sync event published successfully")
+
+	k.logger.InfoWithContext(ctx, "Merchant sync event published",
+		k.logger.String("global_merchant_id", merchant.GetGlobalMerchantID()),
+		k.logger.String("event_id", cloudEvent.ID))
+	return nil
 }
 
 // PublishPlayerSync 發布玩家同步事件
-func (k *KDSService) PublishPlayerSync(ctx context.Context, event *event.CloudEvent) error {
-	ctx, span := k.tracing.TraceWorkerToKDS(ctx, event.Type, event.ID)
+func (k *KDSService) PublishPlayerSync(
+	ctx context.Context,
+	player *entity.Player,
+	globalMerchantID string,
+) error {
+	ctx, span := k.tracing.StartSpan(ctx, "KDSService.PublishPlayerSync")
 	defer k.tracing.SpanEnd(span)
 
-	k.logger.InfoWithContext(ctx, "Publishing player sync event",
-		k.logger.String("event_id", event.ID),
-		k.logger.String("global_merchant_id", extractGlobalMerchantID(event)))
-	return k.publishEvent(ctx, event)
+	// 構建事件數據
+	syncEvent := event.IdentityPlayerSyncEvent{
+		GlobalMerchantID: globalMerchantID,
+		GlobalPlayerID:   player.GetGlobalPlayerID(),
+		ID:               player.GetID(),
+		MerchantID:       player.GetMerchantID(),
+		APIKey:           player.GetAPIKey(),
+		Account:          player.GetAccount(),
+		Email:            player.GetEmail(),
+		CreatedAt:        player.GetCreatedAt().Format(time.RFC3339),
+		UpdatedAt:        player.GetUpdatedAt().Format(time.RFC3339),
+		PlayerLevel: event.PlayerLevel{
+			GlobalPlayerLevelID: player.GetPlayerLevel().GlobalPlayerLevelID,
+			Name:                player.GetPlayerLevel().Name,
+		},
+	}
+
+	if player.GetLastActiveAt() != nil && !player.GetLastActiveAt().IsZero() {
+		syncEvent.LastActiveAt = player.GetLastActiveAt().Format(time.RFC3339)
+	}
+
+	if player.GetDeletedAt() != nil {
+		syncEvent.DeletedAt = player.GetDeletedAt().Format(time.RFC3339)
+	}
+
+	// 構建CloudEvent
+	eventID := uuid.New().String()
+	cloudEvent := event.CloudEvent{
+		SpecVersion:     "1.0",
+		Type:            k.config.Events.IdentityPlayerSync,
+		Source:          "/fatidentitycat/FATCAT",
+		Subject:         "player_sync",
+		ID:              eventID,
+		Time:            time.Now(),
+		DataContentType: "application/json",
+		TraceParent:     k.tracing.GetTraceparent(ctx),
+		Data:            syncEvent,
+	}
+
+	k.tracing.RecordSpanAttributes(span,
+		attribute.String("outgoing.event.id", eventID),
+		attribute.String("outgoing.event.type", cloudEvent.Type),
+		attribute.String("player.global_id", player.GetGlobalPlayerID()),
+	)
+
+	// 發布事件
+	if err := k.publishEvent(ctx, &cloudEvent); err != nil {
+		k.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("publish agent sync: %w", err)
+	}
+
+	// 記錄事件發布成功
+	k.tracing.TraceEvent(span, "Player sync event published successfully")
+
+	k.logger.InfoWithContext(ctx, "Player sync event published",
+		k.logger.String("global_player_id", player.GetGlobalPlayerID()),
+		k.logger.String("event_id", cloudEvent.ID))
+	return nil
 }
 
 // PublishManagerSync 發布管理員同步事件
@@ -82,8 +184,12 @@ func (k *KDSService) PublishTagSync(ctx context.Context, event *event.CloudEvent
 }
 
 // PublishAgentSync 從 Agent 實體發布同步事件
-func (k *KDSService) PublishAgentSync(ctx context.Context, agent *entity.Agent, globalMerchantID string) error {
-	ctx, span := k.tracing.StartSpan(ctx, "KDSService.PublishAgentSyncFromEntity")
+func (k *KDSService) PublishAgentSync(
+	ctx context.Context,
+	agent *entity.Agent,
+	globalMerchantID string,
+) error {
+	ctx, span := k.tracing.StartSpan(ctx, "KDSService.PublishAgentSync")
 	defer k.tracing.SpanEnd(span)
 
 	// 記錄發布事件開始

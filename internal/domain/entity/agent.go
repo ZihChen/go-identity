@@ -57,15 +57,15 @@ func NewAgentWithTimes(
 }
 
 // Getter methods for Agent
-func (a *Agent) GetID() uint64                 { return a.id }
-func (a *Agent) GetMerchantID() uint64         { return a.merchantID }
-func (a *Agent) GetGlobalAgentID() string      { return a.globalAgentID }
-func (a *Agent) GetAccount() string            { return a.account }
-func (a *Agent) GetAncestry() string           { return a.ancestry }
+func (a *Agent) GetID() uint64                  { return a.id }
+func (a *Agent) GetMerchantID() uint64          { return a.merchantID }
+func (a *Agent) GetGlobalAgentID() string       { return a.globalAgentID }
+func (a *Agent) GetAccount() string             { return a.account }
+func (a *Agent) GetAncestry() string            { return a.ancestry }
 func (a *Agent) GetCurrentSignInAt() *time.Time { return a.currentSignInAt }
-func (a *Agent) GetCreatedAt() time.Time       { return a.createdAt }
-func (a *Agent) GetUpdatedAt() time.Time       { return a.updatedAt }
-func (a *Agent) GetDeletedAt() *time.Time      { return a.deletedAt }
+func (a *Agent) GetCreatedAt() time.Time        { return a.createdAt }
+func (a *Agent) GetUpdatedAt() time.Time        { return a.updatedAt }
+func (a *Agent) GetDeletedAt() *time.Time       { return a.deletedAt }
 
 // 業務方法
 func (a *Agent) UpdateAccount(newAccount string) error {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
@@ -130,7 +129,7 @@ func (u *PlayerUseCase) SyncPlayer(
 
 	// 發布玩家同步事件到KDS
 	u.tracing.TraceEvent(span, "Publishing player sync event to KDS")
-	if err = u.publishPlayerSyncEvent(ctx, player, data.GlobalMerchantID); err != nil {
+	if err = u.eventProducer.PublishPlayerSync(ctx, player, data.GlobalMerchantID); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("publish player sync event: %w", err)
 	}
@@ -192,78 +191,6 @@ func (u *PlayerUseCase) findByGlobalID(
 		return nil, fmt.Errorf("find level: %w", err)
 	}
 	return nil, errmsg.ErrRepoLevelNotFound
-}
-
-// publishPlayerSyncEvent 發布玩家同步事件
-func (u *PlayerUseCase) publishPlayerSyncEvent(
-	ctx context.Context,
-	player *entity.Player,
-	globalMerchantID string,
-) error {
-	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.publishPlayerSyncEvent")
-	defer u.tracing.SpanEnd(span)
-
-	// 記錄發布事件開始
-	u.tracing.TraceEvent(span, "Preparing player sync event for KDS")
-
-	// 構建事件數據
-	syncEvent := event.IdentityPlayerSyncEvent{
-		GlobalMerchantID: globalMerchantID,
-		GlobalPlayerID:   player.GetGlobalPlayerID(),
-		ID:               player.GetID(),
-		MerchantID:       player.GetMerchantID(),
-		APIKey:           player.GetAPIKey(),
-		Account:          player.GetAccount(),
-		Email:            player.GetEmail(),
-		CreatedAt:        player.GetCreatedAt().Format(time.RFC3339),
-		UpdatedAt:        player.GetUpdatedAt().Format(time.RFC3339),
-		PlayerLevel: event.PlayerLevel{
-			GlobalPlayerLevelID: player.GetPlayerLevel().GlobalPlayerLevelID,
-			Name:                player.GetPlayerLevel().Name,
-		},
-	}
-
-	if player.GetLastActiveAt() != nil && !player.GetLastActiveAt().IsZero() {
-		syncEvent.LastActiveAt = player.GetLastActiveAt().Format(time.RFC3339)
-	}
-
-	if player.GetDeletedAt() != nil {
-		syncEvent.DeletedAt = player.GetDeletedAt().Format(time.RFC3339)
-	}
-
-	// 構建CloudEvent
-	eventID := uuid.New().String()
-	cloudEvent := event.CloudEvent{
-		SpecVersion:     "1.0",
-		Type:            "tw.jvd.fatidentitycat.player.sync.v1",
-		Source:          "/fatidentitycat/FATCAT",
-		Subject:         "player_sync",
-		ID:              eventID,
-		Time:            time.Now(),
-		DataContentType: "application/json",
-		TraceParent:     u.tracing.GetTraceparent(ctx),
-		Data:            syncEvent,
-	}
-
-	u.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type),
-	)
-
-	// 發布事件
-	if err := u.eventProducer.PublishPlayerSync(ctx, &cloudEvent); err != nil {
-		u.tracing.RecordSpanError(span, err)
-		return fmt.Errorf("publish player sync: %w", err)
-	}
-
-	// 記錄事件發布成功
-	u.tracing.TraceEvent(span, "Player sync event published successfully")
-
-	u.logger.InfoLog("Player sync event published",
-		u.logger.String("global_id", player.GetGlobalPlayerID()),
-		u.logger.String("event_id", cloudEvent.ID))
-
-	return nil
 }
 
 // GetPlayerByID 通過ID獲取玩家

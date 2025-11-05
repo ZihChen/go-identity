@@ -23,14 +23,18 @@ func NewEventProducerMock(t *testing.T) *EventProducerMock {
 
 func (m *EventProducerMock) PublishMerchantSync(
 	ctx context.Context,
-	event *event.CloudEvent,
+	merchant *entity.Merchant,
 ) error {
-	args := m.Called(ctx, event)
+	args := m.Called(ctx, merchant)
 	return args.Error(0)
 }
 
-func (m *EventProducerMock) PublishPlayerSync(ctx context.Context, event *event.CloudEvent) error {
-	args := m.Called(ctx, event)
+func (m *EventProducerMock) PublishPlayerSync(
+	ctx context.Context,
+	player *entity.Player,
+	globalMerchantID string,
+) error {
+	args := m.Called(ctx, player, globalMerchantID)
 	return args.Error(0)
 }
 
@@ -60,7 +64,11 @@ func (m *EventProducerMock) PublishTagSync(ctx context.Context, event *event.Clo
 	return args.Error(0)
 }
 
-func (m *EventProducerMock) PublishAgentSync(ctx context.Context, agent *entity.Agent, globalMerchantID string) error {
+func (m *EventProducerMock) PublishAgentSync(
+	ctx context.Context,
+	agent *entity.Agent,
+	globalMerchantID string,
+) error {
 	args := m.Called(ctx, agent, globalMerchantID)
 	return args.Error(0)
 }

@@ -44,7 +44,15 @@ func TestNewAgentWithTimes(t *testing.T) {
 	createdAt := time.Now().Add(-time.Hour)
 	updatedAt := time.Now()
 
-	agent := NewAgentWithTimes(merchantID, globalAgentID, account, ancestry, &signInTime, createdAt, updatedAt)
+	agent := NewAgentWithTimes(
+		merchantID,
+		globalAgentID,
+		account,
+		ancestry,
+		&signInTime,
+		createdAt,
+		updatedAt,
+	)
 
 	if agent.GetMerchantID() != merchantID {
 		t.Errorf("Expected merchant ID %d, got %d", merchantID, agent.GetMerchantID())

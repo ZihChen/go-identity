@@ -258,7 +258,10 @@ func (m *AgentUseCaseMock) GetAgentByID(ctx context.Context, id uint64) (*entity
 	return args.Get(0).(*entity.Agent), args.Error(1)
 }
 
-func (m *AgentUseCaseMock) GetAgentByGlobalID(ctx context.Context, globalID string) (*entity.Agent, error) {
+func (m *AgentUseCaseMock) GetAgentByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Agent, error) {
 	args := m.Called(ctx, globalID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -266,7 +269,10 @@ func (m *AgentUseCaseMock) GetAgentByGlobalID(ctx context.Context, globalID stri
 	return args.Get(0).(*entity.Agent), args.Error(1)
 }
 
-func (m *AgentUseCaseMock) GetAgentsByMerchantID(ctx context.Context, merchantID uint64) ([]*entity.Agent, error) {
+func (m *AgentUseCaseMock) GetAgentsByMerchantID(
+	ctx context.Context,
+	merchantID uint64,
+) ([]*entity.Agent, error) {
 	args := m.Called(ctx, merchantID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

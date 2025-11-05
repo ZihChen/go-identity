@@ -10,10 +10,10 @@ import (
 // EventProducer 事件生產者接口
 type EventProducer interface {
 	// PublishMerchantSync 發布商戶同步事件
-	PublishMerchantSync(ctx context.Context, event *event.CloudEvent) error
+	PublishMerchantSync(ctx context.Context, event *entity.Merchant) error
 
 	// PublishPlayerSync 發布玩家同步事件
-	PublishPlayerSync(ctx context.Context, event *event.CloudEvent) error
+	PublishPlayerSync(ctx context.Context, event *entity.Player, globalMerchantID string) error
 
 	// PublishManagerSync 發布管理員同步事件
 	PublishManagerSync(ctx context.Context, event *event.CloudEvent) error

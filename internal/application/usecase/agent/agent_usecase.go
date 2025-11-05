@@ -135,7 +135,10 @@ func (u *AgentUseCase) GetAgentByID(ctx context.Context, id uint64) (*entity.Age
 }
 
 // GetAgentByGlobalID 通過全局ID獲取代理
-func (u *AgentUseCase) GetAgentByGlobalID(ctx context.Context, globalID string) (*entity.Agent, error) {
+func (u *AgentUseCase) GetAgentByGlobalID(
+	ctx context.Context,
+	globalID string,
+) (*entity.Agent, error) {
 	ctx, span := u.tracing.StartSpan(ctx, "AgentUseCase.GetAgentByGlobalID")
 	defer u.tracing.SpanEnd(span)
 
@@ -156,7 +159,10 @@ func (u *AgentUseCase) GetAgentByGlobalID(ctx context.Context, globalID string) 
 }
 
 // GetAgentsByMerchantID 通過商戶ID獲取代理列表
-func (u *AgentUseCase) GetAgentsByMerchantID(ctx context.Context, merchantID uint64) ([]*entity.Agent, error) {
+func (u *AgentUseCase) GetAgentsByMerchantID(
+	ctx context.Context,
+	merchantID uint64,
+) ([]*entity.Agent, error) {
 	ctx, span := u.tracing.StartSpan(ctx, "AgentUseCase.GetAgentsByMerchantID")
 	defer u.tracing.SpanEnd(span)
 
