@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 )
 
@@ -25,6 +26,9 @@ type EventProducer interface {
 
 	// PublishTagSync 發布標籤同步事件
 	PublishTagSync(ctx context.Context, event *event.CloudEvent) error
+
+	// PublishAgentSync 從 Agent 實體發布同步事件
+	PublishAgentSync(ctx context.Context, agent *entity.Agent, globalMerchantID string) error
 }
 
 // EventConsumer 事件Consumer接口

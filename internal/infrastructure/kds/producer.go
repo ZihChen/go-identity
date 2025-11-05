@@ -3,11 +3,13 @@ package kds
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -77,6 +79,73 @@ func (k *KDSService) PublishTagSync(ctx context.Context, event *event.CloudEvent
 		k.logger.String("event_id", event.ID),
 		k.logger.String("global_merchant_id", extractGlobalMerchantID(event)))
 	return k.publishEvent(ctx, event)
+}
+
+// PublishAgentSync 從 Agent 實體發布同步事件
+func (k *KDSService) PublishAgentSync(ctx context.Context, agent *entity.Agent, globalMerchantID string) error {
+	ctx, span := k.tracing.StartSpan(ctx, "KDSService.PublishAgentSyncFromEntity")
+	defer k.tracing.SpanEnd(span)
+
+	// 記錄發布事件開始
+	k.tracing.TraceEvent(span, "Preparing agent sync event for KDS")
+
+	// 構建事件數據
+	syncEvent := event.IdentityAgentSyncEvent{
+		GlobalMerchantID: globalMerchantID,
+		GlobalAgentID:    agent.GetGlobalAgentID(),
+		ID:               agent.GetID(),
+		MerchantID:       agent.GetMerchantID(),
+		Account:          agent.GetAccount(),
+		Ancestry:         agent.GetAncestry(),
+		CreatedAt:        agent.GetCreatedAt().Format(time.RFC3339),
+		UpdatedAt:        agent.GetUpdatedAt().Format(time.RFC3339),
+	}
+
+	// 處理可選字段
+	if agent.GetCurrentSignInAt() != nil {
+		signInAt := agent.GetCurrentSignInAt().Format(time.RFC3339)
+		syncEvent.CurrentSignInAt = &signInAt
+	}
+
+	if agent.GetDeletedAt() != nil {
+		deletedAt := agent.GetDeletedAt().Format(time.RFC3339)
+		syncEvent.DeletedAt = deletedAt
+	}
+
+	// 構建CloudEvent
+	eventID := uuid.New().String()
+	cloudEvent := event.CloudEvent{
+		SpecVersion:     "1.0",
+		Type:            "tw.jvd.fatidentitycat.agent.sync.v1",
+		Source:          "/fatidentitycat/FATCAT",
+		Subject:         "agent_sync",
+		ID:              eventID,
+		Time:            time.Now(),
+		DataContentType: "application/json",
+		TraceParent:     k.tracing.GetTraceparent(ctx),
+		Data:            syncEvent,
+	}
+
+	k.tracing.RecordSpanAttributes(span,
+		attribute.String("outgoing.event.id", eventID),
+		attribute.String("outgoing.event.type", cloudEvent.Type),
+		attribute.String("agent.global_id", agent.GetGlobalAgentID()),
+	)
+
+	// 發布事件
+	if err := k.publishEvent(ctx, &cloudEvent); err != nil {
+		k.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("publish agent sync: %w", err)
+	}
+
+	// 記錄事件發布成功
+	k.tracing.TraceEvent(span, "Agent sync event published successfully")
+
+	k.logger.InfoWithContext(ctx, "Agent sync event published",
+		k.logger.String("global_agent_id", agent.GetGlobalAgentID()),
+		k.logger.String("event_id", cloudEvent.ID))
+
+	return nil
 }
 
 // 內部方法：發布事件到KDS

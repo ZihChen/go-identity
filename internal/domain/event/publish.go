@@ -74,3 +74,17 @@ type IdentityTagDataSyncEvent struct {
 	UpdatedAt   string `json:"updated_at"`
 	DeletedAt   string `json:"deleted_at,omitempty"`
 }
+
+// IdentityAgentSyncEvent 發送到 KDS 的代理同步事件
+type IdentityAgentSyncEvent struct {
+	GlobalMerchantID string  `json:"global_merchant_id"`
+	GlobalAgentID    string  `json:"global_agent_id"`
+	ID               uint64  `json:"id"`
+	MerchantID       uint64  `json:"merchant_id"`
+	Account          string  `json:"account"`
+	Ancestry         string  `json:"ancestry"`
+	CurrentSignInAt  *string `json:"current_sign_in_at,omitempty"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
+	DeletedAt        string  `json:"deleted_at,omitempty"`
+}

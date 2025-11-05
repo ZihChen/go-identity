@@ -11,29 +11,33 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 // AgentUseCase 代理用例
 type AgentUseCase struct {
-	agentRepo    repository.AgentRepository
-	merchantRepo repository.MerchantRepository
-	logger       infrastructure.Logger
-	tracing      infrastructure.TracingService
+	agentRepo     repository.AgentRepository
+	merchantRepo  repository.MerchantRepository
+	eventProducer service.EventProducer
+	logger        infrastructure.Logger
+	tracing       infrastructure.TracingService
 }
 
 // NewAgentUseCase 創建代理用例
 func NewAgentUseCase(
 	agentRepo repository.AgentRepository,
 	merchantRepo repository.MerchantRepository,
+	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
 ) inbound.AgentUseCase {
 	return &AgentUseCase{
-		agentRepo:    agentRepo,
-		merchantRepo: merchantRepo,
-		logger:       logger,
-		tracing:      tracing,
+		agentRepo:     agentRepo,
+		merchantRepo:  merchantRepo,
+		eventProducer: eventProducer,
+		logger:        logger,
+		tracing:       tracing,
 	}
 }
 
@@ -95,6 +99,15 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 		u.logger.String("account", agent.GetAccount()),
 		u.logger.UInt64("merchant_id", agent.GetMerchantID()),
 		u.logger.String("global_merchant_id", event.Merchant.GlobalMerchantID))
+
+	// 發布代理同步事件到 KDS
+	if err = u.eventProducer.PublishAgentSync(ctx, agent, merchant.GetGlobalMerchantID()); err != nil {
+		u.tracing.RecordSpanError(span, err)
+		u.logger.ErrorWithContext(ctx, "Failed to publish agent sync event",
+			u.logger.Error("err", err),
+			u.logger.String("global_agent_id", agent.GetGlobalAgentID()))
+		return fmt.Errorf("publish agent sync event: %w", err)
+	}
 
 	u.tracing.TraceEvent(span, "Agent sync completed successfully")
 	return nil
