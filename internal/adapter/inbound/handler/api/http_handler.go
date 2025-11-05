@@ -409,7 +409,7 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 				"global_agent_id":    "FATCAT-AGENT-123",
 				"account":            "agent001",
 				"ancestry":           "FATCAT-AGENT-456",
-				"current_sign_in_at": "2025-01-01T00:00:00.000Z",
+				"current_sign_in_at": now.Format(time.RFC3339Nano),
 				"created_at":         "2025-01-01T00:00:00.000Z",
 				"updated_at":         now.Format(time.RFC3339Nano),
 			},

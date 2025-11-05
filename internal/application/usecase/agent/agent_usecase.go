@@ -67,8 +67,8 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 		event.Agent.Account,
 		event.Agent.Ancestry,
 		event.Agent.CurrentSignInAt,
-		event.Agent.CreatedAt,
-		event.Agent.UpdatedAt,
+		event.EventTime,
+		event.EventTime,
 	)
 
 	// 驗證Agent實體

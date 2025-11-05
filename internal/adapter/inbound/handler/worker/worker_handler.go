@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"fmt"
-
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	jsoniter "github.com/json-iterator/go"
@@ -424,11 +423,11 @@ func (h *WorkerHandler) HandleAgentSync(ctx context.Context, task *asynq.Task) e
 		h.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("unmarshal agent event: %w", err)
 	}
-
+	agentEvent.EventTime = cloudEvent.Time
 	h.tracing.TraceEvent(span, "Starting agent sync processing")
 
 	// 驗證事件數據
-	if err := h.validateAgentSyncEvent(&agentEvent); err != nil {
+	if err = h.validateAgentSyncEvent(&agentEvent); err != nil {
 		h.tracing.RecordSpanError(span, err)
 		h.logger.ErrorWithContext(ctx, "Invalid agent sync event",
 			h.logger.Error("err", err),
