@@ -45,6 +45,11 @@ func (m *MockQueueService) EnqueueTagSync(ctx context.Context, data []byte) erro
 	return args.Error(0)
 }
 
+func (m *MockQueueService) EnqueueAgentSync(ctx context.Context, data []byte) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
 // MockQueueService also needs to implement Close method for tests
 func (m *MockQueueService) Close() error {
 	args := m.Called()
@@ -59,6 +64,9 @@ func NewMockQueueService(cfg *config.Config, logger *zap.Logger) (service.QueueS
 	mockService.On("EnqueueMerchantSync", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("EnqueuePlayerSync", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("EnqueueManagerSync", mock.Anything, mock.Anything).Return(nil)
+	mockService.On("EnqueueLevelSync", mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockService.On("EnqueueTagSync", mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockService.On("EnqueueAgentSync", mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockService.On("Close").Return(nil)
 
 	return mockService, nil

@@ -63,7 +63,7 @@ func setupTracingMocks(mockTracer *mocks.TracingServiceMock, taskType string) tr
 // Tests for HandleMerchantSync
 func TestWorkerHandler_HandleMerchantSync_Success(t *testing.T) {
 	// Setup
-	merchantUseCase, _, _, _, mockTracer, handler := setupWorkerTest(t)
+	merchantUseCase, _, _, _, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypeMerchantSync)
 
 	// Create a valid CloudEvent with MerchantSyncEvent data
@@ -113,7 +113,7 @@ func TestWorkerHandler_HandleMerchantSync_Success(t *testing.T) {
 
 func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 	// Setup
-	merchantUseCase, _, _, _, mockTracer, handler := setupWorkerTest(t)
+	merchantUseCase, _, _, _, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypeMerchantSync)
 
 	// Create task
@@ -141,7 +141,7 @@ func TestWorkerHandler_HandleMerchantSync_Error(t *testing.T) {
 // Tests for HandlePlayerSync
 func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, tagUseCase, mockTracer, handler := setupWorkerTest(t)
+	_, playerUseCase, _, tagUseCase, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 
 	// Create task
@@ -168,7 +168,7 @@ func TestWorkerHandler_HandlePlayerSync_Success(t *testing.T) {
 
 func TestWorkerHandler_HandlePlayerSync_NilTask(t *testing.T) {
 	// Setup
-	_, _, _, _, _, handler := setupWorkerTest(t)
+	_, _, _, _, _, _, handler := setupWorkerTest(t)
 
 	// Setup context
 	ctx := context.Background()
@@ -183,7 +183,7 @@ func TestWorkerHandler_HandlePlayerSync_NilTask(t *testing.T) {
 
 func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, _, mockTracer, handler := setupWorkerTest(t)
+	_, playerUseCase, _, _, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 
 	// Create task
@@ -211,7 +211,7 @@ func TestWorkerHandler_HandlePlayerSync_Error(t *testing.T) {
 // Tests for HandlePlayerSync with tags and level data
 func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, tagUseCase, mockTracer, handler := setupWorkerTest(t)
+	_, playerUseCase, _, tagUseCase, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
 	handler.levelUseCase = mockLevelUseCase
@@ -264,7 +264,7 @@ func TestWorkerHandler_HandlePlayerSync_WithTagsAndLevel_Success(t *testing.T) {
 // Tests for HandlePlayerSync with level data error
 func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, _, mockTracer, handler := setupWorkerTest(t)
+	_, playerUseCase, _, _, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 	mockLevelUseCase := mocks.NewPlayerLevelUseCaseMock(t)
 	handler.levelUseCase = mockLevelUseCase
@@ -308,7 +308,7 @@ func TestWorkerHandler_HandlePlayerSync_LevelError(t *testing.T) {
 // Tests for HandlePlayerSync with tag error
 func TestWorkerHandler_HandlePlayerSync_TagError(t *testing.T) {
 	// Setup
-	_, playerUseCase, _, tagUseCase, mockTracer, handler := setupWorkerTest(t)
+	_, playerUseCase, _, tagUseCase, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypePlayerSync)
 
 	// Create task with player and tags data
@@ -356,7 +356,7 @@ func TestWorkerHandler_HandlePlayerSync_TagError(t *testing.T) {
 // Tests for HandleManagerSync
 func TestWorkerHandler_HandleManagerSync_Success(t *testing.T) {
 	// Setup
-	_, _, managerUseCase, _, mockTracer, handler := setupWorkerTest(t)
+	_, _, managerUseCase, _, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypeManagerSync)
 
 	// Create task
@@ -381,7 +381,7 @@ func TestWorkerHandler_HandleManagerSync_Success(t *testing.T) {
 
 func TestWorkerHandler_HandleManagerSync_NilTask(t *testing.T) {
 	// Setup
-	_, _, _, _, _, handler := setupWorkerTest(t)
+	_, _, _, _, _, _, handler := setupWorkerTest(t)
 
 	// Setup context
 	ctx := context.Background()
@@ -396,7 +396,7 @@ func TestWorkerHandler_HandleManagerSync_NilTask(t *testing.T) {
 
 func TestWorkerHandler_HandleManagerSync_Error(t *testing.T) {
 	// Setup
-	_, _, managerUseCase, _, mockTracer, handler := setupWorkerTest(t)
+	_, _, managerUseCase, _, _, mockTracer, handler := setupWorkerTest(t)
 	setupTracingMocks(mockTracer, queue.TypeManagerSync)
 
 	// Create task

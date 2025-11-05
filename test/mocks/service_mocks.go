@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/go-redsync/redsync/v4"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 )
 
@@ -56,6 +57,11 @@ func (m *EventProducerMock) PublishPlayerTagsSync(
 
 func (m *EventProducerMock) PublishTagSync(ctx context.Context, event *event.CloudEvent) error {
 	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *EventProducerMock) PublishAgentSync(ctx context.Context, agent *entity.Agent, globalMerchantID string) error {
+	args := m.Called(ctx, agent, globalMerchantID)
 	return args.Error(0)
 }
 
