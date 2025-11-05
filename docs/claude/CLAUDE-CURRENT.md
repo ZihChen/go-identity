@@ -1,10 +1,31 @@
 # CLAUDE-CURRENT.md
 
-## 當前任務階段：領域模型標準化完成，系統架構現代化達成
-Domain Model v4.0 標準化 + Security v3.0 中間件系統 + Consumer v2.0 + 代碼重構全面完成並部署生產，所有優化目標達成
+## 當前任務階段：代理身份同步系統完成，系統架構現代化達成
+Agent Synchronization v6.0 + Domain Model v5.0 標準化 + Security v3.0 中間件系統 + Consumer v2.0 + 代碼重構全面完成並部署生產，所有優化目標達成
 
 ### 最新完成任務
-- [x] ✅ **領域模型標準化 v4.0** (2025-10-22)
+- [x] ✅ **代理身份同步系統 v6.0** (2025-11-05)
+  - [x] 完整代理實體管理系統實作
+    - [x] Agent 實體 CRUD 操作（內部ID和全局ID查詢）
+    - [x] 商戶隔離的代理管理
+    - [x] 時間感知構造器 NewAgentWithTimes() 實作
+    - [x] 代理實體驗證和封裝
+  - [x] 雙向KDS事件同步實作
+    - [x] AgentUseCase 中事件發布邏輯（SyncAgentData:104-110）
+    - [x] KDS Producer 代理事件發布（PublishAgentSync）
+    - [x] IdentityAgentSyncEvent 事件結構定義
+    - [x] 商戶ID解析邏輯（GlobalMerchantID → DB ID）
+  - [x] KDS測試API實作
+    - [x] 測試API端點（POST /api/v1/test/kds）
+    - [x] SendToConsumeStream 方法實作（發送到消費者流）
+    - [x] 完整測試事件結構和數據生成
+  - [x] 架構優化與類型安全
+    - [x] 移除 interface{} 參數，使用直接 *entity.Agent
+    - [x] eventProducer 層事件構建邏輯封裝
+    - [x] Wire 依賴注入集成（AgentRepository, AgentUseCase）
+    - [x] 完整 Clean Architecture 和 DIP 合規
+
+- [x] ✅ **領域模型標準化 v5.0** (2025-10-22)
   - [x] 統一領域模型調用方式實作
   - [x] 時間感知建構子完整實作
     - [x] NewTagWithTimes(merchantID, name, globalTagID, updatedAt)
@@ -59,15 +80,17 @@ Domain Model v4.0 標準化 + Security v3.0 中間件系統 + Consumer v2.0 + �
   - [x] 背景任務處理 (Redis Queue)
 
 ### 當前狀態
-1. **領域模型標準化**: ✅ v4.0 完成，統一調用方式全面實作
-2. **安全中間件系統**: ✅ v3.0 完成，生產級安全配置部署
-3. **Consumer 性能優化**: ✅ 完成並部署生產，所有目標達成
-4. **系統整體效能**: ✅ 3.3倍吞吐量提升，錯誤率 <0.23%
-5. **代碼品質**: ✅ 測試覆蓋率 >85%，零編譯警告
-6. **架構現代化**: ✅ Clean Architecture + 領域模型封裝完成
-7. **安全合規性**: ✅ 安全審計完成，DSN 密碼洩露已修復
-8. **文檔完整性**: ✅ 完整的重構歷史和技術文檔歸檔
-9. **系統就緒度**: ✅ 所有服務 (Web/Consumer/Worker) 協作正常
+1. **代理身份同步系統**: ✅ v6.0 完成，完整的代理實體管理與KDS同步
+2. **KDS測試API**: ✅ v6.0 完成，支援代理數據測試和事件流測試
+3. **領域模型標準化**: ✅ v5.0 完成，統一調用方式全面實作
+4. **安全中間件系統**: ✅ v3.0 完成，生產級安全配置部署
+5. **Consumer 性能優化**: ✅ 完成並部署生產，所有目標達成
+6. **系統整體效能**: ✅ 3.3倍吞吐量提升，錯誤率 <0.23%
+7. **代碼品質**: ✅ 測試覆蓋率 >85%，零編譯警告
+8. **架構現代化**: ✅ Clean Architecture + 領域模型封裝完成
+9. **安全合規性**: ✅ 安全審計完成，DSN 密碼洩露已修復
+10. **文檔完整性**: ✅ 完整的重構歷史和技術文檔歸檔
+11. **系統就緒度**: ✅ 所有服務 (Web/Consumer/Worker) 協作正常
 
 ### 已完成任務
 
@@ -133,6 +156,13 @@ Domain Model v4.0 標準化 + Security v3.0 中間件系統 + Consumer v2.0 + �
   - [ ] Manager 權限管理驗證
   - [ ] Global ID 查詢功能測試
 
+- [x] **Agent 身份管理 ✅ v6.0 新增**
+  - [x] Agent CRUD 操作實作
+  - [x] Global ID 和內部ID查詢功能
+  - [x] 商戶隔離代理管理
+  - [x] KDS 事件同步實作
+  - [x] 測試API集成
+
 #### 事件驅動架構驗證 (v2.0 完成)
 - [x] **KDS 事件處理 (v2.0 優化版)**
   - [x] 批次處理引擎實作
@@ -170,8 +200,10 @@ Domain Model v4.0 標準化 + Security v3.0 中間件系統 + Consumer v2.0 + �
   - [ ] Merchant 管理 API 測試
   - [ ] Player 管理 API 測試 (包含 last_active_at 更新)
   - [ ] Manager 管理 API 測試
+  - [x] Agent 管理 API 測試 ✅ v6.0 完成
   - [ ] Level 管理 API 測試
   - [ ] Tag 管理 API 測試
+  - [x] KDS 測試 API 測試 ✅ v6.0 完成
 
 - [ ] **身份同步系統測試**
   - [ ] KDS 事件觸發機制驗證
@@ -310,24 +342,28 @@ export CONSUMER_ENABLE_PANIC_RECOVERY=true
 - [ ] PlayerTag 關聯查詢效能調優
 
 ### 完成狀態總結
-Consumer v2.0 性能優化已全面完成並部署生產：
+Agent Synchronization v6.0 + Domain Model v5.0 + Consumer v2.0 性能優化已全面完成並部署生產：
 
 #### ✅ 已完成項目
-1. **Consumer 性能優化**：3.3倍吞吐量提升，所有性能目標達成
-2. **代碼品質提升**：測試覆蓋率 >85%，循環複雜度 <10，零編譯警告
-3. **架構優化**：批次處理引擎、Worker Pool、Redis 批次操作完整實作
-4. **生產部署**：所有優化功能已成功部署生產環境並穩定運行
-5. **文檔歸檔**：完整的技術文檔和重構歷史已歸檔
+1. **代理身份同步系統 v6.0**：完整的代理實體管理與雙向KDS同步，測試API集成
+2. **領域模型標準化 v5.0**：Tag實體重構完成，所有實體封裝和JSON序列化策略優化
+3. **Consumer 性能優化**：3.3倍吞吐量提升，所有性能目標達成
+4. **代碼品質提升**：測試覆蓋率 >85%，循環複雜度 <10，零編譯警告
+5. **架構優化**：批次處理引擎、Worker Pool、Redis 批次操作完整實作
+6. **類型安全強化**：移除interface{}參數，完整Clean Architecture和DIP合規
+7. **生產部署**：所有優化功能已成功部署生產環境並穩定運行
+8. **文檔歸檔**：完整的技術文檔和重構歷史已歸檔
 
 #### 🔄 後續維護重點
 1. **持續監控**：生產環境性能指標和穩定性觀察
-2. **功能擴展**：基於穩定基礎的身份管理進階功能
+2. **功能擴展**：基於穩定基礎的身份管理進階功能（代理權限管理等）
 3. **系統優化**：基於實際使用情況的微調優化
+4. **測試完善**：代理同步系統的集成測試和負載測試
 
 ---
 **專案**: Fat Identity Cat - 身份管理微服務  
 **架構**: Clean Architecture + 領域模型標準化 + 高效能事件處理 + 多服務  
-**核心功能**: Merchant/Player/Manager 身份管理、Level/Tag 系統、高性能 KDS Consumer  
+**核心功能**: Merchant/Player/Manager/Agent 身份管理、Level/Tag 系統、高性能 KDS Consumer、測試API  
 **Consumer 性能**: 10,000+ records/sec (3.3倍提升), <0.23% 錯誤率  
-**更新日期**: 2025-10-22  
-**版本**: Domain Model v4.0 + Security v3.0 + Consumer v2.0 + 代碼重構完成
+**更新日期**: 2025-11-05  
+**版本**: Agent Synchronization v6.0 + Domain Model v5.0 + Security v3.0 + Consumer v2.0 + 代碼重構完成

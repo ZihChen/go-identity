@@ -3,12 +3,13 @@
 ## 快速開發指南
 
 ### 當前狀態
-- **Domain Model v4.0**: 領域模型標準化 ✅ 已完成 (2025-10-22)
+- **Agent Synchronization v6.0**: 代理身份同步系統 ✅ 已完成 (2025-11-05)
+- **Domain Model v5.0**: 領域模型標準化 ✅ 已完成 (2025-10-22)
 - **Security v3.0**: 安全中間件系統 ✅ 已完成 (2025-10-20)
 - **Consumer v2.0**: 性能優化 + 代碼重構 ✅ 已完成 (2025-09-12)
 - **Router v2.0**: 統一路由管理系統 ✅ 已完成 (2025-09-09)
 - **Core v1.0**: 核心身份管理系統 ✅ 已完成 (2025-09-02)
-- **當前狀態**: 系統架構現代化全面完成 ✅ 穩定運行
+- **當前狀態**: 代理身份同步系統完成，系統架構現代化全面完成 ✅ 穩定運行
 - **下一階段**: 持續優化與功能擴展
 
 ### 快速命令
@@ -85,6 +86,7 @@ wire ./internal/di
   - `merchant.go` - 商戶實體
   - `player.go` - 玩家實體
   - `manager.go` - 管理員實體
+  - `agent.go` - 代理實體 ✅ v6.0 新增
   - `level.go` - 等級實體
   - `tag.go` - 標籤實體
   - `player_tag.go` - 玩家標籤關聯實體
@@ -113,6 +115,7 @@ wire ./internal/di
   - `merchant/` - 商戶相關 Repository
   - `player/` - 玩家相關 Repository (含 Tag 管理)
   - `manager/` - 管理員相關 Repository
+  - `agent/` - 代理相關 Repository ✅ v6.0 新增
   - `level/` - 等級管理 Repository
   - `tag/` - 標籤管理 Repository
 
@@ -186,6 +189,35 @@ curl -X GET http://localhost:8080/api/v1/managers/global/MANAGER_GLOBAL_ID \
   -H "API-Key: YOUR_BASE64_ENCODED_API_KEY"
 ```
 
+#### Agent 身份管理 ✅ v6.0 新增
+```bash
+# 查詢 Agent (by ID)
+curl -X GET http://localhost:8080/api/v1/agents/1 \
+  -H "API-Key: YOUR_BASE64_ENCODED_API_KEY"
+
+# 查詢 Agent (by Global ID)
+curl -X GET http://localhost:8080/api/v1/agents/global/AGENT_GLOBAL_ID \
+  -H "API-Key: YOUR_BASE64_ENCODED_API_KEY"
+```
+
+#### KDS 測試 API ✅ v6.0 新增
+```bash
+# 發送代理測試事件到 KDS
+curl -X POST http://localhost:8080/api/v1/test/kds \
+  -H "API-Key: YOUR_BASE64_ENCODED_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent": {
+      "global_agent_id": "TEST_AGENT_001",
+      "account": "test_agent",
+      "ancestry": "test_ancestry"
+    },
+    "merchant": {
+      "global_merchant_id": "TEST_MERCHANT_001"
+    }
+  }'
+```
+
 #### Swagger API測試
 - 訪問: http://localhost:8080/swagger/index.html
 - 點擊 "Authorize" 按鈕
@@ -227,6 +259,7 @@ docker exec -it mysql mysql -u root -p
 SELECT * FROM merchants ORDER BY created_at DESC LIMIT 10;
 SELECT * FROM players ORDER BY last_active_at DESC LIMIT 10;
 SELECT * FROM managers ORDER BY created_at DESC LIMIT 10;
+SELECT * FROM agents ORDER BY created_at DESC LIMIT 10; -- ✅ v6.0 新增
 
 # Player Tag 關聯查詢
 SELECT p.*, pt.tag_id, t.name as tag_name 
@@ -318,10 +351,12 @@ routerManager.SetupRoutersWithMiddleware(ginEngine, config)
 // 當前時間建構子 (新建實體)
 player := entity.NewPlayer(merchantID, globalPlayerID, account, email)
 merchant := entity.NewMerchant(globalMerchantID, name)
+agent := entity.NewAgent(merchantID, globalAgentID, account, ancestry) // ✅ v6.0 新增
 
 // 指定時間建構子 (同步操作)
 player := entity.NewPlayerWithTimes(merchantID, globalPlayerID, account, levelID, email, createdAt, updatedAt)
 merchant := entity.NewMerchantWithTimes(globalMerchantID, name, displayName, updatedAt)
+agent := entity.NewAgentWithTimes(merchantID, globalAgentID, account, ancestry, currentSignInAt, createdAt, updatedAt) // ✅ v6.0 新增
 tag := entity.NewTagWithTimes(merchantID, name, globalTagID, updatedAt)
 manager := entity.NewManagerWithTimes(merchantID, globalManagerID, account, email, createdAt, updatedAt)
 level := entity.NewLevelWithTimes(merchantID, name, globalLevelID, globalMerchantID, createdAt, updatedAt)
@@ -333,11 +368,14 @@ level := entity.NewLevelWithTimes(merchantID, name, globalLevelID, globalMerchan
 playerID := player.GetID()
 playerName := player.GetAccount()
 merchantKey := merchant.GetAPIKey()
+agentID := agent.GetGlobalAgentID() // ✅ v6.0 新增
+agentAccount := agent.GetAccount() // ✅ v6.0 新增
 
 // 狀態修改使用 setter 方法
 player.SetLastActiveAt(&time.Now())
 player.SetDeletedAt(&time.Now())
 merchant.RegenerateAPIKey()
+agent.SetCurrentSignInAt(&time.Now()) // ✅ v6.0 新增
 ```
 
 **實體驗證集成:**
@@ -346,6 +384,12 @@ merchant.RegenerateAPIKey()
 player := entity.NewPlayerWithTimes(...)
 if err := player.IsValid(); err != nil {
     return fmt.Errorf("invalid player: %w", err)
+}
+
+// Agent 實體驗證 ✅ v6.0 新增
+agent := entity.NewAgentWithTimes(...)
+if err := agent.IsValid(); err != nil {
+    return fmt.Errorf("invalid agent: %w", err)
 }
 ```
 
@@ -384,6 +428,7 @@ type MerchantRepository interface {
 - **Merchant**: 商戶身份，含 API Key 管理和 Global ID
 - **Player**: 玩家身份，支援 Level 分級和 Tag 標籤
 - **Manager**: 管理員身份，用於商戶管理
+- **Agent**: 代理身份，支援商戶隔離和KDS同步 ✅ v6.0 新增
 - **Level**: 玩家等級系統
 - **Tag**: 玩家標籤系統  
 - **PlayerTag**: Player 和 Tag 的多對多關聯
@@ -425,8 +470,8 @@ docker exec -it redis redis-cli
 ---
 **專案**: Fat Identity Cat - 身份管理微服務  
 **架構**: Clean Architecture + 領域模型標準化 + 高性能事件處理 + 多服務協作  
-**核心功能**: Merchant/Player/Manager 身份管理、Level/Tag 系統、高性能 KDS Consumer  
+**核心功能**: Merchant/Player/Manager/Agent 身份管理、Level/Tag 系統、高性能 KDS Consumer、測試API  
 **Consumer 性能**: 10,000+ records/sec (3.3倍提升), <0.23% 錯誤率  
-**更新日期**: 2025-10-22  
-**版本**: Domain Model v4.0 + Security v3.0 + Consumer v2.0 + Router v2.0 + Core v1.0  
+**更新日期**: 2025-11-05  
+**版本**: Agent Synchronization v6.0 + Domain Model v5.0 + Security v3.0 + Consumer v2.0 + Router v2.0 + Core v1.0  
 **用途**: 日常開發快速參考

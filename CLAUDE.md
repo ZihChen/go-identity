@@ -21,6 +21,7 @@ The application consists of three main services that can be run independently:
 - **Merchant** - Business entities in the system with API keys and global identifiers
 - **Player** - End users/customers with levels, tags, and activity tracking
 - **Manager** - Administrative users for merchant management
+- **Agent** - Proxy/agent entities with hierarchical ancestry tracking 🆕
 - **Level** - Player level classification system
 - **Tag** - Player categorization and labeling system
 - **PlayerTag** - Many-to-many relationship between players and tags
@@ -30,7 +31,7 @@ The application consists of three main services that can be run independently:
 The codebase follows hexagonal architecture with clear separation:
 
 - `internal/domain/` - Core business logic, interfaces (ports)
-  - `entity/` - Domain entities (Merchant, Player, Manager, Level, Tag, PlayerTag)
+  - `entity/` - Domain entities (Merchant, Player, Manager, Agent, Level, Tag, PlayerTag)
   - `dto/` - Data transfer objects for API communication
   - `ports/` - Interface definitions split into inbound and outbound
     - `inbound/` - Use Case interfaces
@@ -57,6 +58,7 @@ The codebase follows hexagonal architecture with clear separation:
       - `merchant/` - Merchant-related repositories
       - `player/` - Player-related repositories with tag management
       - `manager/` - Manager-related repositories
+      - `agent/` - Agent-related repositories with ancestry tracking 🆕
       - `level/` - Level management repositories
       - `tag/` - Tag management repositories
 - `internal/infrastructure/` - External dependencies
@@ -221,11 +223,57 @@ Custom error types defined in `internal/domain/errmsg/` for consistent error han
 - `GET /api/v1/managers/:id` - Get manager by internal ID
 - `GET /api/v1/managers/global/:global_id` - Get manager by global ID
 
+### Agent APIs 🆕
+- `GET /api/v1/agents/:id` - Get agent by internal ID
+- `GET /api/v1/agents/global/:global_id` - Get agent by global ID
+- `GET /api/v1/agents/merchant/:merchant_id` - Get agents by merchant ID
+
+### Testing APIs 🆕
+- `POST /api/v1/test/kds` - Send test KDS event to Consumer Stream
+
 ### System APIs
 - `GET /health` - Health check endpoint
 - `GET /swagger/*` - Swagger API documentation
 
 ## Recent Architecture Updates
+
+### Agent Synchronization System Implementation (2025-11-05) ✅ 🆕
+**Agent Identity Management Enhancement**: Complete Agent entity implementation with KDS event publishing and enhanced architecture patterns
+
+#### Agent System Features Completed
+- ✅ **Domain Entity**: Agent entity with private fields and getter/setter methods
+- ✅ **Database Model**: Complete Agent table with ancestry tracking and indexing
+- ✅ **Repository Layer**: Agent repository with timestamp-based upsert operations
+- ✅ **Use Case Layer**: Agent business logic with merchant resolution via GlobalMerchantID
+- ✅ **KDS Event Publishing**: Bi-directional event flow (consume from KDS → publish to KDS)
+- ✅ **Worker Integration**: Complete agent sync event handling in worker service
+- ✅ **Event Producer Enhancement**: Type-safe `PublishAgentSync` method with entity-direct publishing
+- ✅ **Testing Infrastructure**: KDS test API for development and debugging
+
+#### Agent Event Flow Implementation
+```
+External KDS Event → Consumer → Redis Queue → Worker → 
+AgentUseCase.SyncAgentData → 
+1. Database Upsert (with merchant ID resolution)
+2. Publish IdentityAgentSyncEvent to KDS (for downstream services)
+```
+
+#### Architecture Enhancements
+- **Merchant ID Resolution**: Enhanced UseCase to query merchant by GlobalMerchantID for data consistency
+- **Type-Safe Event Publishing**: Removed unnecessary interface{} and type assertions
+- **Enhanced Error Handling**: Comprehensive tracing and logging throughout sync pipeline
+- **Clean Separation of Concerns**: Event building logic moved to EventProducer layer
+
+#### Agent Entity Features
+- **Ancestry Tracking**: Hierarchical agent relationships via ancestry field
+- **Time-Aware Constructors**: `NewAgent()` and `NewAgentWithTimes()` patterns
+- **Domain Model Compliance**: Full encapsulation with getter/setter methods
+- **Validation Integration**: Built-in `IsValid()` method integration
+
+#### Testing and Development Tools
+- **KDS Test API**: `POST /api/v1/test/kds` for sending test events to Consumer Stream
+- **Enhanced Producer**: `SendToConsumeStream()` method for test data injection
+- **Wire Integration**: Automatic dependency injection for all agent-related components
 
 ### Security and Middleware Enhancement (2025-10-20) ✅
 **Security Architecture Enhancement**: Added production-ready middleware system with comprehensive security controls
@@ -319,6 +367,7 @@ While both services share similar architectural patterns, Fat Identity Cat focus
 
 ## Current Status
 
+**✅ Agent Synchronization System (v5.0)**: Complete Agent entity implementation with bi-directional KDS event flow, type-safe event publishing, and enhanced testing infrastructure 🆕  
 **✅ Domain Model Standardization (v4.0)**: Unified domain model calling approach across all use cases with enhanced encapsulation  
 **✅ Security and Middleware Enhancement (v3.0)**: Advanced middleware system with production-ready security controls  
 **✅ Consumer Refactoring Completed & Production Deployed (v2.0 + Code Quality Improvements)**: Three-phase optimization delivering production-ready performance enhancements - **Now running in production with 3.3x performance improvement**  

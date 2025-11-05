@@ -1,10 +1,12 @@
 # 📌 Fat Identity Cat
 
-Fat Identity Cat 是一個用於管理商戶、玩家和管理員身份的微服務，具有通過 Kinesis Data Streams (KDS) 進行同步的功能。
+Fat Identity Cat 是一個用於管理商戶、玩家、管理員和代理身份的微服務，具有通過 Kinesis Data Streams (KDS) 進行雙向同步的功能。
 
 ## 🚀 功能亮點 / 特色
 
-### ⚡ 最新架構成就（v5.0 領域模型標準化 + v4.0 DIP合規 + v3.0 安全強化）
+### ⚡ 最新架構成就（v6.0 代理身份同步系統 + v5.0 領域模型標準化 + v4.0 DIP合規 + v3.0 安全強化）
+- **代理身份同步系統**：完整的代理身份管理與雙向KDS同步，新增代理測試API ✅ **v6.0 新增**
+- **測試API集成**：KDS測試API支援代理數據測試，完善的事件流測試架構 ✅ **v6.0 完成**
 - **領域模型標準化**：完成所有實體的封裝改進，移除公共欄位，實現完整的 Clean Architecture ✅ **v5.0 完成**
 - **Tag 實體重構**：移除廢棄公共欄位，優化 Repository 映射模式，提升代碼封裝性 ✅ **v5.0 新增**
 - **JSON 序列化策略**：基於使用場景的智能 JSON 方法實作，只在必要時添加 ✅ **設計優化**
@@ -385,3 +387,48 @@ fat_identity_cat/
 4. **安全優先設計**：生產環境嚴格的 CORS 控制和 API 認證機制
 
 5. **清晰的責任分離**：入站和出站適配器明確分離，提高代碼可維護性
+
+## 🔗 API 端點
+
+### 商戶 APIs
+- `GET /api/v1/merchants/:id` - 通過內部ID獲取商戶
+- `GET /api/v1/merchants/global/:global_id` - 通過全局ID獲取商戶
+
+### 玩家 APIs
+- `GET /api/v1/players/:id` - 通過內部ID獲取玩家
+- `GET /api/v1/players/global/:global_id` - 通過全局ID獲取玩家
+- `PUT /api/v1/players/:id/active` - 更新玩家最後活躍時間
+
+### 管理員 APIs
+- `GET /api/v1/managers/:id` - 通過內部ID獲取管理員
+- `GET /api/v1/managers/global/:global_id` - 通過全局ID獲取管理員
+
+### 代理 APIs ✅ **v6.0 新增**
+- `GET /api/v1/agents/:id` - 通過內部ID獲取代理
+- `GET /api/v1/agents/global/:global_id` - 通過全局ID獲取代理
+
+### 測試 APIs ✅ **v6.0 新增**
+- `POST /api/v1/test/kds` - KDS 測試事件發送（支援代理數據測試）
+
+### 系統 APIs
+- `GET /health` - 健康檢查端點
+- `GET /swagger/*` - Swagger API 文檔
+
+## 📈 最新更新
+
+### 代理身份同步系統實現 (v6.0) ✅ **最新完成**
+**完整的代理身份管理與同步系統**：新增代理實體管理和雙向KDS事件同步
+
+#### 代理同步系統特性
+- ✅ **代理實體管理**：完整的 Agent 實體 CRUD 操作，支援全局ID和內部ID查詢
+- ✅ **雙向KDS同步**：代理數據變更自動發布到KDS，實現服務間數據同步
+- ✅ **時間戳冪等性**：基於時間戳的冪等性更新，避免資料競爭和重複處理
+- ✅ **商戶隔離**：完整的商戶上下文隔離，確保代理數據的商戶邊界
+- ✅ **測試API支援**：KDS測試API支援代理數據測試，便於集成測試
+
+#### 技術實現亮點
+- **時間感知構造器**：`NewAgentWithTimes()` 支援明確時間戳初始化
+- **事件發布封裝**：eventProducer 層處理事件構建邏輯，實現關注點分離
+- **類型安全**：移除 `interface{}` 參數，使用直接 `*entity.Agent` 參數
+- **架構遵循**：完全遵循Clean Architecture和DIP原則
+- **完整測試覆蓋**：包含UseCase、Repository、KDS事件發布的完整測試
