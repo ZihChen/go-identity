@@ -395,6 +395,21 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 	now := time.Now()
 	eventID := uuid.New().String()
 
+	req := struct {
+		GlobalAgentID   string `json:"global_agent_id" form:"global_agent_id"`
+		Account         string `json:"account" form:"account"`
+		Ancestry        string `json:"ancestry" form:"ancestry"`
+		CurrentSignInAt string `json:"current_sign_in_at" form:"current_sign_in_at"`
+	}{}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request format",
+			"msg":   err.Error(),
+		})
+		return
+	}
+
 	// 構建測試事件payload
 	testEvent := &event.CloudEvent{
 		SpecVersion:     "1.0",
@@ -406,11 +421,11 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 		DataContentType: "application/json",
 		Data: map[string]interface{}{
 			"agent": map[string]interface{}{
-				"global_agent_id":    "FATCAT-AGENT-123",
-				"account":            "agent001",
-				"ancestry":           "FATCAT-AGENT-456",
+				"global_agent_id":    req.GlobalAgentID,
+				"account":            req.Account,
+				"ancestry":           req.Ancestry,
 				"current_sign_in_at": now.Format(time.RFC3339Nano),
-				"created_at":         "2025-01-01T00:00:00.000Z",
+				"created_at":         now.Format(time.RFC3339Nano),
 				"updated_at":         now.Format(time.RFC3339Nano),
 			},
 			"merchant": map[string]interface{}{
