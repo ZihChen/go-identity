@@ -79,6 +79,10 @@ func (u *PlayerUseCase) SyncPlayer(
 		email = &data.Player.Email
 	}
 
+	if data.Player.UpdatedAt.IsZero() {
+		data.Player.UpdatedAt = time.Now()
+	}
+
 	// 使用 NewPlayerWithTimes 建構子建立 Player 實體
 	player := entity.NewPlayerWithTimes(
 		merchant.GetID(),

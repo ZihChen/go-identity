@@ -152,6 +152,10 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
+	if data.Tag.UpdatedAt.IsZero() {
+		data.Tag.UpdatedAt = time.Now()
+	}
+
 	// 使用 NewTagWithTimes 建構子建立 Tag 實體
 	tagToInsert := entity.NewTagWithTimes(
 		merchant.GetID(),

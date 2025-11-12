@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
@@ -64,6 +65,10 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
+	if event.EventTime.IsZero() {
+		event.EventTime = time.Now()
+	}
+
 	// 構建Agent實體，使用從資料庫查詢到的 merchant ID
 	agent := entity.NewAgentWithTimes(
 		merchant.GetID(),
@@ -76,7 +81,7 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 	)
 
 	// 驗證Agent實體
-	if err := agent.IsValid(); err != nil {
+	if err = agent.IsValid(); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		u.logger.ErrorWithContext(ctx, "Invalid agent entity",
 			u.logger.Error("err", err),
@@ -86,7 +91,7 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 
 	// 執行 Upsert 操作 (時間戳判斷的冪等性更新)
 	u.tracing.TraceEvent(span, "Upsert agent")
-	if err := u.agentRepo.Upsert(ctx, agent); err != nil {
+	if err = u.agentRepo.Upsert(ctx, agent); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		u.logger.ErrorWithContext(ctx, "Failed to upsert agent",
 			u.logger.Error("err", err),

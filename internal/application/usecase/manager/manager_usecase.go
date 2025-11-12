@@ -62,6 +62,10 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyn
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
+	if data.Manager.UpdatedAt.IsZero() {
+		data.Manager.UpdatedAt = time.Now()
+	}
+
 	// 使用 NewManagerWithTimes 建構子建立 Manager 實體
 	manager := entity.NewManagerWithTimes(
 		merchant.GetID(),

@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
@@ -46,6 +47,10 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.Merchant
 	u.tracing.RecordSpanAttributes(span,
 		attribute.String("merchant.global_id", data.GlobalMerchantID),
 		attribute.String("merchant.name", data.Merchant.Name))
+
+	if data.Merchant.UpdatedAt.IsZero() {
+		data.Merchant.UpdatedAt = time.Now()
+	}
 
 	// 使用 NewMerchantWithDisplayName 建構子建立 Merchant 實體
 	merchant := entity.NewMerchantWithTimes(

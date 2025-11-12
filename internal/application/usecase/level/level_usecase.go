@@ -51,6 +51,11 @@ func (u *LevelUseCase) SyncLevel(ctx context.Context, data *event.LevelSyncEvent
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
+
+	if data.PlayerLevel.UpdatedAt.IsZero() {
+		data.PlayerLevel.UpdatedAt = time.Now()
+	}
+
 	// 使用 NewLevelWithTimes 建構子建立 Level 實體
 	level := entity.NewLevelWithTimes(
 		merchant.GetID(),
