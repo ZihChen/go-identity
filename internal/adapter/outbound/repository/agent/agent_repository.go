@@ -74,45 +74,6 @@ func (r *agentRepository) FindByMerchantID(
 	return agents, nil
 }
 
-// Create 創建代理
-func (r *agentRepository) Create(ctx context.Context, agent *entity.Agent) error {
-	agentModel := mapToDBAgent(agent)
-	result := r.db.WithContext(ctx).Create(agentModel)
-	if result.Error != nil {
-		return result.Error
-	}
-
-	// 更新ID
-	agent.SetID(agentModel.ID)
-
-	return nil
-}
-
-// Update 更新代理
-func (r *agentRepository) Update(ctx context.Context, agent *entity.Agent) error {
-	agentModel := mapToDBAgent(agent)
-	result := r.db.WithContext(ctx).Save(agentModel)
-	if result.Error != nil {
-		return result.Error
-	}
-
-	return nil
-}
-
-// Delete 刪除代理
-func (r *agentRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&models.Agent{}, id)
-	if result.Error != nil {
-		return result.Error
-	}
-
-	if result.RowsAffected == 0 {
-		return errmsg.ErrRepoDeleteAgentNotFound
-	}
-
-	return nil
-}
-
 // Upsert 資料冪等性設計：只有當新資料的UpdatedAt要大於當前資料，並且內容要不同時才更新
 func (r *agentRepository) Upsert(ctx context.Context, agent *entity.Agent) error {
 	agentModel := mapToDBAgent(agent)

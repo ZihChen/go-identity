@@ -11,6 +11,5 @@ var (
 	ErrRepoDeletePlayerNotFound   = errors.New("repo delete player not found")
 	ErrRepoLevelNotFound          = errors.New("repo level not found")
 	ErrRepoAgentNotFound          = errors.New("repo agent not found")
-	ErrRepoDeleteAgentNotFound    = errors.New("repo delete agent not found")
 	ErrUnknownEventType           = errors.New("unknown event type")
 )
