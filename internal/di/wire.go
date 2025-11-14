@@ -8,13 +8,16 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/consumer"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	agentRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/agent"
+	failedTaskEventRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/failed_task_event"
 	levelRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/level"
 	managerRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/manager"
 	merchantRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/merchant"
 	playerRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/player"
 	tagRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/tag"
 	agentUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/agent"
+	failedTaskEventUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/failed_task_event"
 	levelUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/level"
 	managerUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/manager"
 	merchantUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/merchant"
@@ -50,6 +53,7 @@ var baseSet = wire.NewSet(
 	tagRepo.NewTagRepository,
 	levelRepo.NewLevelRepository,
 	agentRepo.NewAgentRepository,
+	failedTaskEventRepo.NewFailedTaskEventRepository,
 	playerRepo.NewPlayerTagRepository,
 
 	// 服務
@@ -62,6 +66,7 @@ var baseSet = wire.NewSet(
 	tagUsecase.NewTagUseCase,
 	levelUsecase.NewLevelUseCase,
 	agentUsecase.NewAgentUseCase,
+	failedTaskEventUsecase.NewFailedTaskEventUseCase,
 )
 
 // 事件生產者提供者
@@ -111,8 +116,8 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 }
 
 // 提供 worker 服務器
-func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asynq.Server, error) {
-	return queue.NewWorkerServer(cfg, logger)
+func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger, failedTaskUseCase inbound.FailedTaskEventUseCase, redisManager *redisCache.Manager, tracing infrastructure.TracingService) (*asynq.Server, error) {
+	return queue.NewWorkerServer(cfg, logger, failedTaskUseCase, redisManager, tracing)
 }
 
 // InitializeConsumerHandler 初始化 Consumer 服務的 Handler

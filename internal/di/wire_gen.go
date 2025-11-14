@@ -13,17 +13,20 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/consumer"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
 	repository6 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/agent"
+	repository7 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/failed_task_event"
 	repository3 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/level"
 	repository4 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/manager"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/merchant"
 	repository2 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/player"
 	repository5 "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/tag"
 	usecase6 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/agent"
+	usecase7 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/failed_task_event"
 	usecase5 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/level"
 	usecase3 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/manager"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/merchant"
 	usecase2 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/player"
 	usecase4 "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/tag"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
@@ -136,7 +139,9 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 	agentRepository := repository6.NewAgentRepository(db)
 	agentUseCase := usecase6.NewAgentUseCase(agentRepository, merchantRepository, eventProducer, logger, tracingService)
 	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, agentUseCase, logger, tracingService)
-	server, err := provideWorkerServer(cfg, logger)
+	failedTaskEventRepository := repository7.NewFailedTaskEventRepository(db)
+	failedTaskEventUseCase := usecase7.NewFailedTaskEventUseCase(failedTaskEventRepository, logger, tracingService)
+	server, err := provideWorkerServer(cfg, logger, failedTaskEventUseCase, redisManager, tracingService)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +179,7 @@ type WorkerComponents struct {
 }
 
 var baseSet = wire.NewSet(queue.NewQueueService, provideRedisClient,
-	provideTracingService, repository.NewMerchantRepository, repository2.NewPlayerRepository, repository4.NewManagerRepository, repository5.NewTagRepository, repository3.NewLevelRepository, repository6.NewAgentRepository, repository2.NewPlayerTagRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase2.NewPlayerUseCase, usecase3.NewManagerUseCase, usecase4.NewTagUseCase, usecase5.NewLevelUseCase, usecase6.NewAgentUseCase,
+	provideTracingService, repository.NewMerchantRepository, repository2.NewPlayerRepository, repository4.NewManagerRepository, repository5.NewTagRepository, repository3.NewLevelRepository, repository6.NewAgentRepository, repository7.NewFailedTaskEventRepository, repository2.NewPlayerTagRepository, provideEventProducer, usecase.NewMerchantUseCase, usecase2.NewPlayerUseCase, usecase3.NewManagerUseCase, usecase4.NewTagUseCase, usecase5.NewLevelUseCase, usecase6.NewAgentUseCase, usecase7.NewFailedTaskEventUseCase,
 )
 
 // 事件生產者提供者
@@ -192,8 +197,8 @@ func provideTracingService(cfg *config.Config) (infrastructure.TracingService, e
 }
 
 // 提供 worker 服務器
-func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asynq.Server, error) {
-	return queue.NewWorkerServer(cfg, logger)
+func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger, failedTaskUseCase inbound.FailedTaskEventUseCase, redisManager *redis.Manager, tracing2 infrastructure.TracingService) (*asynq.Server, error) {
+	return queue.NewWorkerServer(cfg, logger, failedTaskUseCase, redisManager, tracing2)
 }
 
 // 提供 Redis 客戶端

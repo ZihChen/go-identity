@@ -2,6 +2,8 @@ package queue
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -9,8 +11,10 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
+	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -242,7 +246,13 @@ func (q *QueueService) Close() error {
 }
 
 // NewWorkerServer 創建Worker服務器
-func NewWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asynq.Server, error) {
+func NewWorkerServer(
+	cfg *config.Config,
+	logger infrastructure.Logger,
+	failedTaskUseCase inbound.FailedTaskEventUseCase,
+	redisManager *redisCache.Manager,
+	tracing infrastructure.TracingService,
+) (*asynq.Server, error) {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Domain, cfg.Redis.Port)
 
 	logger.InfoLog("Creating worker server",
@@ -265,6 +275,9 @@ func NewWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asynq.S
 	logger.InfoLog("Worker server configuration",
 		logger.Int("concurrency", concurrency),
 		logger.Any("queues", queues))
+
+	// 創建任務清理服務
+	taskCleanupService := redisCache.NewTaskCleanupService(redisManager, logger, tracing)
 
 	server := asynq.NewServer(
 		redisOpt,
@@ -303,9 +316,66 @@ func NewWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asynq.S
 			},
 			ErrorHandler: asynq.ErrorHandlerFunc(
 				func(ctx context.Context, task *asynq.Task, err error) {
-					logger.ErrorLog("Task processing error",
+					taskID := "unknown"
+
+					// 方法1: 通過ResultWriter (首選方法)
+					if w := task.ResultWriter(); w != nil {
+						taskID = w.TaskID()
+						logger.DebugLog("TaskID obtained from ResultWriter", logger.String("task_id", taskID))
+					}
+
+					// 方法2: 如果ResultWriter不可用，從payload中提取或生成唯一ID
+					if taskID == "unknown" || taskID == "" {
+						logger.WarnLog("ResultWriter unavailable, generating taskID from payload")
+						taskID = generateTaskIDFromPayload(task.Type(), task.Payload())
+						logger.DebugLog("TaskID generated from payload", logger.String("task_id", taskID))
+					}
+
+					logger.ErrorLog("Task processing failed - storing to DB and cleaning Redis",
+						logger.String("task_id", taskID),
 						logger.String("type", task.Type()),
 						logger.Error("err", err))
+
+					// 異步處理：存儲錯誤事件到DB + 清理Redis任務數據
+					go func() {
+						bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+						defer cancel()
+
+						// 1. 記錄失敗任務事件到資料庫
+						redisKey := fmt.Sprintf("asynq:default:t:%s", taskID)
+						if createErr := failedTaskUseCase.CreateFailedTaskEventWithRedisInfo(
+							bgCtx,
+							taskID,
+							task.Type(),
+							"default", // 默認queue
+							string(task.Payload()),
+							err.Error(),
+							redisKey,
+							"failed", // 設置為失敗狀態
+							0,        // ErrorHandler中的重試次數為0（不會重試）
+						); createErr != nil {
+							logger.ErrorLog("Failed to record failed task event",
+								logger.Error("err", createErr),
+								logger.String("task_id", taskID),
+								logger.String("task_type", task.Type()))
+						} else {
+							logger.InfoLog("Failed task event recorded to DB",
+								logger.String("task_id", taskID),
+								logger.String("task_type", task.Type()))
+						}
+
+						// 2. 清理Redis上的任務數據
+						if cleanupErr := taskCleanupService.CleanupTaskData(bgCtx, taskID); cleanupErr != nil {
+							logger.ErrorLog("Failed to cleanup Redis task data",
+								logger.Error("err", cleanupErr),
+								logger.String("task_id", taskID),
+								logger.String("task_type", task.Type()))
+						} else {
+							logger.InfoLog("Redis task data cleaned up successfully",
+								logger.String("task_id", taskID),
+								logger.String("task_type", task.Type()))
+						}
+					}()
 				},
 			),
 		},
@@ -313,4 +383,29 @@ func NewWorkerServer(cfg *config.Config, logger infrastructure.Logger) (*asynq.S
 
 	logger.InfoLog("Worker server created successfully")
 	return server, nil
+}
+
+// generateTaskIDFromPayload 從payload生成或提取taskID
+func generateTaskIDFromPayload(taskType string, payload []byte) string {
+	// 首先嘗試從JSON payload中提取事件ID
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(payload, &jsonData); err == nil {
+		// 嘗試多個可能的ID字段名稱
+		idFields := []string{"id", "event_id", "task_id", "messageId", "ID", "global_id"}
+		for _, field := range idFields {
+			if id, exists := jsonData[field]; exists {
+				if idStr, ok := id.(string); ok && idStr != "" {
+					return idStr
+				}
+			}
+		}
+	}
+
+	// 如果無法提取ID，則生成一個基於payload內容的唯一標識符
+	hash := md5.Sum(payload)
+	hashStr := hex.EncodeToString(hash[:])
+
+	// 結合任務類型和時間戳，確保唯一性
+	timestamp := time.Now().Unix()
+	return fmt.Sprintf("%s_%d_%s", taskType, timestamp, hashStr[:12])
 }
