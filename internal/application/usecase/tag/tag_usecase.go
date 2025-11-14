@@ -283,29 +283,94 @@ func (u *TagUseCase) publishTagSyncEvent(
 func (u *TagUseCase) executeLocked(ctx context.Context, playerID uint64, fn func() error) error {
 	mutexKey := fmt.Sprintf(consts.SyncPlayerTagRedisKey, playerID)
 
-	mutex, err := u.redisManager.GetMutexWithOption(mutexKey,
-		redsync.WithExpiry(5*time.Second),            // 鎖的過期時間
-		redsync.WithTries(3),                         // 獲取鎖的重試次數
-		redsync.WithRetryDelay(200*time.Millisecond), // 重試間隔
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create mutex for player %d: %w", playerID, err)
-	}
+	// 智能重試機制：多層重試策略
+	maxAttempts := 3
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		u.logger.DebugWithContext(ctx, "Attempting to acquire lock",
+			u.logger.UInt64("player_id", playerID),
+			u.logger.Int("attempt", attempt),
+			u.logger.Int("max_attempts", maxAttempts),
+		)
 
-	if err = mutex.Lock(); err != nil {
-		return fmt.Errorf("failed to acquire lock for player %d: %w", playerID, err)
-	}
+		// 每次重試使用遞增的參數
+		expiry := time.Duration(10+attempt*5) * time.Second       // 15s, 20s, 25s
+		tries := 5 + attempt*2                                    // 7, 9, 11次
+		baseDelay := time.Duration(50*attempt) * time.Millisecond // 50ms, 100ms, 150ms
 
-	defer func() {
-		ok, unlockErr := mutex.Unlock()
-		if !ok || unlockErr != nil {
-			u.logger.ErrorWithContext(ctx, "Failed to unlock mutex",
-				u.logger.String("mutex_key", mutexKey),
+		mutex, err := u.redisManager.GetMutexWithOption(mutexKey,
+			redsync.WithExpiry(expiry),
+			redsync.WithTries(tries),
+			redsync.WithRetryDelay(baseDelay),
+		)
+		if err != nil {
+			u.logger.WarnWithContext(ctx, "Failed to create mutex",
 				u.logger.UInt64("player_id", playerID),
-				u.logger.Error("err", unlockErr),
-				u.logger.Bool("unlock_success", ok),
+				u.logger.Int("attempt", attempt),
+				u.logger.Error("error", err),
 			)
+			if attempt == maxAttempts {
+				return fmt.Errorf(
+					"failed to create mutex after %d attempts for player %d: %w",
+					maxAttempts,
+					playerID,
+					err,
+				)
+			}
+			continue
 		}
-	}()
-	return fn()
+
+		// 嘗試獲取鎖
+		if err = mutex.Lock(); err != nil {
+			u.logger.WarnWithContext(ctx, "Failed to acquire lock",
+				u.logger.UInt64("player_id", playerID),
+				u.logger.Int("attempt", attempt),
+				u.logger.String("expiry", expiry.String()),
+				u.logger.Int("tries", tries),
+				u.logger.Error("error", err),
+			)
+
+			if attempt < maxAttempts {
+				// 計算退避時間：遞增退避
+				backoffTime := time.Duration(attempt*attempt) * 500 * time.Millisecond
+				u.logger.InfoWithContext(ctx, "Retrying after backoff",
+					u.logger.UInt64("player_id", playerID),
+					u.logger.String("backoff_time", backoffTime.String()),
+					u.logger.Int("next_attempt", attempt+1),
+				)
+				time.Sleep(backoffTime)
+				continue
+			} else {
+				return fmt.Errorf("failed to acquire lock after %d attempts for player %d: %w", maxAttempts, playerID, err)
+			}
+		}
+
+		// 成功獲取鎖
+		u.logger.InfoWithContext(ctx, "Successfully acquired lock",
+			u.logger.UInt64("player_id", playerID),
+			u.logger.Int("attempt", attempt),
+			u.logger.String("expiry", expiry.String()),
+		)
+
+		// 執行業務邏輯
+		defer func() {
+			ok, unlockErr := mutex.Unlock()
+			if !ok || unlockErr != nil {
+				u.logger.ErrorWithContext(ctx, "Failed to unlock mutex",
+					u.logger.String("mutex_key", mutexKey),
+					u.logger.UInt64("player_id", playerID),
+					u.logger.Error("err", unlockErr),
+					u.logger.Bool("unlock_success", ok),
+				)
+			} else {
+				u.logger.DebugWithContext(ctx, "Successfully unlocked mutex",
+					u.logger.UInt64("player_id", playerID),
+				)
+			}
+		}()
+
+		return fn()
+	}
+
+	// 不應該到達這裡
+	return fmt.Errorf("unexpected error: failed to acquire lock for player %d", playerID)
 }

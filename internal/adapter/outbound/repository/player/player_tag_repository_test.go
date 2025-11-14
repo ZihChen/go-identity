@@ -44,12 +44,19 @@ func TestPlayerTagRepository_BatchUpdate(t *testing.T) {
 		name: "player tag upsert",
 		id:   1,
 		setupMock: func(mock sqlmock.Sqlmock) {
+			// 優化後的邏輯：先查詢現有標籤
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT `tag_id` FROM `player_tags` WHERE player_id = ?")).
+				WithArgs(2).
+				WillReturnRows(sqlmock.NewRows([]string{"tag_id"}).AddRow(1).AddRow(2))
+
 			mock.ExpectBegin()
 
-			mock.ExpectExec(regexp.QuoteMeta("DELETE")).
-				WithArgs(2).
+			// 刪除不需要的標籤 (1, 2 不在新的 [3, 4] 中)
+			mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `player_tags` WHERE player_id = ? AND tag_id IN")).
+				WithArgs(2, 1, 2).
 				WillReturnResult(sqlmock.NewResult(0, 2))
 
+			// 插入新標籤 ([3, 4] 不在現有的 [1, 2] 中)
 			mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `player_tags`")).
 				WillReturnResult(sqlmock.NewResult(0, 2))
 
