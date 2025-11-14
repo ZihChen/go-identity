@@ -44,14 +44,14 @@ func (c *TaskCleanupService) CleanupTaskData(ctx context.Context, taskID string)
 
 	// 需要清理的Redis key patterns（基於taskID）
 	keysToDelete := []string{
-		fmt.Sprintf("asynq:default:t:%s", taskID),           // 任務hash
-		fmt.Sprintf("asynq:default:failed:%s", taskID),      // 失敗任務
-		fmt.Sprintf("asynq:default:dead:%s", taskID),        // 死信任務
-		fmt.Sprintf("asynq:default:archived:%s", taskID),    // 歸檔任務
+		fmt.Sprintf("asynq:default:t:%s", taskID),        // 任務hash
+		fmt.Sprintf("asynq:default:failed:%s", taskID),   // 失敗任務
+		fmt.Sprintf("asynq:default:dead:%s", taskID),     // 死信任務
+		fmt.Sprintf("asynq:default:archived:%s", taskID), // 歸檔任務
 	}
 
 	deletedCount := 0
-	
+
 	// 使用pipeline批量刪除
 	pipeline := client.Pipeline()
 	for _, key := range keysToDelete {
@@ -85,4 +85,3 @@ func (c *TaskCleanupService) CleanupTaskData(ctx context.Context, taskID string)
 
 	return nil
 }
-

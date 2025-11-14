@@ -21,7 +21,10 @@ func NewFailedTaskEventRepository(db *gorm.DB) repository.FailedTaskEventReposit
 }
 
 // Create 創建失敗任務事件記錄
-func (r *failedTaskEventRepository) Create(ctx context.Context, failedEvent *entity.FailedTaskEvent) error {
+func (r *failedTaskEventRepository) Create(
+	ctx context.Context,
+	failedEvent *entity.FailedTaskEvent,
+) error {
 	if !failedEvent.IsValid() {
 		return errmsg.ErrInvalidEntity
 	}

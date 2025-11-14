@@ -31,10 +31,16 @@ func NewFailedTaskEventUseCase(
 	}
 }
 
-
 // CreateFailedTaskEventWithRedisInfo 記錄帶Redis信息的失敗任務事件
-func (u *FailedTaskEventUseCase) CreateFailedTaskEventWithRedisInfo(ctx context.Context, taskID, taskType, queueName, payload, errorMessage, redisKey, redisState string, retryCount int) error {
-	ctx, span := u.tracing.StartSpan(ctx, "FailedTaskEventUseCase.CreateFailedTaskEventWithRedisInfo")
+func (u *FailedTaskEventUseCase) CreateFailedTaskEventWithRedisInfo(
+	ctx context.Context,
+	taskID, taskType, queueName, payload, errorMessage, redisKey, redisState string,
+	retryCount int,
+) error {
+	ctx, span := u.tracing.StartSpan(
+		ctx,
+		"FailedTaskEventUseCase.CreateFailedTaskEventWithRedisInfo",
+	)
 	defer u.tracing.SpanEnd(span)
 
 	u.tracing.RecordSpanAttributes(span,
@@ -46,7 +52,14 @@ func (u *FailedTaskEventUseCase) CreateFailedTaskEventWithRedisInfo(ctx context.
 		attribute.Int("task.retry_count", retryCount))
 
 	// 創建失敗任務事件實體
-	failedEvent := entity.NewFailedTaskEvent(taskID, taskType, queueName, payload, errorMessage, retryCount)
+	failedEvent := entity.NewFailedTaskEvent(
+		taskID,
+		taskType,
+		queueName,
+		payload,
+		errorMessage,
+		retryCount,
+	)
 	failedEvent.SetRedisKey(&redisKey)
 	failedEvent.SetRedisState(&redisState)
 

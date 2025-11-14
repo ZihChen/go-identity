@@ -321,14 +321,20 @@ func NewWorkerServer(
 					// 方法1: 通過ResultWriter (首選方法)
 					if w := task.ResultWriter(); w != nil {
 						taskID = w.TaskID()
-						logger.DebugLog("TaskID obtained from ResultWriter", logger.String("task_id", taskID))
+						logger.DebugLog(
+							"TaskID obtained from ResultWriter",
+							logger.String("task_id", taskID),
+						)
 					}
 
 					// 方法2: 如果ResultWriter不可用，從payload中提取或生成唯一ID
 					if taskID == "unknown" || taskID == "" {
 						logger.WarnLog("ResultWriter unavailable, generating taskID from payload")
 						taskID = generateTaskIDFromPayload(task.Type(), task.Payload())
-						logger.DebugLog("TaskID generated from payload", logger.String("task_id", taskID))
+						logger.DebugLog(
+							"TaskID generated from payload",
+							logger.String("task_id", taskID),
+						)
 					}
 
 					logger.ErrorLog("Task processing failed - storing to DB and cleaning Redis",

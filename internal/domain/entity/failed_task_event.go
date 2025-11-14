@@ -21,7 +21,10 @@ type FailedTaskEvent struct {
 }
 
 // NewFailedTaskEvent 創建新的失敗任務事件（使用當前時間）
-func NewFailedTaskEvent(taskID, taskType, queueName, payload, errorMessage string, retryCount int) *FailedTaskEvent {
+func NewFailedTaskEvent(
+	taskID, taskType, queueName, payload, errorMessage string,
+	retryCount int,
+) *FailedTaskEvent {
 	now := time.Now()
 	return &FailedTaskEvent{
 		taskID:       taskID,
@@ -37,7 +40,11 @@ func NewFailedTaskEvent(taskID, taskType, queueName, payload, errorMessage strin
 }
 
 // NewFailedTaskEventWithTimes 創建新的失敗任務事件（指定時間）
-func NewFailedTaskEventWithTimes(taskID, taskType, queueName, payload, errorMessage string, retryCount int, failedAt, createdAt, updatedAt time.Time) *FailedTaskEvent {
+func NewFailedTaskEventWithTimes(
+	taskID, taskType, queueName, payload, errorMessage string,
+	retryCount int,
+	failedAt, createdAt, updatedAt time.Time,
+) *FailedTaskEvent {
 	return &FailedTaskEvent{
 		taskID:       taskID,
 		taskType:     taskType,
