@@ -277,7 +277,7 @@ func NewWorkerServer(
 		logger.Any("queues", queues))
 
 	// 創建任務清理服務
-	taskCleanupService := redisCache.NewTaskCleanupService(redisManager, logger, tracing)
+	//taskCleanupService := redisCache.NewTaskCleanupService(redisManager, logger, tracing)
 
 	server := asynq.NewServer(
 		redisOpt,
@@ -364,17 +364,6 @@ func NewWorkerServer(
 								logger.String("task_type", task.Type()))
 						}
 
-						// 2. 清理Redis上的任務數據
-						if cleanupErr := taskCleanupService.CleanupTaskData(bgCtx, taskID); cleanupErr != nil {
-							logger.ErrorLog("Failed to cleanup Redis task data",
-								logger.Error("err", cleanupErr),
-								logger.String("task_id", taskID),
-								logger.String("task_type", task.Type()))
-						} else {
-							logger.InfoLog("Redis task data cleaned up successfully",
-								logger.String("task_id", taskID),
-								logger.String("task_type", task.Type()))
-						}
 					}()
 				},
 			),
