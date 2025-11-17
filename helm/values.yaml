@@ -1,6 +1,19 @@
 # Global settings
 global:
-  environment: production
+  environment: development
+
+env:
+  # 應用程序設置
+  APP_NAME: "fat-identity-cat"
+  APP_ENV: "development"
+  APP_PORT: "8080"
+  APP_DEBUG: "true"
+
+  # HTTP Server 設置
+  SERVER_HTTP_DOMAIN: ""
+  SERVER_READ_TIMEOUT: "30s"
+  SERVER_WRITE_TIMEOUT: "30s"
+  SERVER_IDLE_TIMEOUT: "120s"
 
 # Application settings
 app:

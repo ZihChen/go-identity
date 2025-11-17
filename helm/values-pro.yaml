@@ -1,0 +1,124 @@
+# Global settings
+global:
+  environment: production
+
+env:
+  # 應用程序設置
+  APP_NAME: "fat-identity-cat"
+  APP_ENV: "development"
+  APP_PORT: "8080"
+  APP_DEBUG: "true"
+
+  # HTTP Server 設置
+  SERVER_HTTP_DOMAIN: ""
+  SERVER_READ_TIMEOUT: "30s"
+  SERVER_WRITE_TIMEOUT: "30s"
+  SERVER_IDLE_TIMEOUT: "120s"
+
+  # 資料庫設置
+  DB_HOST: "REDACTED_DB_HOST"
+  DB_PORT: "3306"
+  DB_USER: "REDACTED_DB_USER_PROD"
+  # DB_PASSWORD: <secret>
+  DB_NAME: "ms_fatidentitycat"
+
+  # 資料庫連線池設置
+  DB_MAX_IDLE: "25"
+  DB_MAX_OPEN: "100"
+  DB_MAX_LIFETIME: "1h"
+  DB_MAX_IDLE_TIME: "30m"
+
+  # Redis設置
+  REDIS_DOMAIN: "qcat-bonuscat-dev.zlvgen.0001.apne1.cache.amazonaws.com"
+  REDIS_PORT: "6379"
+  REDIS_DB: "9"
+
+  # Redis Pool 設置
+  REDIS_POOL_SIZE: "20"
+  REDIS_MIN_IDLE_CONNS: "5"
+  REDIS_MAX_RETRIES: "3"
+  REDIS_DIAL_TIMEOUT: "5s"
+  REDIS_READ_TIMEOUT: "3s"
+  REDIS_WRITE_TIMEOUT: "3s"
+  REDIS_POOL_TIMEOUT: "4s"
+  REDIS_IDLE_TIMEOUT: "5m"
+  REDIS_MAX_CONN_AGE: "30m"
+
+  # AWS KDS設置
+  AWS_REGION: "ap-northeast-1"
+
+  # Consumer 接收事件用
+  KINESIS_CONSUME_STREAM_NAME: "qcat-bonuscat-dev-kds-stream"
+
+  # Producer 發送事件用
+  KINESIS_PRODUCE_STREAM_NAME: "ms-identity-lab"
+  KINESIS_STREAM_ARN: "arn:aws:kinesis:ap-northeast-1:REDACTED_AWS_ACCOUNT_PRO:stream/fatcat-extension-pro-kds-stream"
+  DYNAMODB_TABLE: "fatcat-extension-pro"
+  DYNAMODB_PARTITION_KEY: "partition_key"
+
+  # OpenObserve設置
+  OPENOBSERVE_TRACE_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-prod/traces"
+  # OPENOBSERVE_TRACE_API_KEY: <secret>
+  OPENOBSERVE_TRACE_STREAM_NAME: "fat_identity_cat"
+
+  # OpenObserve logs設置
+  OPENOBSERVE_LOGS_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-prod/default/_json"
+  OPENOBSERVE_LOGS_USERNAME: "REDACTED_OO_USERNAME"
+  # OPENOBSERVE_LOGS_PASSWORD: <secret>
+
+  # Consumer v2.0 性能配置 ✨ NEW
+  # 批次處理配置
+  CONSUMER_BATCH_SIZE: "100"              # 每批次記錄數
+  CONSUMER_MAX_BATCH_WAIT_TIME: "500ms"    # 批次最大等待時間
+  CONSUMER_KDS_RECORD_LIMIT: "1000"        # KDS GetRecords 限制
+  
+  # Worker Pool 配置
+  CONSUMER_WORKER_POOL_SIZE: "10"          # Worker 數量
+  CONSUMER_WORKER_BUFFER_SIZE: "200"       # Worker 通道緩衝大小
+  
+  # 退避策略配置
+  CONSUMER_MIN_BACKOFF: "500ms"            # 最小退避時間
+  CONSUMER_MAX_BACKOFF: "5s"               # 最大退避時間
+  
+  # 分片處理配置
+  CONSUMER_MAX_SHARD_CONCURRENCY: "8"      # 最大並行分片數
+  CONSUMER_SHARD_LOCK_TIMEOUT: "1m"        # 分片鎖超時
+  
+  # 監控配置
+  CONSUMER_METRICS_INTERVAL: "30s"         # 指標收集間隔
+  CONSUMER_HEALTH_CHECK_INTERVAL: "10s"    # 健康檢查間隔
+  
+  # 恢復機制配置
+  CONSUMER_ENABLE_PANIC_RECOVERY: "true"   # 啟用 Panic 恢復
+  CONSUMER_MAX_RECOVERY_ATTEMPTS: "3"      # 最大恢復嘗試
+  
+  # 分散式鎖配置
+  CONSUMER_LOCK_RETRY_INTERVAL: "1s"       # 鎖重試間隔
+  CONSUMER_LOCK_MAX_RETRIES: "5"           # 鎖最大重試次數
+
+  # KDS Events
+  EVENT_MERCHANT_SYNC: "tw.jvd.fatcat.merchant.sync.v1"
+  EVENT_PLAYER_SYNC: "tw.jvd.fatcat.player.sync.v1"
+  EVENT_MANAGER_SYNC: "tw.jvd.fatcat.manager.sync.v1"
+  EVENT_LEVEL_SYNC: "tw.jvd.fatcat.player.level.sync.v1"
+  EVENT_TAG_SYNC: "tw.jvd.fatcat.tag.sync.v1"
+  EVENT_AGENT_SYNC: "tw.jvd.fatcat.agent.sync.v1"
+  EVENT_IDENTITY_MERCHANT_SYNC: "tw.jvd.fatidentitycat.merchant.sync.v1"
+  EVENT_IDENTITY_PLAYER_SYNC: "tw.jvd.fatidentitycat.player.sync.v1"
+  EVENT_IDENTITY_MANAGER_SYNC: "tw.jvd.fatidentitycat.manager.sync.v1"
+  EVENT_IDENTITY_AGENT_SYNC: "tw.jvd.fatidentitycat.agent.sync.v1"
+
+# Usage: ./encrypt-secret-data.sh fatidentitycat fatcat-extension DB_PASSWORD=<secret>
+encryptedEnv:
+  DB_PASSWORD: AgBWstCrQu1a/GUsscHkOx5on41bUAYOOjXa1IKQz3RjUpD4HC92w5Q8KPooPF8iGcLHDiP4Ik2TEgYdIcD9otS3PFh3e0y15XKNjXvBwaENUkHoJzx6Y9hYV5pshPR8Y60L2uCDa4GCkjTwjcZWenYWBgq/w8dGCn3XuNYPio++5wzeFDsWN1mFaS3KtWONO4Q3N/6tJS3ajJXL8rrrAkfVDCHPHag82zDaWAFP/2JLxUspGkJDvISchZU8q6KDlrwQnD8ziznDI90ACXvP/qZ5z5Qq3+oPzF4mHN3r6wwHGx9i4S8qViIjYS4j+f8URpFfTNJyB3AuC+7BxoB3dxq16iOHfUFj7VITiZxLNavD9IB87kKqxjUCEa1a/zbJTjcY1X3fV4xQ6Kpgp22nZLOw4XGEZn8d8RwWqnWnnnPCj3RyR5BPUcg0cKVJwbn+IGLzjDM2WXC/ADBYlNPuYH2ZRW+q8ROHa7GbZdfsuw2/0t7xWRwNGnF7LszFzrEIuPaMYDu+p5hKwtWwBeQgyJouGdfZapqTshUgg2wO51/PBQaXg3Nhl5fVuzP2kg6XuMiOVIHvr1Md9BcN7f29dfLKmwTpU5kPeYxscXd52fYgW9b3j+YvO4qcuptajnr8qbUoHkRHc2mImlES01LFpJbDp9MmWlqNtqW0q/GhDO6V04cmIp++hig5X/u/x7Ys/07xYsFRppcHJdJB1j1NJ7MZYMprGWLJqNSbaz0T3POSabPoYw496Wz6CRRqFZR3GBixidkn5g==
+  OPENOBSERVE_TRACE_API_KEY: AgClkmEE+0/eBFbTtsvWCpWu+ylq+ji3I+TuO1md0dynekubBNeFdajVjX+oXwybSCarMo6HbrNBQ5fyEvxVJjYloI0LmGCb0my6Uq5hI86umBy5na4UeGFTouwpvqvoYfyy2AIEh5UBJmsUKaURIQvUPkW3uDualFB4+I6DUXJmybvJ95DYvJ+rKz6x+QVGODtdFDjxYVbr7mjk1OFHvJm7ixWO9df2lzVg3+bs+OC5Nvub80CJmDcirkPfwQrJDv4+c3FFgjFQ+xu8bNP8G6guq5mZUrDLGQ03JBoj4Goa72X+UzYZ4Qbni0R/iELyu9C2pn3cKL52xyuwkPpkxe8CTGCI8MVPugbGRNOg6MUKhrV9kGEFj6OYBSf5VMUD7MoGuyDpDBC3sxsVhaL6vN99DpUULTSzJc824rLtv/kLhtiLA98JWuN4SJdUaL4sFOG0L2l7EO+q/wZYs5Ma7M0aiDx4723MWPbC8TNZHXCiMSo2iSlsIvFbmIpGrKp2CSHAfwU+mV3hIWR/kKgWdRNJ75C4c3ZmDbAFsLmRx2ZH5jlxaCR89hL2/ZNZjw5VTgYFjfrmlDGJqzAwdIqsSf4LBqeB4T0GNQU5sOUSxEoly1Xl9XfygXHyxtvLw9IphOP+5/5eGcA90dSzXa32psNDkvC6Qxampr+qNaTHjrybcRwC6MikAu9YL4XXHxNhifpto5GbCNE6+/d5XFxg7Pa6Zos71NJ08Jvtayd5NQNkw97q26FZ4hlTLJkxnupAvloOx19iMbMUqh5Qq+0dPA==
+  OPENOBSERVE_LOGS_PASSWORD: AgAN2d/PminpAJGREZk6eKokonN5W02pYU5DdZCrdjR9z2P2HUqebq/GDLn1pBQZ8v8jje5N63AtMx/uq3szAnkPXpcP8bxcJUM8+yyighQARI9kKfPKOlK0l9OPmux8HcgvBk4eKKv3ZEgsvS0MgziB0IqKFnmH3ftfpJl+AcHNOFjwwfl2bBihkP4YHTT5VlpBSZVLMtB7gxEt3hAHUEfaA04H7mBflsSbiKYjHjFgrPyEmcNdopqXA2xliEa8rUau5X6ztvvOELsjvFTJtvHOXz2Av7ZSdptrI3rs8LnRbDUPEBXirA/b7Osxmy4jQ0+YMGO39TJN4VrYEqaODVLAScEh1I5qxAdOqh5mpY6AJXjTsCRR+YGVz4Bjhbejfm7RNOp4+tmDV6ViKlWKHvE0ikSu1vOr5wjHipmD7VMl56QSA/UH06Kd18v1xwBVzWHG7FggSKYBQSsonp30gdkpHrUVzs3c7adVLR4lopVLOLkBHKmAMsWvmU66TkyW57kVyRuwD2CO1+D/tVzfW8sRtU6E6VSuEtSqUrY6eG1U9mj4V/EGD0tijdzsw+jDMTljoi9DKjJOdHSzY15FZ3yxrBag5zUPIg89w1FnjarXz4nFo4gmtVVrwjL42g4XCj+Je5PKhlnGXw+aZR6TA2Z/XIHu+K6yvNxF4xsBQGYfYY3KxxTBI58u4DyOy3lk04MrOYBRBm1cB/HbBP2Ch4XM
+
+# Application settings
+app:
+  name: fatidentitycat
+  appName: fatidentitycat
+  image:
+    repository: REDACTED_AWS_ACCOUNT_PRO.dkr.ecr.ap-northeast-1.amazonaws.com/fatcat-extension/fatidentitycat
+    tag: latest
+  replicas: 1
