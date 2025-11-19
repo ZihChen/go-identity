@@ -20,7 +20,7 @@ env:
   DB_PORT: "3306"
   DB_USER: "REDACTED_DB_USER_PROD"
   # DB_PASSWORD: <secret>
-  DB_NAME: "ms_fatidentitycat"
+  DB_NAME: "ms_fatidentitycat_pro"
 
   # 資料庫連線池設置
   DB_MAX_IDLE: "25"
@@ -29,7 +29,7 @@ env:
   DB_MAX_IDLE_TIME: "30m"
 
   # Redis設置
-  REDIS_DOMAIN: "qcat-bonuscat-dev.zlvgen.0001.apne1.cache.amazonaws.com"
+  REDIS_DOMAIN: "REDACTED_REDIS_HOST_PRO"
   REDIS_PORT: "6379"
   REDIS_DB: "9"
 
@@ -48,13 +48,13 @@ env:
   AWS_REGION: "ap-northeast-1"
 
   # Consumer 接收事件用
-  KINESIS_CONSUME_STREAM_NAME: "qcat-bonuscat-dev-kds-stream"
+  KINESIS_CONSUME_STREAM_NAME: "fatcat-extension-pro-kds-stream"
 
   # Producer 發送事件用
-  KINESIS_PRODUCE_STREAM_NAME: "ms-identity-lab"
-  KINESIS_STREAM_ARN: "arn:aws:kinesis:ap-northeast-1:REDACTED_AWS_ACCOUNT_PRO:stream/fatcat-extension-pro-kds-stream"
-  DYNAMODB_TABLE: "fatcat-extension-pro"
-  DYNAMODB_PARTITION_KEY: "partition_key"
+  KINESIS_PRODUCE_STREAM_NAME: "fatcat-extension-fat-identity-cat-pro-kds-stream"
+  KINESIS_STREAM_ARN: "arn:aws:kinesis:ap-northeast-1:REDACTED_AWS_ACCOUNT_PRO:stream/fatcat-extension-fat-identity-cat-pro-kds-stream"
+  DYNAMODB_TABLE: "fat-identity-cat"
+  DYNAMODB_PARTITION_KEY: "partition-key"
 
   # OpenObserve設置
   OPENOBSERVE_TRACE_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-prod/traces"
@@ -110,7 +110,7 @@ env:
 
 # Usage: ./encrypt-secret-data.sh fatidentitycat fatcat-extension DB_PASSWORD=<secret>
 encryptedEnv:
-  DB_PASSWORD: AgBWstCrQu1a/GUsscHkOx5on41bUAYOOjXa1IKQz3RjUpD4HC92w5Q8KPooPF8iGcLHDiP4Ik2TEgYdIcD9otS3PFh3e0y15XKNjXvBwaENUkHoJzx6Y9hYV5pshPR8Y60L2uCDa4GCkjTwjcZWenYWBgq/w8dGCn3XuNYPio++5wzeFDsWN1mFaS3KtWONO4Q3N/6tJS3ajJXL8rrrAkfVDCHPHag82zDaWAFP/2JLxUspGkJDvISchZU8q6KDlrwQnD8ziznDI90ACXvP/qZ5z5Qq3+oPzF4mHN3r6wwHGx9i4S8qViIjYS4j+f8URpFfTNJyB3AuC+7BxoB3dxq16iOHfUFj7VITiZxLNavD9IB87kKqxjUCEa1a/zbJTjcY1X3fV4xQ6Kpgp22nZLOw4XGEZn8d8RwWqnWnnnPCj3RyR5BPUcg0cKVJwbn+IGLzjDM2WXC/ADBYlNPuYH2ZRW+q8ROHa7GbZdfsuw2/0t7xWRwNGnF7LszFzrEIuPaMYDu+p5hKwtWwBeQgyJouGdfZapqTshUgg2wO51/PBQaXg3Nhl5fVuzP2kg6XuMiOVIHvr1Md9BcN7f29dfLKmwTpU5kPeYxscXd52fYgW9b3j+YvO4qcuptajnr8qbUoHkRHc2mImlES01LFpJbDp9MmWlqNtqW0q/GhDO6V04cmIp++hig5X/u/x7Ys/07xYsFRppcHJdJB1j1NJ7MZYMprGWLJqNSbaz0T3POSabPoYw496Wz6CRRqFZR3GBixidkn5g==
+  DB_PASSWORD: AgCTkO3Eg/H8ue7Yf8Ilbzc095Oil1xlHFpAqDKUHMD+Ee2WQaRSjvUwcanqECdreOBo/IY6iRnKbm4tuITYimj2XqCjXWkNgU8xVbY1FogcWED99XObExlgOGGZTi5ApIGQpp7B0MH6UV74j3i9ll87jsb8287oTaIv4GLYNk5mm36OdX78ghbpuB6N6RQ1zAwnoVG6kxbuxqButxkITCvv0lPro+h63lPmmIetrU+I1odACTnjpqbGwfXoPaj+RDuCqBJqSO/JaHY5qeE8s640bakblbWPZtM3N7Feg8iGH1ZV4b7yXwhf0IX3yWOubVu66+ej26LIbZP+JP81tYTV37gqqRspFOCByiRy2dcWyyH3cxHZPuerdNs/FLzESXWIIsFWbnaBZzN3I+oyqxUUJbTtbyMyMTSmgXIORT1jm+a7zZg2NkvJH8q02K1bpuykJrORr7UJzWCzEQwJzojjRFHqm5uI01X1hvSHc82im5qYwbzRO+9KCSM+rhwhRyI7M8z0JpGI9NSvFq0Akh6ejKI2WCD/BFpRH83s+7treSb1JHdLehP4gT1TdVsqNQ8Yw2sq6GohM+s0yoaX1BIPzy5z6pOL98feXCvUa2eMeQXbtTFG3IrkiihUCEhd/OVzp+Df2VcXGSZY9/WhYr39JRWtFlNyvysO0Vq8uQdQHmnRtkxiH7h7jLFjud7sHZ3JDEsb9No11lzW6MwTqH1RLo2yJmO8u/2F3+6IRgG8AhYmuqbdA14mMgWYCYreSYu2DXTNvA==
   OPENOBSERVE_TRACE_API_KEY: AgClkmEE+0/eBFbTtsvWCpWu+ylq+ji3I+TuO1md0dynekubBNeFdajVjX+oXwybSCarMo6HbrNBQ5fyEvxVJjYloI0LmGCb0my6Uq5hI86umBy5na4UeGFTouwpvqvoYfyy2AIEh5UBJmsUKaURIQvUPkW3uDualFB4+I6DUXJmybvJ95DYvJ+rKz6x+QVGODtdFDjxYVbr7mjk1OFHvJm7ixWO9df2lzVg3+bs+OC5Nvub80CJmDcirkPfwQrJDv4+c3FFgjFQ+xu8bNP8G6guq5mZUrDLGQ03JBoj4Goa72X+UzYZ4Qbni0R/iELyu9C2pn3cKL52xyuwkPpkxe8CTGCI8MVPugbGRNOg6MUKhrV9kGEFj6OYBSf5VMUD7MoGuyDpDBC3sxsVhaL6vN99DpUULTSzJc824rLtv/kLhtiLA98JWuN4SJdUaL4sFOG0L2l7EO+q/wZYs5Ma7M0aiDx4723MWPbC8TNZHXCiMSo2iSlsIvFbmIpGrKp2CSHAfwU+mV3hIWR/kKgWdRNJ75C4c3ZmDbAFsLmRx2ZH5jlxaCR89hL2/ZNZjw5VTgYFjfrmlDGJqzAwdIqsSf4LBqeB4T0GNQU5sOUSxEoly1Xl9XfygXHyxtvLw9IphOP+5/5eGcA90dSzXa32psNDkvC6Qxampr+qNaTHjrybcRwC6MikAu9YL4XXHxNhifpto5GbCNE6+/d5XFxg7Pa6Zos71NJ08Jvtayd5NQNkw97q26FZ4hlTLJkxnupAvloOx19iMbMUqh5Qq+0dPA==
   OPENOBSERVE_LOGS_PASSWORD: AgAN2d/PminpAJGREZk6eKokonN5W02pYU5DdZCrdjR9z2P2HUqebq/GDLn1pBQZ8v8jje5N63AtMx/uq3szAnkPXpcP8bxcJUM8+yyighQARI9kKfPKOlK0l9OPmux8HcgvBk4eKKv3ZEgsvS0MgziB0IqKFnmH3ftfpJl+AcHNOFjwwfl2bBihkP4YHTT5VlpBSZVLMtB7gxEt3hAHUEfaA04H7mBflsSbiKYjHjFgrPyEmcNdopqXA2xliEa8rUau5X6ztvvOELsjvFTJtvHOXz2Av7ZSdptrI3rs8LnRbDUPEBXirA/b7Osxmy4jQ0+YMGO39TJN4VrYEqaODVLAScEh1I5qxAdOqh5mpY6AJXjTsCRR+YGVz4Bjhbejfm7RNOp4+tmDV6ViKlWKHvE0ikSu1vOr5wjHipmD7VMl56QSA/UH06Kd18v1xwBVzWHG7FggSKYBQSsonp30gdkpHrUVzs3c7adVLR4lopVLOLkBHKmAMsWvmU66TkyW57kVyRuwD2CO1+D/tVzfW8sRtU6E6VSuEtSqUrY6eG1U9mj4V/EGD0tijdzsw+jDMTljoi9DKjJOdHSzY15FZ3yxrBag5zUPIg89w1FnjarXz4nFo4gmtVVrwjL42g4XCj+Je5PKhlnGXw+aZR6TA2Z/XIHu+K6yvNxF4xsBQGYfYY3KxxTBI58u4DyOy3lk04MrOYBRBm1cB/HbBP2Ch4XM
 
