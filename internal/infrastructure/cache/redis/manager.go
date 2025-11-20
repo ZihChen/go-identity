@@ -10,9 +10,13 @@ import (
 
 	"github.com/go-redsync/redsync/v4"
 	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/redis/go-redis/v9"
 )
+
+// 確保Manager實現CacheManager介面 (編譯時檢查)
+var _ infrastructure.CacheManager = (*Manager)(nil)
 
 type Manager struct {
 	client   *redis.Client
@@ -33,8 +37,11 @@ func (m *Manager) Connect(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if m.client != nil {
-		return nil // Redis connection 還存在
+		return nil // Redis connection 已存在
 	}
+
+	retryCount := 0
+	maxRetries := 5
 
 	for {
 		select {
@@ -62,19 +69,30 @@ func (m *Manager) Connect(ctx context.Context) error {
 
 			// 測試連接
 			if err := client.Ping(ctx).Err(); err != nil {
-				log.Printf("Failed to connect to Redis: %v, retrying in 3 seconds...", err)
+				retryCount++
+				if retryCount >= maxRetries {
+					_ = client.Close()
+					return fmt.Errorf("failed to connect to Redis after %d attempts: %w", maxRetries, err)
+				}
+
+				// 指數退避策略，最大30秒
+				backoff := time.Duration(1<<uint(retryCount)) * time.Second
+				if backoff > 30*time.Second {
+					backoff = 30 * time.Second
+				}
+
+				log.Printf("Failed to connect to Redis (attempt %d/%d): %v, retrying in %v...",
+					retryCount, maxRetries, err, backoff)
+
 				_ = client.Close()
-				time.Sleep(3 * time.Second) // 等待三秒重新連線
+				time.Sleep(backoff)
 				continue
 			}
 
 			// 連接成功
 			m.client, m.redsync, m.isClosed = client, rs, false
-			log.Printf(
-				"Successfully connected to Redis at %s:%d",
-				m.config.Redis.Domain,
-				m.config.Redis.Port,
-			)
+			log.Printf("Successfully connected to Redis at %s:%d",
+				m.config.Redis.Domain, m.config.Redis.Port)
 			return nil
 		}
 	}
