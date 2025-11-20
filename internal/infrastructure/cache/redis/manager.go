@@ -176,12 +176,12 @@ func (m *Manager) GetMutexWithOption(
 }
 
 // Pipeline 返回 Redis Pipeline 用於批次操作
-func (m *Manager) Pipeline() redis.Pipeliner {
+func (m *Manager) Pipeline() (redis.Pipeliner, error) {
 	client, err := m.GetClient()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to get redis client for pipeline: %w", err)
 	}
-	return client.Pipeline()
+	return client.Pipeline(), nil
 }
 
 // MGet 批次獲取多個 key 的值
@@ -191,4 +191,13 @@ func (m *Manager) MGet(ctx context.Context, keys ...string) ([]interface{}, erro
 		return nil, err
 	}
 	return client.MGet(ctx, keys...).Result()
+}
+
+// HealthCheck 檢查Redis連接健康狀況
+func (m *Manager) HealthCheck(ctx context.Context) error {
+	client, err := m.GetClient()
+	if err != nil {
+		return err
+	}
+	return client.Ping(ctx).Err()
 }

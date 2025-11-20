@@ -391,7 +391,12 @@ func (k *KDSService) batchMarkEventsProcessed(ctx context.Context, eventIDs []st
 	}
 
 	// 使用 Pipeline 批次設置
-	pipeline := k.redisManager.Pipeline()
+	pipeline, err := k.redisManager.Pipeline()
+	if err != nil {
+		k.logger.WarnWithContext(ctx, "Failed to get Redis pipeline",
+			k.logger.Error("err", err))
+		return
+	}
 
 	for _, eventID := range eventIDs {
 		if eventID != "" {
