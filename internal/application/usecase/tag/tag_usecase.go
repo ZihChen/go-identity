@@ -16,7 +16,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -28,7 +27,7 @@ type TagUseCase struct {
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
 	tracing       infrastructure.TracingService
-	redisManager  *redisCache.Manager
+	redisManager  infrastructure.CacheManager
 }
 
 func NewTagUseCase(
@@ -39,7 +38,7 @@ func NewTagUseCase(
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
-	redisManager *redisCache.Manager,
+	redisManager infrastructure.CacheManager,
 ) inbound.TagUseCase {
 	return &TagUseCase{
 		tagRepo:       tagRepo,

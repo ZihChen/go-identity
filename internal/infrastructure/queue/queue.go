@@ -14,7 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -250,7 +249,7 @@ func NewWorkerServer(
 	cfg *config.Config,
 	logger infrastructure.Logger,
 	failedTaskUseCase inbound.FailedTaskEventUseCase,
-	redisManager *redisCache.Manager,
+	redisManager infrastructure.CacheManager,
 	tracing infrastructure.TracingService,
 ) (*asynq.Server, error) {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Domain, cfg.Redis.Port)

@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	cfg "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 )
 
@@ -16,7 +15,7 @@ import (
 type KDSService struct {
 	client        *kinesis.Client
 	dynamoClient  *dynamodb.Client
-	redisManager  *redisCache.Manager
+	redisManager  infrastructure.CacheManager
 	streamName    string
 	consumeStream string
 	produceStream string
@@ -33,7 +32,7 @@ type KDSService struct {
 func NewKDSService(
 	config *cfg.Config,
 	queueService service.QueueService,
-	redisManager *redisCache.Manager,
+	redisManager infrastructure.CacheManager,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
 ) (*KDSService, error) {

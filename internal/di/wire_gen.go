@@ -29,19 +29,18 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
-	redis2 "github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 // Injectors from wire.go:
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*api.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*api.HTTPHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	tracingService, err := provideTracingService(cfg)
 	if err != nil {
@@ -71,7 +70,7 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*worker.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*worker.WorkerHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	tracingService, err := provideTracingService(cfg)
 	if err != nil {
@@ -107,7 +106,7 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*WorkerComponents, error) {
+func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*WorkerComponents, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	tracingService, err := provideTracingService(cfg)
 	if err != nil {
@@ -153,7 +152,7 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 }
 
 // InitializeConsumerHandler 初始化 Consumer 服務的 Handler
-func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager) (*consumer.ConsumerHandler, error) {
+func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager) (*consumer.ConsumerHandler, error) {
 	tracingService, err := provideTracingService(cfg)
 	if err != nil {
 		return nil, err
@@ -197,12 +196,12 @@ func provideTracingService(cfg *config.Config) (infrastructure.TracingService, e
 }
 
 // 提供 worker 服務器
-func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger, failedTaskUseCase inbound.FailedTaskEventUseCase, redisManager *redis.Manager, tracing2 infrastructure.TracingService) (*asynq.Server, error) {
+func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger, failedTaskUseCase inbound.FailedTaskEventUseCase, redisManager infrastructure.CacheManager, tracing2 infrastructure.TracingService) (*asynq.Server, error) {
 	return queue.NewWorkerServer(cfg, logger, failedTaskUseCase, redisManager, tracing2)
 }
 
 // 提供 Redis 客戶端
-func provideRedisClient(manager *redis.Manager) (*redis2.Client, error) {
+func provideRedisClient(manager infrastructure.CacheManager) (*redis.Client, error) {
 	redisInstance, err := manager.GetClient()
 	if err != nil {
 		return nil, err
