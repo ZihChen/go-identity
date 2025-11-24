@@ -119,6 +119,6 @@ app:
   name: fatidentitycat
   appName: fatidentitycat
   image:
-    repository: REDACTED_AWS_ACCOUNT_PRO.dkr.ecr.ap-northeast-1.amazonaws.com/fatcat-extension/fatidentitycat
+    repository: REDACTED_AWS_ACCOUNT_PRO.dkr.ecr.ap-northeast-1.amazonaws.com/fatcat-extension/fat-identity-cat
     tag: latest
   replicas: 1
