@@ -72,7 +72,11 @@ func (m *Manager) Connect(ctx context.Context) error {
 				retryCount++
 				if retryCount >= maxRetries {
 					_ = client.Close()
-					return fmt.Errorf("failed to connect to Redis after %d attempts: %w", maxRetries, err)
+					return fmt.Errorf(
+						"failed to connect to Redis after %d attempts: %w",
+						maxRetries,
+						err,
+					)
 				}
 
 				// 指數退避策略，最大30秒

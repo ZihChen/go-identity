@@ -15,8 +15,18 @@ type CacheManager interface {
 	Close() error
 
 	// 基本操作
-	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) (string, error)
-	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error)
+	Set(
+		ctx context.Context,
+		key string,
+		value interface{},
+		expiration time.Duration,
+	) (string, error)
+	SetNX(
+		ctx context.Context,
+		key string,
+		value interface{},
+		expiration time.Duration,
+	) (bool, error)
 	MGet(ctx context.Context, keys ...string) ([]interface{}, error)
 
 	// Pipeline操作 (安全版本)
