@@ -11,13 +11,18 @@ type WorkerConfig struct {
 	TaskTimeout     time.Duration           // 任務超時時間
 	MaxRetries      int                     // 最大重試次數
 	RetryDelay      func(int) time.Duration // 重試延遲函數
+	// Redis 連接池配置
+	RedisPoolSize     int           // Redis 連接池大小
+	RedisDialTimeout  time.Duration // Redis 連接超時
+	RedisReadTimeout  time.Duration // Redis 讀取超時
+	RedisWriteTimeout time.Duration // Redis 寫入超時
 }
 
 // getDevConfig 開發環境配置
 // 針對 64Mi memory, 100m-500m CPU 的資源限制進行優化
 func getDevConfig() WorkerConfig {
 	return WorkerConfig{
-		Concurrency: 3, // 減少併發以避免記憶體超限
+		Concurrency: 5, // 減少併發以避免記憶體超限
 		QueuePriorities: map[string]int{
 			"default":  2, // 降低優先級數量
 			"critical": 3,
@@ -28,6 +33,11 @@ func getDevConfig() WorkerConfig {
 			// 線性退避策略，避免指數增長消耗資源
 			return time.Duration(n) * 2 * time.Second
 		},
+		// Dev 環境連接池配置 - 保守設定
+		RedisPoolSize:     8,               // 小連接池，節省資源
+		RedisDialTimeout:  3 * time.Second, // 較短連接超時
+		RedisReadTimeout:  2 * time.Second, // 快速讀取
+		RedisWriteTimeout: 2 * time.Second, // 快速寫入
 	}
 }
 
@@ -35,7 +45,7 @@ func getDevConfig() WorkerConfig {
 // 針對 AWS Valkey 雙核心 4G 記憶體進行優化 (3 pods部署)
 func getProdConfig() WorkerConfig {
 	return WorkerConfig{
-		Concurrency: 6, // 3 workers/core × 2 cores = 6，避免過度併發
+		Concurrency: 8,
 		QueuePriorities: map[string]int{
 			"default":  5,  // 標準優先級
 			"critical": 10, // 高優先級
@@ -51,6 +61,10 @@ func getProdConfig() WorkerConfig {
 			}
 			return delay
 		},
+		RedisPoolSize:     15,              // 每個pod 15個連接 (3×15=45 < Valkey limit)
+		RedisDialTimeout:  5 * time.Second, // 較長連接超時，處理網路延遲
+		RedisReadTimeout:  3 * time.Second, // 適中讀取超時
+		RedisWriteTimeout: 3 * time.Second, // 適中寫入超時
 	}
 }
 
@@ -58,7 +72,7 @@ func getProdConfig() WorkerConfig {
 // 用於未明確指定環境的情況
 func getDefaultConfig() WorkerConfig {
 	return WorkerConfig{
-		Concurrency: 5, // 中等併發度
+		Concurrency: 5,
 		QueuePriorities: map[string]int{
 			"default":  5,
 			"critical": 10,
@@ -74,6 +88,11 @@ func getDefaultConfig() WorkerConfig {
 			}
 			return delay
 		},
+		// 默認環境連接池配置
+		RedisPoolSize:     10,              // 中等連接池
+		RedisDialTimeout:  4 * time.Second, // 中等連接超時
+		RedisReadTimeout:  2 * time.Second, // 中等讀取超時
+		RedisWriteTimeout: 2 * time.Second, // 中等寫入超時
 	}
 }
 
