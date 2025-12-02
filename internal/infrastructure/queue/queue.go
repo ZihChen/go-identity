@@ -34,6 +34,7 @@ type QueueService struct {
 	client  *asynq.Client
 	logger  infrastructure.Logger
 	tracing infrastructure.TracingService
+	cfg     *config.Config
 }
 
 // NewQueueService 創建佇列服務
@@ -44,14 +45,23 @@ func NewQueueService(
 ) (service.QueueService, error) {
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Domain, cfg.Redis.Port)
 
+	// 根據環境獲取動態配置
+	workerConfig := getWorkerConfigByEnv(cfg.App.Env)
+
 	logger.InfoLog("Connecting to Redis",
 		logger.String("redis_addr", redisAddr),
-		logger.Int("redis_db", cfg.Redis.DB))
+		logger.Int("redis_db", cfg.Redis.DB),
+		logger.String("environment", cfg.App.Env),
+		logger.Int("pool_size", workerConfig.RedisPoolSize))
 
 	redisOpt := asynq.RedisClientOpt{
-		Addr:     redisAddr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
+		Addr:         redisAddr,
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		PoolSize:     workerConfig.RedisPoolSize,
+		DialTimeout:  workerConfig.RedisDialTimeout,
+		ReadTimeout:  workerConfig.RedisReadTimeout,
+		WriteTimeout: workerConfig.RedisWriteTimeout,
 	}
 
 	client := asynq.NewClient(redisOpt)
@@ -62,6 +72,7 @@ func NewQueueService(
 		client:  client,
 		logger:  logger,
 		tracing: tracing,
+		cfg:     cfg,
 	}, nil
 }
 
@@ -132,14 +143,15 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 	// 記錄任務創建事件
 	q.tracing.TraceEvent(span, "Task created for Redis queue")
 
-	// 設置任務選項 - 改進的重試策略
+	// 根據環境獲取任務配置
+	workerConfig := getWorkerConfigByEnv(q.cfg.App.Env)
+
+	// 設置環境感知的任務選項
 	opts := []asynq.Option{
-		// 指數退避重試策略，最多重試5次
-		asynq.MaxRetry(5),
-		// 使用自訂的重試延遲函數設定
-		asynq.ProcessIn(0),              // 立即處理
-		asynq.Timeout(30 * time.Second), // 任務超時設置
-		asynq.Retention(0),              // 任務完成後立即刪除
+		asynq.MaxRetry(workerConfig.MaxRetries), // 環境感知的重試次數
+		asynq.ProcessIn(0),                      // 立即處理
+		asynq.Timeout(workerConfig.TaskTimeout), // 環境感知的任務超時
+		asynq.Retention(0),                      // 任務完成後立即刪除
 	}
 
 	// 將任務加入佇列
@@ -172,7 +184,10 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 		q.logger.String("task_type", taskType),
 		q.logger.String("task_id", info.ID),
 		q.logger.String("queue", info.Queue),
-		q.logger.String("event_id", eventID))
+		q.logger.String("event_id", eventID),
+		q.logger.String("environment", q.cfg.App.Env),
+		q.logger.Int("max_retries", workerConfig.MaxRetries),
+		q.logger.String("task_timeout", workerConfig.TaskTimeout.String()))
 
 	return nil
 }
@@ -258,31 +273,34 @@ func NewWorkerServer(
 		logger.String("redis_addr", redisAddr),
 		logger.Int("redis_db", cfg.Redis.DB))
 
+	// 根據環境獲取動態配置
+	workerConfig := getWorkerConfigByEnv(cfg.App.Env)
+
 	redisOpt := asynq.RedisClientOpt{
-		Addr:     redisAddr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
+		Addr:         redisAddr,
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		PoolSize:     workerConfig.RedisPoolSize,
+		DialTimeout:  workerConfig.RedisDialTimeout,
+		ReadTimeout:  workerConfig.RedisReadTimeout,
+		WriteTimeout: workerConfig.RedisWriteTimeout,
 	}
 
-	// 設置服務器配置
-	concurrency := 10
-	queues := map[string]int{
-		"default":  5,  // 默認優先級
-		"critical": 10, // 高優先級
-	}
-
-	logger.InfoLog("Worker server configuration",
-		logger.Int("concurrency", concurrency),
-		logger.Any("queues", queues))
-
-	// 創建任務清理服務
-	//taskCleanupService := redisCache.NewTaskCleanupService(redisManager, logger, tracing)
+	logger.InfoLog("Environment-aware worker server configuration",
+		logger.String("environment", cfg.App.Env),
+		logger.Int("concurrency", workerConfig.Concurrency),
+		logger.Any("queues", workerConfig.QueuePriorities),
+		logger.String("task_timeout", workerConfig.TaskTimeout.String()),
+		logger.Int("max_retries", workerConfig.MaxRetries),
+		logger.Int("redis_pool_size", workerConfig.RedisPoolSize),
+		logger.String("redis_dial_timeout", workerConfig.RedisDialTimeout.String()))
 
 	server := asynq.NewServer(
 		redisOpt,
 		asynq.Config{
-			Concurrency: concurrency,
-			Queues:      queues,
+			Concurrency:     workerConfig.Concurrency,
+			Queues:          workerConfig.QueuePriorities,
+			ShutdownTimeout: 30 * time.Second,
 			RetryDelayFunc: func(n int, err error, task *asynq.Task) time.Duration {
 				defer func() {
 					if r := recover(); r != nil {
@@ -295,6 +313,7 @@ func NewWorkerServer(
 				logFields := []*entity.LoggerFiled{
 					logger.Int("retry_count", n),
 					logger.Error("err", err),
+					logger.String("environment", cfg.App.Env),
 				}
 
 				if task != nil {
@@ -303,15 +322,10 @@ func NewWorkerServer(
 						logger.String("payload", string(task.Payload())))
 				}
 
-				logger.InfoLog("Task retry scheduled", logFields...)
+				logger.InfoLog("Task retry scheduled with environment-aware strategy", logFields...)
 
-				// 使用指數退避策略，但設置上限
-				delay := time.Duration(n*n) * time.Second
-				maxDelay := 5 * time.Minute
-				if delay > maxDelay {
-					delay = maxDelay
-				}
-				return delay
+				// 使用環境感知的重試延遲策略
+				return workerConfig.RetryDelay(n)
 			},
 			ErrorHandler: asynq.ErrorHandlerFunc(
 				func(ctx context.Context, task *asynq.Task, err error) {
