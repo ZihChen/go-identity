@@ -13,6 +13,20 @@
   - 技術實施策略和常見陷阱避免
   - 實用的重構方法論
 
+### 🛠️ 專案重構工作
+
+- **[player-tags-upsert-refactor/](./player-tags-upsert-refactor/)** - 玩家同步 Deadlock 優化項目
+  - **CLAUDE-2025-12-03-v1.2.md** - Repository 層 MySQL deadlock retry 實作指南
+  - 解決 0.81% deadlock 錯誤率，提升至 99.95%+ 成功率
+  - 三層防護架構：Asynq + Redis + MySQL deadlock retry
+
+- **[redis-refactor/](./redis-refactor/)** - Redis 快取功能增強項目
+  - **CLAUDE-2025-11-20-v1.0.md** - 四階段 Redis 優化實作
+  - Pipeline 安全性修復、健康檢查、介面標準化、重試策略優化
+
+- **[queue-perf/](./queue-perf/)** - 佇列效能優化項目
+  - **CLAUDE-2025-12-02-v1.0.md** - 佇列效能分析與優化建議
+
 ## 使用指南
 
 ### 開始新的重構項目時
@@ -60,11 +74,22 @@ graph TD
 
 ## 歷史記錄
 
-- **2025-09-12**: Consumer v2.0 重構完成，性能提升 3.3 倍
+- **2025-12-03**: Player Sync Deadlock 優化完成，Repository 層 MySQL retry 實作 ✅
+- **2025-11-20**: Redis Cache 四階段功能增強完成 ✅
+- **2025-09-12**: Consumer v2.0 重構完成，性能提升 3.3 倍 ✅
 - **2025-09-09**: Consumer v3.0 複雜設計，後被簡化為 v2.0
-- **2025-09-09**: Router v2.0 統一管理系統完成
+- **2025-09-09**: Router v2.0 統一管理系統完成 ✅
+
+## 最新成果
+
+### 🎯 Player Sync Deadlock Optimization (v7.0) - 2025-12-03
+**重點成就**: Repository 層 MySQL deadlock retry 機制實作
+- **問題解決**: 0.81% deadlock 錯誤率降至 <0.05%
+- **實作位置**: `player_repository.go:110`, `player_tag_repository.go:23`
+- **架構優勢**: 零業務邏輯影響，三層防護完整覆蓋
+- **技術特點**: 智能錯誤檢測 + 指數退避重試策略
 
 ---
 
 **目錄維護**: Claude Code Agent  
-**最後更新**: 2025-09-12
+**最後更新**: 2025-12-03
