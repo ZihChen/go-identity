@@ -116,8 +116,7 @@ type EventsConfig struct {
 // ConsumerConfig Consumer 服務配置
 type ConsumerConfig struct {
 	// 批次處理配置
-	BatchSize        int           // 每批次記錄數 (用於 Worker Pool 處理)
-	MaxBatchWaitTime time.Duration // 批次最大等待時間
+	BatchSize int // 每批次記錄數 (用於 Worker Pool 處理)
 
 	// KDS 獲取配置
 	KDSRecordLimit int // 每次從 KDS GetRecords 獲取的記錄數上限
@@ -129,10 +128,6 @@ type ConsumerConfig struct {
 	// 退避策略配置
 	MinBackoff time.Duration // 最小退避時間
 	MaxBackoff time.Duration // 最大退避時間
-
-	// 分片處理配置
-	MaxShardConcurrency int           // 最大並行分片數
-	ShardLockTimeout    time.Duration // 分片鎖超時時間
 }
 
 // CORSConfig CORS配置
@@ -236,10 +231,6 @@ func LoadConfig() (*Config, error) {
 		Consumer: ConsumerConfig{
 			// 批次處理配置
 			BatchSize: getIntWithDefault("CONSUMER_BATCH_SIZE", 100),
-			MaxBatchWaitTime: getDurationWithDefault(
-				"CONSUMER_MAX_BATCH_WAIT_TIME",
-				500*time.Millisecond,
-			),
 
 			// KDS 獲取配置
 			KDSRecordLimit: getIntWithDefault("CONSUMER_KDS_RECORD_LIMIT", 1000),
@@ -251,13 +242,6 @@ func LoadConfig() (*Config, error) {
 			// 退避策略配置
 			MinBackoff: getDurationWithDefault("CONSUMER_MIN_BACKOFF", 500*time.Millisecond),
 			MaxBackoff: getDurationWithDefault("CONSUMER_MAX_BACKOFF", 5*time.Second),
-
-			// 分片處理配置
-			MaxShardConcurrency: getIntWithDefault("CONSUMER_MAX_SHARD_CONCURRENCY", 8),
-			ShardLockTimeout: getDurationWithDefault(
-				"CONSUMER_SHARD_LOCK_TIMEOUT",
-				1*time.Minute,
-			),
 		},
 		CORS: CORSConfig{
 			Enabled:        getBoolWithDefault("CORS_ENABLED", true),
@@ -417,14 +401,11 @@ func (c *Config) PrintConfig() {
 
 	fmt.Printf("\n[Consumer]\n")
 	fmt.Printf("  BatchSize: %d\n", c.Consumer.BatchSize)
-	fmt.Printf("  MaxBatchWaitTime: %v\n", c.Consumer.MaxBatchWaitTime)
 	fmt.Printf("  KDSRecordLimit: %d\n", c.Consumer.KDSRecordLimit)
 	fmt.Printf("  WorkerPoolSize: %d\n", c.Consumer.WorkerPoolSize)
 	fmt.Printf("  WorkerBufferSize: %d\n", c.Consumer.WorkerBufferSize)
 	fmt.Printf("  MinBackoff: %v\n", c.Consumer.MinBackoff)
 	fmt.Printf("  MaxBackoff: %v\n", c.Consumer.MaxBackoff)
-	fmt.Printf("  MaxShardConcurrency: %d\n", c.Consumer.MaxShardConcurrency)
-	fmt.Printf("  ShardLockTimeout: %v\n", c.Consumer.ShardLockTimeout)
 
 	fmt.Printf("\n[CORS]\n")
 	fmt.Printf("  Enabled: %t\n", c.CORS.Enabled)

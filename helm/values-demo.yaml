@@ -68,33 +68,16 @@ env:
 
   # Consumer v2.0 性能配置 ✨ NEW
   # 批次處理配置
-  CONSUMER_BATCH_SIZE: "100"              # 每批次記錄數
-  CONSUMER_MAX_BATCH_WAIT_TIME: "500ms"    # 批次最大等待時間
-  CONSUMER_KDS_RECORD_LIMIT: "1000"        # KDS GetRecords 限制
+  CONSUMER_KDS_RECORD_LIMIT: "500"        # KDS GetRecords 限制
+  CONSUMER_BATCH_SIZE: "50"               # 每批次記錄數
   
   # Worker Pool 配置
-  CONSUMER_WORKER_POOL_SIZE: "10"          # Worker 數量
-  CONSUMER_WORKER_BUFFER_SIZE: "200"       # Worker 通道緩衝大小
+  CONSUMER_WORKER_POOL_SIZE: "8"          # Worker 數量
+  CONSUMER_WORKER_BUFFER_SIZE: "800"      # Worker 通道緩衝大小
   
   # 退避策略配置
-  CONSUMER_MIN_BACKOFF: "500ms"            # 最小退避時間
-  CONSUMER_MAX_BACKOFF: "5s"               # 最大退避時間
-  
-  # 分片處理配置
-  CONSUMER_MAX_SHARD_CONCURRENCY: "8"      # 最大並行分片數
-  CONSUMER_SHARD_LOCK_TIMEOUT: "1m"        # 分片鎖超時
-  
-  # 監控配置
-  CONSUMER_METRICS_INTERVAL: "30s"         # 指標收集間隔
-  CONSUMER_HEALTH_CHECK_INTERVAL: "10s"    # 健康檢查間隔
-  
-  # 恢復機制配置
-  CONSUMER_ENABLE_PANIC_RECOVERY: "true"   # 啟用 Panic 恢復
-  CONSUMER_MAX_RECOVERY_ATTEMPTS: "3"      # 最大恢復嘗試
-  
-  # 分散式鎖配置
-  CONSUMER_LOCK_RETRY_INTERVAL: "1s"       # 鎖重試間隔
-  CONSUMER_LOCK_MAX_RETRIES: "5"           # 鎖最大重試次數
+  CONSUMER_MIN_BACKOFF: "1s"              # 最小退避時間
+  CONSUMER_MAX_BACKOFF: "10s"             # 最大退避時間
 
   # KDS Events
   EVENT_MERCHANT_SYNC: "tw.jvd.fatcat.merchant.sync.v1"
