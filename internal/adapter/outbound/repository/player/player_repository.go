@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -108,6 +109,32 @@ func (r *PlayerRepository) Delete(ctx context.Context, id uint64) error {
 
 // Upsert 資料冪等性設計：只有當新資料的UpdatedAt要大於當前資料，並且內容要不同時才更新
 func (r *PlayerRepository) Upsert(ctx context.Context, player *entity.Player) error {
+	const maxRetries = 5
+	const baseDelay = 100 * time.Millisecond
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		err := r.upsertWithoutRetry(ctx, player)
+
+		if err == nil {
+			return nil
+		}
+
+		// 檢查是否為 deadlock 錯誤
+		if r.isDeadlockError(err) && attempt < maxRetries {
+			delay := baseDelay * time.Duration(1<<uint(attempt))
+			time.Sleep(delay)
+			continue
+		}
+
+		// 非 deadlock 錯誤或達到最大重試次數
+		return err
+	}
+
+	return fmt.Errorf("player upsert failed after %d retries", maxRetries)
+}
+
+// upsertWithoutRetry 原始的 Upsert 邏輯，不含 retry
+func (r *PlayerRepository) upsertWithoutRetry(ctx context.Context, player *entity.Player) error {
 	playerModel := mapToDBPlayer(player)
 
 	updates := map[string]interface{}{
@@ -143,6 +170,17 @@ func (r *PlayerRepository) Upsert(ctx context.Context, player *entity.Player) er
 		return fmt.Errorf("timestamp-based upsert failed: %w", result.Error)
 	}
 	return nil
+}
+
+// isDeadlockError 檢查是否為 MySQL deadlock 錯誤
+func (r *PlayerRepository) isDeadlockError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errorStr := err.Error()
+	return strings.Contains(errorStr, "Deadlock found") ||
+		strings.Contains(errorStr, "1213") ||
+		strings.Contains(errorStr, "40001")
 }
 
 // 將DB模型映射到領域模型

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
@@ -20,6 +21,36 @@ func NewPlayerTagRepository(db *gorm.DB) repository.PlayerTagRepository {
 }
 
 func (r *PlayerTagRepository) BatchUpdate(
+	ctx context.Context,
+	playerID uint64,
+	tagIDs []uint64,
+) error {
+	const maxRetries = 5
+	const baseDelay = 100 * time.Millisecond
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		err := r.batchUpdateWithoutRetry(ctx, playerID, tagIDs)
+
+		if err == nil {
+			return nil
+		}
+
+		// 檢查是否為 deadlock 錯誤
+		if r.isDeadlockError(err) && attempt < maxRetries {
+			delay := baseDelay * time.Duration(1<<uint(attempt)) // 100ms, 200ms, 400ms
+			time.Sleep(delay)
+			continue
+		}
+
+		// 非 deadlock 錯誤或達到最大重試次數
+		return err
+	}
+
+	return fmt.Errorf("batch update failed after %d retries", maxRetries)
+}
+
+// batchUpdateWithoutRetry 原始的 BatchUpdate 邏輯，不含 retry
+func (r *PlayerTagRepository) batchUpdateWithoutRetry(
 	ctx context.Context,
 	playerID uint64,
 	tagIDs []uint64,
@@ -81,6 +112,17 @@ func (r *PlayerTagRepository) BatchUpdate(
 
 		return nil
 	})
+}
+
+// isDeadlockError 檢查是否為 MySQL deadlock 錯誤
+func (r *PlayerTagRepository) isDeadlockError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errorStr := err.Error()
+	return strings.Contains(errorStr, "Deadlock found") ||
+		strings.Contains(errorStr, "1213") ||
+		strings.Contains(errorStr, "40001")
 }
 
 // difference 計算兩個切片的差集：在 a 中但不在 b 中的元素
