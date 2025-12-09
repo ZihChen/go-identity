@@ -417,6 +417,8 @@ func (c *Config) PrintConfig() {
 	fmt.Printf("  WorkerBufferSize: %d\n", c.Consumer.WorkerBufferSize)
 	fmt.Printf("  MinBackoff: %v\n", c.Consumer.MinBackoff)
 	fmt.Printf("  MaxBackoff: %v\n", c.Consumer.MaxBackoff)
+	fmt.Printf("  MaxShardConcurrency: %d\n", c.Consumer.MaxShardConcurrency)
+	fmt.Printf("  ShardLockTimeout: %v\n", c.Consumer.ShardLockTimeout)
 
 	fmt.Printf("\n[CORS]\n")
 	fmt.Printf("  Enabled: %t\n", c.CORS.Enabled)
