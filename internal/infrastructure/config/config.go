@@ -128,6 +128,10 @@ type ConsumerConfig struct {
 	// 退避策略配置
 	MinBackoff time.Duration // 最小退避時間
 	MaxBackoff time.Duration // 最大退避時間
+
+	// 分片處理配置
+	MaxShardConcurrency int           // 最大並行分片數
+	ShardLockTimeout    time.Duration // 分片鎖超時時間
 }
 
 // CORSConfig CORS配置
@@ -242,6 +246,13 @@ func LoadConfig() (*Config, error) {
 			// 退避策略配置
 			MinBackoff: getDurationWithDefault("CONSUMER_MIN_BACKOFF", 500*time.Millisecond),
 			MaxBackoff: getDurationWithDefault("CONSUMER_MAX_BACKOFF", 5*time.Second),
+
+			// 分片處理配置
+			MaxShardConcurrency: getIntWithDefault("CONSUMER_MAX_SHARD_CONCURRENCY", 8),
+			ShardLockTimeout: getDurationWithDefault(
+				"CONSUMER_SHARD_LOCK_TIMEOUT",
+				1*time.Minute,
+			),
 		},
 		CORS: CORSConfig{
 			Enabled:        getBoolWithDefault("CORS_ENABLED", true),
