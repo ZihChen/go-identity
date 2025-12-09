@@ -1,5 +1,9 @@
+include:
+  - component: gitlab.jvdtech.dev/fatcat/infracat/ai-review@main
+
 stages:
   - lint
+  - ai-review
   - test
   - build
 
