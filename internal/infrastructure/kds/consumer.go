@@ -29,10 +29,6 @@ const (
 	// processedEventKeyPrefix 處理過的事件在Redis中的key前綴
 	// 格式：kds:processed:{eventId}
 	processedEventKeyPrefix = "kds:processed:"
-
-	// consumerProcessedTTL 分片處理的分佈式鎖最大持有時間
-	// 防止多個消費者同時處理同一個分片
-	consumerProcessedTTL = 1 * time.Minute
 )
 
 // EventPayload 代表從Kinesis中解析出的事件負載
@@ -90,7 +86,7 @@ type ProcessResult struct {
 //
 // 這是 KDS Consumer 的主入口點，負責：
 // 1. 獲取所有分片的迭代器
-// 2. 為每個分片創建獨立的消費者goroutine
+// 2. 使用信號量控制併發分片數量，防止資源過載
 // 3. 使用分佈式鎖防止多個消費者同時處理同一分片
 // 4. 統一管理所有分片的生命週期和錯誤處理
 //
@@ -112,9 +108,24 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 		return fmt.Errorf("failed to get shard iterators: %w", err)
 	}
 
+	// 使用信號量控制併發分片數量，防止資源過載
+	maxConcurrentShards := k.config.Consumer.MaxShardConcurrency
+	if maxConcurrentShards <= 0 {
+		maxConcurrentShards = 8 // 預設最大 8 個併發分片
+	}
+	if len(shards) < maxConcurrentShards {
+		maxConcurrentShards = len(shards) // 不超過實際分片數
+	}
+
+	k.logger.InfoWithContext(ctx,
+		"Starting shard consumers with concurrency control",
+		k.logger.Int("total_shards", len(shards)),
+		k.logger.Int("max_concurrent_shards", maxConcurrentShards))
+
 	// 為每個分片創建一個goroutine處理
 	var shardWaiters sync.WaitGroup
 	shardErrs := make(chan error, len(shards))
+	shardSemaphore := make(chan struct{}, maxConcurrentShards)
 
 	// 處理每個分片
 	for shardId, iterator := range shards {
@@ -132,8 +143,47 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 			continue
 		}
 
-		// 為每個分片創建一個協程
-		go k.consumeShardEvents(ctx, shardId, iterator, shardMutex, &shardWaiters, shardErrs)
+		// 獲取信號量許可，控制併發數量
+		select {
+		case shardSemaphore <- struct{}{}:
+			// 獲取許可成功，創建 goroutine
+			go k.consumeShardEventsWithSemaphore(
+				ctx, shardId, iterator, shardMutex,
+				&shardWaiters, shardErrs, shardSemaphore)
+		case <-ctx.Done():
+			// 上下文已取消，直接退出
+			if shardMutex != nil {
+				if ok, unlockErr := shardMutex.Unlock(); !ok || unlockErr != nil {
+					k.logger.WarnWithContext(
+						ctx,
+						"Context has been cancelled and failed to release shard lock",
+						k.logger.String("shard_id", shardId),
+						k.logger.Error("err", unlockErr),
+					)
+				}
+
+			}
+			shardWaiters.Done()
+			return ctx.Err()
+		default:
+			// 無法獲取許可，記錄警告並繼續下一個分片
+			k.logger.WarnWithContext(ctx,
+				"Shard semaphore full, skipping shard",
+				k.logger.String("shard_id", shardId),
+				k.logger.Int("max_concurrent_shards", maxConcurrentShards))
+			if shardMutex != nil {
+				if ok, unlockErr := shardMutex.Unlock(); !ok || unlockErr != nil {
+					k.logger.WarnWithContext(
+						ctx,
+						"Shard semaphore full and failed to release shard lock",
+						k.logger.String("shard_id", shardId),
+						k.logger.Error("err", unlockErr),
+					)
+				}
+			}
+			shardWaiters.Done()
+		}
+
 	}
 
 	// 等待所有分片處理完成或出錯
@@ -157,6 +207,31 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 	return nil
 }
 
+// consumeShardEventsWithSemaphore 帶信號量控制的分片事件消費
+// 在原有 consumeShardEvents 基礎上增加信號量釋放邏輯
+func (k *KDSService) consumeShardEventsWithSemaphore(
+	ctx context.Context,
+	shardId, initialIterator string,
+	shardMutex *redsync.Mutex,
+	shardWaiters *sync.WaitGroup,
+	shardErrs chan<- error,
+	semaphore chan struct{},
+) {
+	// 確保在函數退出時釋放信號量
+	defer func() {
+		// 釋放信號量許可（從信號量中讀取一個值來釋放許可）
+		<-semaphore
+		k.logger.InfoWithContext(ctx, "Released shard semaphore permit",
+			k.logger.String("shard_id", shardId))
+	}()
+
+	k.logger.InfoWithContext(ctx, "Acquired shard semaphore permit",
+		k.logger.String("shard_id", shardId))
+
+	// 調用原有的分片處理邏輯
+	k.consumeShardEvents(ctx, shardId, initialIterator, shardMutex, shardWaiters, shardErrs)
+}
+
 // acquireShardLock 獲取分片鎖
 //
 // 使用Redis分佈式鎖確保只有一個消費者實例處理特定分片。
@@ -170,7 +245,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 //   - *redsync.Mutex: 成功獲取的鎖，失敗時返回 nil
 func (k *KDSService) acquireShardLock(ctx context.Context, shardId string) *redsync.Mutex {
 	mutexKey := fmt.Sprintf(consts.ShardMutexRedisKey, k.consumeStream, shardId)
-	mutex, mutexErr := k.redisManager.GetMutex(mutexKey, consumerProcessedTTL)
+	mutex, mutexErr := k.redisManager.GetMutex(mutexKey, k.config.Consumer.ShardLockTimeout)
 	if mutexErr != nil {
 		// Redis連線異常仍執行後面程序
 		k.logger.WarnWithContext(ctx, "Failed to create mutex, skipping lock logic",

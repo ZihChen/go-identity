@@ -50,6 +50,16 @@ env:
   # Consumer 接收事件用
   KINESIS_CONSUME_STREAM_NAME: "fatcat-extension-pro-kds-stream"
 
+  # Consumer 性能配置
+  CONSUMER_BATCH_SIZE: "300"
+  CONSUMER_KDS_RECORD_LIMIT: "2000"
+  CONSUMER_WORKER_POOL_SIZE: "15"
+  CONSUMER_WORKER_BUFFER_SIZE: "500"
+  CONSUMER_MIN_BACKOFF: "500ms"
+  CONSUMER_MAX_BACKOFF: "5s"
+  CONSUMER_MAX_SHARD_CONCURRENCY: "8"
+  CONSUMER_SHARD_LOCK_TIMEOUT: "30s"
+
   # Producer 發送事件用
   KINESIS_PRODUCE_STREAM_NAME: "fatcat-extension-fat-identity-cat-pro-kds-stream"
   KINESIS_STREAM_ARN: "arn:aws:kinesis:ap-northeast-1:REDACTED_AWS_ACCOUNT_PRO:stream/fatcat-extension-fat-identity-cat-pro-kds-stream"
@@ -64,20 +74,6 @@ env:
   # OpenObserve logs設置
   OPENOBSERVE_LOGS_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-prod/default/_json"
   OPENOBSERVE_LOGS_USERNAME: "REDACTED_OO_USERNAME"
-  # OPENOBSERVE_LOGS_PASSWORD: <secret>
-
-  # Consumer v2.0 性能配置 ✨ NEW
-  # 批次處理配置
-  CONSUMER_KDS_RECORD_LIMIT: "500"        # KDS GetRecords 限制
-  CONSUMER_BATCH_SIZE: "50"               # 每批次記錄數
-  
-  # Worker Pool 配置
-  CONSUMER_WORKER_POOL_SIZE: "8"          # Worker 數量
-  CONSUMER_WORKER_BUFFER_SIZE: "800"      # Worker 通道緩衝大小
-  
-  # 退避策略配置
-  CONSUMER_MIN_BACKOFF: "1s"              # 最小退避時間
-  CONSUMER_MAX_BACKOFF: "10s"             # 最大退避時間
 
   # KDS Events
   EVENT_MERCHANT_SYNC: "tw.jvd.fatcat.merchant.sync.v1"
