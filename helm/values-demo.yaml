@@ -24,9 +24,9 @@ env:
 
   # 資料庫連線池設置
   DB_MAX_IDLE: "25"
-  DB_MAX_OPEN: "100"
-  DB_MAX_LIFETIME: "1h"
-  DB_MAX_IDLE_TIME: "30m"
+  DB_MAX_OPEN: "50"
+  DB_MAX_LIFETIME: "45m"
+  DB_MAX_IDLE_TIME: "20m"
 
   # Redis設置
   REDIS_DOMAIN: "qcat-bonuscat-dev.zlvgen.0001.apne1.cache.amazonaws.com"
@@ -67,12 +67,12 @@ env:
   DYNAMODB_PARTITION_KEY: "partition_key"
 
   # OpenObserve設置
-  OPENOBSERVE_TRACE_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-dev/traces"
+  OPENOBSERVE_TRACE_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-staging/traces"
   # OPENOBSERVE_TRACE_API_KEY: <secret>
-  OPENOBSERVE_TRACE_STREAM_NAME: "fat_identity_cat"
+  OPENOBSERVE_TRACE_STREAM_NAME: "quantumcat"
 
   # OpenObserve logs設置
-  OPENOBSERVE_LOGS_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-dev/default/_json"
+  OPENOBSERVE_LOGS_API_ENDPOINT: "https://REDACTED_OO_HOST/api/jvd-staging/default/_json"
   OPENOBSERVE_LOGS_USERNAME: "REDACTED_OO_USERNAME"
 
   # KDS Events
