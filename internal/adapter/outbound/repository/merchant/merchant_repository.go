@@ -2,27 +2,43 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 // MerchantRepository GORM 實現的商戶資料庫
 type merchantRepository struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache infrastructure.CacheManager
 }
 
 // NewMerchantRepository 創建商戶資料庫
-func NewMerchantRepository(db *gorm.DB) repository.MerchantRepository {
-	return &merchantRepository{db: db}
+func NewMerchantRepository(
+	db *gorm.DB,
+	cache infrastructure.CacheManager,
+) repository.MerchantRepository {
+	return &merchantRepository{
+		db:    db,
+		cache: cache,
+	}
 }
+
+// 快取相關常數
+const (
+	merchantCacheKeyPrefix = "merchant:global_id:"
+	merchantCacheTTL       = 5 * time.Minute // 5分鐘快取TTL
+)
 
 // FindByID 通過ID查找商戶
 func (r *merchantRepository) FindByID(ctx context.Context, id uint64) (*entity.Merchant, error) {
@@ -38,11 +54,28 @@ func (r *merchantRepository) FindByID(ctx context.Context, id uint64) (*entity.M
 	return mapToDomainMerchant(&merchant), nil
 }
 
-// FindByGlobalID 通過全局ID查找商戶
+// FindByGlobalID 通過全局ID查找商戶（帶快取）
 func (r *merchantRepository) FindByGlobalID(
 	ctx context.Context,
 	globalID string,
 ) (*entity.Merchant, error) {
+	cacheKey := merchantCacheKeyPrefix + globalID
+
+	// 1. 先嘗試從快取獲取
+	if r.cache != nil {
+		if cachedData, err := r.cache.Get(ctx, cacheKey); err == nil {
+			var merchant *entity.Merchant
+			if unmarshalErr := json.Unmarshal([]byte(cachedData), &merchant); unmarshalErr == nil {
+				return merchant, nil
+			}
+			// 快取數據格式錯誤，繼續查詢資料庫
+		} else if !errors.Is(err, redis.Nil) {
+			// 快取服務錯誤（非 key 不存在），記錄但不中斷，繼續查詢資料庫
+			fmt.Printf("Cache get error for key %s: %v\n", cacheKey, err)
+		}
+	}
+
+	// 2. 從資料庫查詢
 	var merchant models.Merchant
 	result := r.db.WithContext(ctx).Where("global_merchant_id = ?", globalID).First(&merchant)
 	if result.Error != nil {
@@ -52,7 +85,14 @@ func (r *merchantRepository) FindByGlobalID(
 		return &entity.Merchant{}, result.Error
 	}
 
-	return mapToDomainMerchant(&merchant), nil
+	merchantEntity := mapToDomainMerchant(&merchant)
+
+	// 3. 更新快取（異步進行，不影響主流程）
+	if r.cache != nil {
+		go r.updateCache(ctx, cacheKey, merchantEntity)
+	}
+
+	return merchantEntity, nil
 }
 
 func (r *merchantRepository) FirstOrCreate(ctx context.Context, merchant *entity.Merchant) error {
@@ -88,6 +128,9 @@ func (r *merchantRepository) Update(ctx context.Context, merchant *entity.Mercha
 	if result.Error != nil {
 		return result.Error
 	}
+
+	// 更新後使快取失效
+	r.invalidateCache(ctx, merchant.GetGlobalMerchantID())
 
 	return nil
 }
@@ -130,7 +173,34 @@ func (r *merchantRepository) Upsert(ctx context.Context, merchant *entity.Mercha
 	if result.Error != nil {
 		return fmt.Errorf("timestamp-based upsert failed: %w", result.Error)
 	}
+
+	// Upsert 後使快取失效
+	r.invalidateCache(ctx, merchant.GetGlobalMerchantID())
+
 	return nil
+}
+
+// updateCache 更新快取數據
+func (r *merchantRepository) updateCache(
+	ctx context.Context,
+	cacheKey string,
+	merchant *entity.Merchant,
+) {
+	if merchantData, err := json.Marshal(merchant); err == nil {
+		if _, err := r.cache.Set(ctx, cacheKey, string(merchantData), merchantCacheTTL); err != nil {
+			fmt.Printf("Cache set error for key %s: %v\n", cacheKey, err)
+		}
+	}
+}
+
+// invalidateCache 使快取失效
+func (r *merchantRepository) invalidateCache(ctx context.Context, globalID string) {
+	if r.cache != nil {
+		cacheKey := merchantCacheKeyPrefix + globalID
+		if client, err := r.cache.GetClient(); err == nil && client != nil {
+			client.Del(ctx, cacheKey)
+		}
+	}
 }
 
 // 將DB模型映射到領域模型

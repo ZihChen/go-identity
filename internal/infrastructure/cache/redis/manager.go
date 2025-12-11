@@ -206,6 +206,15 @@ func (m *Manager) Pipeline() (redis.Pipeliner, error) {
 	return client.Pipeline(), nil
 }
 
+// Get 獲取單個 key 的值
+func (m *Manager) Get(ctx context.Context, key string) (string, error) {
+	client, err := m.GetClient()
+	if err != nil {
+		return "", err
+	}
+	return client.Get(ctx, key).Result()
+}
+
 // MGet 批次獲取多個 key 的值
 func (m *Manager) MGet(ctx context.Context, keys ...string) ([]interface{}, error) {
 	client, err := m.GetClient()

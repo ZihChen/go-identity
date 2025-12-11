@@ -9,6 +9,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/consumer"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	agentRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/agent"
 	failedTaskEventRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/failed_task_event"
 	levelRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/level"
@@ -46,7 +47,7 @@ var baseSet = wire.NewSet(
 	provideTracingService,
 
 	// 資料庫
-	merchantRepo.NewMerchantRepository,
+	provideMerchantRepository,
 	playerRepo.NewPlayerRepository,
 	managerRepo.NewManagerRepository,
 	tagRepo.NewTagRepository,
@@ -80,6 +81,11 @@ func provideTracingService(cfg *config.Config) (infrastructure.TracingService, e
 		return nil, err
 	}
 	return tracingService, nil
+}
+
+// MerchantRepository提供者（帶快取）
+func provideMerchantRepository(db *gorm.DB, cache infrastructure.CacheManager) repository.MerchantRepository {
+	return merchantRepo.NewMerchantRepository(db, cache)
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器

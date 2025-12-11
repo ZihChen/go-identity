@@ -15,6 +15,7 @@ type CacheManager interface {
 	Close() error
 
 	// 基本操作
+	Get(ctx context.Context, key string) (string, error)
 	Set(
 		ctx context.Context,
 		key string,
