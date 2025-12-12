@@ -27,12 +27,16 @@ func setupTest(
 	playerUseCase := mocks.NewPlayerUseCaseMock(t)
 	managerUseCase := mocks.NewManagerUseCaseMock(t)
 	mockLogger := mocks.NewMockLogger(t)
+	mockTracing := mocks.NewTracingServiceMock(t)
+	mockEventProducer := mocks.NewEventProducerMock(t)
 
 	handler := &HTTPHandler{
 		merchantUseCase: merchantUseCase,
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
 		logger:          mockLogger,
+		tracing:         mockTracing,
+		eventProducer:   mockEventProducer,
 	}
 
 	w := httptest.NewRecorder()

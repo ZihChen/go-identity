@@ -83,19 +83,23 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 		t,
 	)
 
-	// Setup mocks
+	// Setup mocks for batch processing
 	merchant := factories.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
-	// Player doesn't exist yet
-	playerRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Player")).
+	// Use BatchUpsert instead of Upsert since we're using batch processor
+	playerRepo.On("BatchUpsert", mock.Anything, mock.AnythingOfType("[]*entity.Player")).
 		Return(nil)
 
-	// Expect PublishPlayerSync to be called
-	eventProducer.On("PublishPlayerSync", mock.Anything, mock.AnythingOfType("*entity.Player"), mock.AnythingOfType("string")).
+	// Expect BatchPublishPlayerSync to be called
+	eventProducer.On("BatchPublishPlayerSync", mock.Anything, mock.AnythingOfType("[]*entity.Player"), mock.AnythingOfType("[]string")).
 		Return(nil)
 
 	// Setup logger
+	logger.On("InfoLog", mock.AnythingOfType("string"), mock.Anything).Return()
+	logger.On("InfoWithContext", mock.Anything, mock.AnythingOfType("string"), mock.Anything).
+		Return()
+	logger.On("ErrorLog", mock.AnythingOfType("string"), mock.Anything).Return()
 
 	// Create the use case
 	useCase := NewPlayerUseCase(
@@ -107,6 +111,14 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 		redisClient,
 		mocks.NewNilTracingService(),
 	)
+
+	// 啟動批次處理器
+	err := useCase.StartBatchProcessor(ctx)
+	assert.NoError(t, err)
+	defer func() {
+		stopErr := useCase.StopBatchProcessor(ctx)
+		assert.NoError(t, stopErr)
+	}()
 
 	// Create test event data
 	eventData := createPlayerSyncEvent()
@@ -135,13 +147,17 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 		t,
 	)
 
-	// Setup mocks
+	// Setup mocks for batch processing with error
 	merchant := factories.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
-	// Player doesn't exist yet
-	playerRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*entity.Player")).
+	// BatchUpsert fails
+	playerRepo.On("BatchUpsert", mock.Anything, mock.AnythingOfType("[]*entity.Player")).
 		Return(errors.New("timestamp-based upsert failed"))
+
+	// Setup logger
+	logger.On("InfoLog", mock.AnythingOfType("string"), mock.Anything).Return()
+	logger.On("ErrorLog", mock.AnythingOfType("string"), mock.Anything).Return()
 
 	// Create the use case
 	useCase := NewPlayerUseCase(
@@ -153,6 +169,14 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 		redisClient,
 		mocks.NewNilTracingService(),
 	)
+
+	// 啟動批次處理器
+	err := useCase.StartBatchProcessor(ctx)
+	assert.NoError(t, err)
+	defer func() {
+		stopErr := useCase.StopBatchProcessor(ctx)
+		assert.NoError(t, stopErr)
+	}()
 
 	// Create test event data
 	eventData := createPlayerSyncEvent()
@@ -170,7 +194,7 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 
 	// Verify results
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "upsert player")
+	assert.Contains(t, err.Error(), "batch process player")
 	playerRepo.AssertExpectations()
 	merchantRepo.AssertExpectations()
 }

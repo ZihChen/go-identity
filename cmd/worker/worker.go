@@ -69,6 +69,15 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 		logger.String("redis_domain", cfg.Redis.Domain),
 		logger.Int("redis_port", cfg.Redis.Port))
 
+	// 啟動 Worker 批次處理器
+	if err = s.components.Handler.StartProcessor(rootCtx); err != nil {
+		logger.FatalWithContext(
+			rootCtx,
+			"Failed to start worker processor",
+			logger.Error("err", err),
+		)
+	}
+
 	s.components.Handler.RegisterHandlers(mux)
 	logger.InfoWithContext(rootCtx, "Task handlers registered")
 
@@ -94,11 +103,19 @@ func runWorker(cobraCmd *cobra.Command, args []string) {
 	shutdownCtx, cancel := context.WithTimeout(rootCtx, 10*time.Second)
 	defer cancel()
 
-	// 關閉Worker
+	// 關閉Worker和批次處理器
 	done := make(chan struct{})
 	go func() {
+		defer close(done)
+
+		// 先關閉批次處理器
+		if err = s.components.Handler.ShutdownProcessor(shutdownCtx); err != nil {
+			logger.ErrorWithContext(shutdownCtx, "Failed to shutdown worker processor",
+				logger.Error("err", err))
+		}
+
+		// 再關閉 Worker Server
 		s.components.Server.Shutdown()
-		close(done)
 	}()
 
 	select {

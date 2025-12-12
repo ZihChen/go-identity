@@ -8,6 +8,11 @@ import (
 )
 
 type PlayerUseCase interface {
+	// 批次處理器生命週期管理
+	StartBatchProcessor(ctx context.Context) error
+	StopBatchProcessor(ctx context.Context) error
+
+	// 業務方法
 	SyncPlayer(
 		ctx context.Context,
 		data *event.PlayerSyncEvent,

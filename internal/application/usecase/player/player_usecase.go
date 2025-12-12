@@ -20,13 +20,14 @@ import (
 
 // PlayerUseCase 玩家用例
 type PlayerUseCase struct {
-	playerRepo    repository.PlayerRepository
-	merchantRepo  repository.MerchantRepository
-	levelRepo     repository.LevelRepository
-	eventProducer service.EventProducer
-	logger        infrastructure.Logger
-	redis         *redis.Client
-	tracing       infrastructure.TracingService
+	playerRepo     repository.PlayerRepository
+	merchantRepo   repository.MerchantRepository
+	levelRepo      repository.LevelRepository
+	eventProducer  service.EventProducer
+	logger         infrastructure.Logger
+	redis          *redis.Client
+	tracing        infrastructure.TracingService
+	batchProcessor *PlayerBatchProcessor
 }
 
 // NewPlayerUseCase 創建玩家用例
@@ -39,7 +40,7 @@ func NewPlayerUseCase(
 	redis *redis.Client,
 	tracing infrastructure.TracingService,
 ) inbound.PlayerUseCase {
-	return &PlayerUseCase{
+	usecase := &PlayerUseCase{
 		playerRepo:    playerRepo,
 		merchantRepo:  merchantRepo,
 		levelRepo:     levelRepo,
@@ -47,7 +48,26 @@ func NewPlayerUseCase(
 		logger:        logger,
 		redis:         redis,
 		tracing:       tracing,
+		// 初始化批次處理器
+		batchProcessor: NewPlayerBatchProcessor(
+			playerRepo,
+			eventProducer,
+			logger,
+			tracing,
+		),
 	}
+
+	return usecase
+}
+
+// StartBatchProcessor 啟動批次處理器
+func (u *PlayerUseCase) StartBatchProcessor(ctx context.Context) error {
+	return u.batchProcessor.Start(ctx)
+}
+
+// StopBatchProcessor 停止批次處理器
+func (u *PlayerUseCase) StopBatchProcessor(ctx context.Context) error {
+	return u.batchProcessor.Stop(ctx)
 }
 
 func (u *PlayerUseCase) SyncPlayer(
@@ -116,30 +136,33 @@ func (u *PlayerUseCase) SyncPlayer(
 		Name:                data.PlayerLevel.Name,
 	})
 
-	u.tracing.TraceEvent(span, "Upsert player")
-	if err = u.playerRepo.Upsert(ctx, player); err != nil {
-		u.tracing.RecordSpanError(span, err)
-		return fmt.Errorf("upsert player: %w", err)
+	u.tracing.TraceEvent(span, "Submit player to batch processor")
+
+	// 使用批次處理器進行異步處理
+	resultChannel := u.batchProcessor.SubmitPlayer(player, data.GlobalMerchantID)
+
+	// 等待批次處理結果
+	u.tracing.TraceEvent(span, "Waiting for batch processing result")
+	select {
+	case err = <-resultChannel:
+		if err != nil {
+			u.tracing.RecordSpanError(span, err)
+			return fmt.Errorf("batch process player: %w", err)
+		}
+	case <-ctx.Done():
+		u.tracing.RecordSpanError(span, ctx.Err())
+		return fmt.Errorf("context cancelled while waiting for batch processing: %w", ctx.Err())
 	}
 
-	// 記錄資料庫操作完成
-	u.logger.InfoLog("Player upserted successfully",
+	// 記錄處理完成
+	u.logger.InfoWithContext(ctx, "Player processed via batch successfully",
 		u.logger.String("global_id", player.GetGlobalPlayerID()),
 		u.logger.String("account", player.GetAccount()))
-	u.tracing.TraceEvent(span, "Database operation completed")
+	u.tracing.TraceEvent(span, "Player sync completed successfully via batch processing")
 	u.tracing.RecordSpanAttributes(span,
 		attribute.String("player.global_id", player.GetGlobalPlayerID()),
 		attribute.String("player.account", player.GetAccount()))
 
-	// 發布玩家同步事件到KDS
-	u.tracing.TraceEvent(span, "Publishing player sync event to KDS")
-	if err = u.eventProducer.PublishPlayerSync(ctx, player, data.GlobalMerchantID); err != nil {
-		u.tracing.RecordSpanError(span, err)
-		return fmt.Errorf("publish player sync event: %w", err)
-	}
-
-	// 記錄處理完成
-	u.tracing.TraceEvent(span, "Player sync completed successfully")
 	return nil
 }
 

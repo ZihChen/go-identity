@@ -15,4 +15,5 @@ type PlayerRepository interface {
 	Update(ctx context.Context, player *entity.Player) error
 	Delete(ctx context.Context, id uint64) error
 	Upsert(ctx context.Context, player *entity.Player) error
+	BatchUpsert(ctx context.Context, players []*entity.Player) error
 }

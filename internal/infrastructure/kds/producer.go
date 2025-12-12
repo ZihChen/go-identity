@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -136,6 +137,166 @@ func (k *KDSService) PublishPlayerSync(
 	k.logger.InfoWithContext(ctx, "Player sync event published",
 		k.logger.String("global_player_id", player.GetGlobalPlayerID()),
 		k.logger.String("event_id", cloudEvent.ID))
+	return nil
+}
+
+// BatchPublishPlayerSync 批次發布玩家同步事件
+func (k *KDSService) BatchPublishPlayerSync(
+	ctx context.Context,
+	players []*entity.Player,
+	globalMerchantIDs []string,
+) error {
+	ctx, span := k.tracing.StartSpan(ctx, "KDSService.BatchPublishPlayerSync")
+	defer k.tracing.SpanEnd(span)
+
+	if len(players) == 0 {
+		return nil
+	}
+
+	if len(players) != len(globalMerchantIDs) {
+		return fmt.Errorf("players count (%d) does not match globalMerchantIDs count (%d)",
+			len(players), len(globalMerchantIDs))
+	}
+
+	k.tracing.RecordSpanAttributes(span,
+		attribute.Int("batch.size", len(players)),
+		attribute.String("batch.operation", "player_sync"))
+
+	k.logger.InfoWithContext(ctx, "Starting batch publish player sync events",
+		k.logger.Int("batch_size", len(players)))
+
+	// 構建批次事件
+	events := make([]*event.CloudEvent, len(players))
+	for i, player := range players {
+		// 構建事件數據
+		syncEvent := event.IdentityPlayerSyncEvent{
+			GlobalMerchantID: globalMerchantIDs[i],
+			GlobalPlayerID:   player.GetGlobalPlayerID(),
+			ID:               player.GetID(),
+			MerchantID:       player.GetMerchantID(),
+			APIKey:           player.GetAPIKey(),
+			Account:          player.GetAccount(),
+			Email:            player.GetEmail(),
+			CreatedAt:        player.GetCreatedAt().Format(time.RFC3339),
+			UpdatedAt:        player.GetUpdatedAt().Format(time.RFC3339),
+			PlayerLevel: event.PlayerLevel{
+				GlobalPlayerLevelID: player.GetPlayerLevel().GlobalPlayerLevelID,
+				Name:                player.GetPlayerLevel().Name,
+			},
+		}
+
+		if player.GetLastActiveAt() != nil && !player.GetLastActiveAt().IsZero() {
+			syncEvent.LastActiveAt = player.GetLastActiveAt().Format(time.RFC3339)
+		}
+
+		if player.GetDeletedAt() != nil {
+			syncEvent.DeletedAt = player.GetDeletedAt().Format(time.RFC3339)
+		}
+
+		// 構建CloudEvent
+		eventID := uuid.New().String()
+		events[i] = &event.CloudEvent{
+			SpecVersion:     "1.0",
+			Type:            k.config.Events.IdentityPlayerSync,
+			Source:          "/fatidentitycat/FATCAT",
+			Subject:         "player_sync",
+			ID:              eventID,
+			Time:            time.Now(),
+			DataContentType: "application/json",
+			TraceParent:     k.tracing.GetTraceparent(ctx),
+			Data:            syncEvent,
+		}
+	}
+
+	// 批次發布事件
+	if err := k.batchPublishEvents(ctx, events); err != nil {
+		k.tracing.RecordSpanError(span, err)
+		return fmt.Errorf("batch publish events: %w", err)
+	}
+
+	// 記錄批次發布成功
+	k.tracing.TraceEvent(span, "Batch player sync events published successfully")
+	k.logger.InfoWithContext(ctx, "Batch player sync events published successfully",
+		k.logger.Int("batch_size", len(players)))
+
+	return nil
+}
+
+// batchPublishEvents 批次發布事件到KDS
+func (k *KDSService) batchPublishEvents(ctx context.Context, events []*event.CloudEvent) error {
+	ctx, span := k.tracing.StartSpan(ctx, "KDSService.batchPublishEvents")
+	defer k.tracing.SpanEnd(span)
+
+	if len(events) == 0 {
+		return nil
+	}
+
+	// 使用AWS Kinesis PutRecords API進行批次發送
+	records := make([]types.PutRecordsRequestEntry, len(events))
+
+	for i, cloudEvent := range events {
+		// 序列化事件
+		eventBytes, err := jsoniter.Marshal(cloudEvent)
+		if err != nil {
+			return fmt.Errorf("marshal event %d: %w", i, err)
+		}
+
+		// 生成分區鍵
+		partitionKey := uuid.New().String()
+
+		records[i] = types.PutRecordsRequestEntry{
+			Data:         eventBytes,
+			PartitionKey: aws.String(partitionKey),
+		}
+	}
+
+	k.tracing.RecordSpanAttributes(span,
+		attribute.Int("batch.records_count", len(records)),
+		attribute.String("messaging.system", "kds"),
+		attribute.String("messaging.operation", "batch_send"))
+
+	// 執行批次發送
+	response, err := k.client.PutRecords(ctx, &kinesis.PutRecordsInput{
+		StreamName: aws.String(k.produceStream),
+		Records:    records,
+	})
+
+	if err != nil {
+		k.tracing.RecordSpanError(span, err)
+		k.logger.ErrorWithContext(ctx, "Failed to put records to kinesis",
+			k.logger.Int("records_count", len(records)),
+			k.logger.Error("err", err))
+		return fmt.Errorf("put records to kinesis: %w", err)
+	}
+
+	// 檢查失敗的記錄
+	failedCount := 0
+	if response.FailedRecordCount != nil {
+		failedCount = int(*response.FailedRecordCount)
+	}
+	if failedCount > 0 {
+		k.logger.ErrorWithContext(ctx, "Some records failed to publish",
+			k.logger.Int("failed_count", failedCount),
+			k.logger.Int("total_count", len(records)))
+
+		// 記錄失敗的記錄詳情
+		for i, record := range response.Records {
+			if record.ErrorCode != nil {
+				k.logger.ErrorWithContext(ctx, "Record failed",
+					k.logger.Int("record_index", i),
+					k.logger.String("error_code", *record.ErrorCode),
+					k.logger.String("error_message", aws.ToString(record.ErrorMessage)))
+			}
+		}
+
+		return fmt.Errorf("failed to publish %d out of %d records", failedCount, len(records))
+	}
+
+	k.tracing.TraceEvent(span, "All records published successfully")
+	k.logger.InfoWithContext(ctx, "Batch events published to KDS successfully",
+		k.logger.Int("records_count", len(records)),
+		k.logger.String("stream_name", k.produceStream))
+
 	return nil
 }
 
