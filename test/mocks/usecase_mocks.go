@@ -54,6 +54,17 @@ func (m *PlayerUseCaseMock) SyncPlayer(ctx context.Context, data *event.PlayerSy
 	return args.Error(0)
 }
 
+// 批次處理器生命週期方法
+func (m *PlayerUseCaseMock) StartBatchProcessor(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *PlayerUseCaseMock) StopBatchProcessor(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 // MerchantUseCaseMock 統一的 Merchant UseCase Mock
 type MerchantUseCaseMock struct {
 	*BaseMock

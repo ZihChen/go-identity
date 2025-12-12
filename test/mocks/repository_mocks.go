@@ -67,6 +67,11 @@ func (m *PlayerRepositoryMock) Upsert(ctx context.Context, player *entity.Player
 	return args.Error(0)
 }
 
+func (m *PlayerRepositoryMock) BatchUpsert(ctx context.Context, players []*entity.Player) error {
+	args := m.Called(ctx, players)
+	return args.Error(0)
+}
+
 func (m *PlayerRepositoryMock) UpdateLastActiveAt(
 	ctx context.Context,
 	id uint64,

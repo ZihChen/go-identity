@@ -172,6 +172,102 @@ func (r *PlayerRepository) upsertWithoutRetry(ctx context.Context, player *entit
 	return nil
 }
 
+// BatchUpsert 批次更新插入玩家
+func (r *PlayerRepository) BatchUpsert(ctx context.Context, players []*entity.Player) error {
+	if len(players) == 0 {
+		return nil
+	}
+
+	const maxRetries = 5
+	const baseDelay = 100 * time.Millisecond
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		err := r.batchUpsertWithoutRetry(ctx, players)
+
+		if err == nil {
+			return nil
+		}
+
+		// 檢查是否為 deadlock 錯誤
+		if r.isDeadlockError(err) && attempt < maxRetries {
+			delay := baseDelay * time.Duration(1<<uint(attempt))
+			time.Sleep(delay)
+			continue
+		}
+
+		// 非 deadlock 錯誤或達到最大重試次數
+		return err
+	}
+
+	return fmt.Errorf("batch upsert failed after %d retries", maxRetries)
+}
+
+// batchUpsertWithoutRetry 原始的批次 Upsert 邏輯，不含 retry
+func (r *PlayerRepository) batchUpsertWithoutRetry(
+	ctx context.Context,
+	players []*entity.Player,
+) error {
+	// 將領域實體轉換為資料庫模型
+	playerModels := make([]*models.Player, len(players))
+	for i, player := range players {
+		playerModels[i] = mapToDBPlayer(player)
+	}
+
+	// 批次分塊處理，避免單次SQL過大
+	const batchSize = 100
+	for i := 0; i < len(playerModels); i += batchSize {
+		end := i + batchSize
+		if end > len(playerModels) {
+			end = len(playerModels)
+		}
+
+		batchChunk := playerModels[i:end]
+		if err := r.processBatchChunk(ctx, batchChunk); err != nil {
+			return fmt.Errorf("process batch chunk %d-%d: %w", i, end-1, err)
+		}
+	}
+
+	return nil
+}
+
+// processBatchChunk 處理單個批次分塊
+func (r *PlayerRepository) processBatchChunk(ctx context.Context, players []*models.Player) error {
+	// 使用 GORM 的 Clauses(clause.OnConflict{}) 處理批次 upsert
+	updates := map[string]interface{}{
+		"account": gorm.Expr(
+			"CASE WHEN VALUES(updated_at) > updated_at AND VALUES(account) != account THEN VALUES(account) ELSE account END",
+		),
+		"api_key": gorm.Expr(
+			"CASE WHEN VALUES(updated_at) > updated_at AND VALUES(api_key) != api_key THEN VALUES(api_key) ELSE api_key END",
+		),
+		"level_id": gorm.Expr(
+			"CASE WHEN VALUES(updated_at) > updated_at AND VALUES(level_id) != level_id THEN VALUES(level_id) ELSE level_id END",
+		),
+		"email": gorm.Expr(
+			"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(email) ELSE email END"),
+		"last_active_at": gorm.Expr(
+			"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(last_active_at) ELSE last_active_at END",
+		),
+		"updated_at": gorm.Expr(
+			"CASE WHEN VALUES(updated_at) >= updated_at THEN VALUES(updated_at) ELSE updated_at END",
+		),
+		"deleted_at": gorm.Expr(
+			"CASE WHEN VALUES(updated_at) > updated_at AND deleted_at IS NULL THEN VALUES(deleted_at) ELSE deleted_at END",
+		),
+	}
+
+	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "global_player_id"}},
+		DoUpdates: clause.Assignments(updates),
+	}).CreateInBatches(players, len(players))
+
+	if result.Error != nil {
+		return fmt.Errorf("batch upsert failed: %w", result.Error)
+	}
+
+	return nil
+}
+
 // isDeadlockError 檢查是否為 MySQL deadlock 錯誤
 func (r *PlayerRepository) isDeadlockError(err error) bool {
 	if err == nil {

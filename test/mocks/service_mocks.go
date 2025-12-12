@@ -38,6 +38,15 @@ func (m *EventProducerMock) PublishPlayerSync(
 	return args.Error(0)
 }
 
+func (m *EventProducerMock) BatchPublishPlayerSync(
+	ctx context.Context,
+	players []*entity.Player,
+	globalMerchantIDs []string,
+) error {
+	args := m.Called(ctx, players, globalMerchantIDs)
+	return args.Error(0)
+}
+
 func (m *EventProducerMock) PublishManagerSync(ctx context.Context, event *event.CloudEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)

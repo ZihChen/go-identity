@@ -49,7 +49,7 @@ func NewWorkerHandler(
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
 ) *WorkerHandler {
-	return &WorkerHandler{
+	handler := &WorkerHandler{
 		merchantUseCase: merchantUseCase,
 		playerUseCase:   playerUseCase,
 		managerUseCase:  managerUseCase,
@@ -59,6 +59,36 @@ func NewWorkerHandler(
 		logger:          logger,
 		tracing:         tracing,
 	}
+
+	return handler
+}
+
+// StartProcessor 啟動 Worker Handler 及其批次處理器
+func (h *WorkerHandler) StartProcessor(ctx context.Context) error {
+	// 啟動 PlayerUseCase 的批次處理器
+	if err := h.playerUseCase.StartBatchProcessor(ctx); err != nil {
+		h.logger.ErrorWithContext(ctx, "Failed to start player batch processor",
+			h.logger.Error("error", err))
+		return fmt.Errorf("failed to start player batch processor: %w", err)
+	}
+
+	h.logger.InfoWithContext(ctx, "Worker handler started successfully with batch processors")
+	return nil
+}
+
+// ShutdownProcessor 關閉 Worker Handler 及其批次處理器
+func (h *WorkerHandler) ShutdownProcessor(ctx context.Context) error {
+	h.logger.InfoWithContext(ctx, "Shutting down worker handler...")
+
+	// 停止 PlayerUseCase 的批次處理器
+	if err := h.playerUseCase.StopBatchProcessor(ctx); err != nil {
+		h.logger.ErrorWithContext(ctx, "Failed to stop player batch processor",
+			h.logger.Error("error", err))
+		return fmt.Errorf("failed to stop player batch processor: %w", err)
+	}
+
+	h.logger.InfoWithContext(ctx, "Worker handler shutdown completed")
+	return nil
 }
 
 func (h *WorkerHandler) RegisterHandlers(mux *asynq.ServeMux) {

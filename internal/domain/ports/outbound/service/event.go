@@ -15,6 +15,13 @@ type EventProducer interface {
 	// PublishPlayerSync 發布玩家同步事件
 	PublishPlayerSync(ctx context.Context, event *entity.Player, globalMerchantID string) error
 
+	// BatchPublishPlayerSync 批次發布玩家同步事件
+	BatchPublishPlayerSync(
+		ctx context.Context,
+		players []*entity.Player,
+		globalMerchantIDs []string,
+	) error
+
 	// PublishManagerSync 發布管理員同步事件
 	PublishManagerSync(ctx context.Context, event *event.CloudEvent) error
 
