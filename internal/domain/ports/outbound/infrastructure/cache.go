@@ -22,6 +22,7 @@ type CacheManager interface {
 		value interface{},
 		expiration time.Duration,
 	) (string, error)
+	Del(ctx context.Context, key string) error
 	SetNX(
 		ctx context.Context,
 		key string,

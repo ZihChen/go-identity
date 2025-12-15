@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -11,6 +12,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -20,6 +22,7 @@ type MerchantUseCase struct {
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
 	tracing       infrastructure.TracingService
+	cache         infrastructure.CacheManager
 }
 
 // NewMerchantUseCase 創建商戶用例
@@ -28,12 +31,14 @@ func NewMerchantUseCase(
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
+	cache infrastructure.CacheManager,
 ) inbound.MerchantUseCase {
 	return &MerchantUseCase{
 		merchantRepo:  merchantRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
 		tracing:       tracing,
+		cache:         cache,
 	}
 }
 
@@ -64,6 +69,14 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.Merchant
 	if err := u.merchantRepo.Upsert(ctx, merchant); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("upsert merchant: %w", err)
+	}
+
+	// Upsert 成功後，使快取失效
+	cacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, merchant.GetGlobalMerchantID())
+	if err := u.cache.Del(ctx, cacheKey); err != nil {
+		u.logger.WarnWithContext(ctx, "Cache invalidation failed",
+			u.logger.String("cache_key", cacheKey),
+			u.logger.Error("error", err))
 	}
 
 	u.logger.InfoWithContext(ctx, "Merchant upserted successfully",
@@ -107,7 +120,7 @@ func (u *MerchantUseCase) GetMerchantByID(
 	return merchant, nil
 }
 
-// GetMerchantByGlobalID 通過全局ID獲取商戶
+// GetMerchantByGlobalID 通過全局ID獲取商戶（帶快取）
 func (u *MerchantUseCase) GetMerchantByGlobalID(
 	ctx context.Context,
 	globalID string,
@@ -118,7 +131,18 @@ func (u *MerchantUseCase) GetMerchantByGlobalID(
 
 	u.tracing.RecordSpanAttributes(span, attribute.String("merchant.global_id", globalID))
 
-	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalID)
+	// 獲取商戶
+	cacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, globalID)
+	merchant, err := cache.QueryWithCache(
+		ctx,
+		u.cache,
+		cacheKey,
+		5*time.Minute,
+		"merchant",
+		func(ctx context.Context) (*entity.Merchant, error) {
+			return u.merchantRepo.FindByGlobalID(ctx, globalID)
+		},
+	)
 	if err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find merchant: %w", err)

@@ -21,14 +21,15 @@ import (
 // Helper functions
 func createMockDependencies(
 	t *testing.T,
-) (*mocks.PlayerRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.LevelRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, *redis.Client) {
+) (*mocks.PlayerRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.LevelRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, *redis.Client, *mocks.NilCacheManager) {
 	playerRepo := mocks.NewPlayerRepositoryMock(t)
 	merchantRepo := mocks.NewMerchantRepositoryMock(t)
 	levelRepo := mocks.NewLevelRepositoryMock(t)
 	eventProducer := mocks.NewEventProducerMock(t)
 	logger := mocks.NewMockLogger(t)
 	redisClient, _ := redismock.NewClientMock()
-	return playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient
+	cache := mocks.NewNilCacheManager().(*mocks.NilCacheManager)
+	return playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache
 }
 
 func createPlayerSyncEvent() *event.CloudEvent {
@@ -59,7 +60,7 @@ func createPlayerSyncEvent() *event.CloudEvent {
 
 // Tests
 func TestNewPlayerUseCase(t *testing.T) {
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -71,6 +72,7 @@ func TestNewPlayerUseCase(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	assert.NotNil(t, useCase)
@@ -79,7 +81,7 @@ func TestNewPlayerUseCase(t *testing.T) {
 
 func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -110,6 +112,7 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// 啟動批次處理器
@@ -143,7 +146,7 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 
 func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -168,6 +171,7 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// 啟動批次處理器
@@ -201,7 +205,7 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -218,6 +222,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// Execute the function
@@ -231,7 +236,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -248,6 +253,7 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// Execute the function
@@ -262,7 +268,7 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -279,6 +285,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// Execute the function
@@ -292,7 +299,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -309,6 +316,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// Execute the function
@@ -323,7 +331,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -341,6 +349,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// Execute the function
@@ -353,7 +362,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -370,6 +379,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// Execute the function
@@ -383,7 +393,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache := createMockDependencies(
 		t,
 	)
 
@@ -404,6 +414,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
 		logger,
 		redisClient,
 		mocks.NewNilTracingService(),
+		cache,
 	)
 
 	// Execute the function

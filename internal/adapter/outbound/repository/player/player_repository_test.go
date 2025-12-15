@@ -97,7 +97,7 @@ func TestPlayerRepository_FindByID(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db, &mockCacheManager{})
+	repo := NewPlayerRepository(db)
 
 	playerID := uint64(1)
 	email := "player@example.com"
@@ -155,7 +155,7 @@ func TestPlayerRepository_FindByGlobalID(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db, &mockCacheManager{})
+	repo := NewPlayerRepository(db)
 
 	globalID := "FATCAT-PLAYER-1"
 	email := "player@example.com"
@@ -239,7 +239,7 @@ func TestPlayerRepository_FirstOrCreate(t *testing.T) {
 			}()
 
 			tc.setupMock(mock)
-			repo := NewPlayerRepository(db, &mockCacheManager{})
+			repo := NewPlayerRepository(db)
 
 			err := repo.FirstOrCreate(context.Background(), tc.expectedPlayer)
 			if tc.expectedError != nil {
@@ -270,7 +270,7 @@ func TestPlayerRepository_Create(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db, &mockCacheManager{})
+	repo := NewPlayerRepository(db)
 
 	now := time.Now()
 	email := "new@example.com"
@@ -334,7 +334,7 @@ func TestPlayerRepository_Update(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db, &mockCacheManager{})
+	repo := NewPlayerRepository(db)
 
 	now := time.Now()
 	playerID := uint64(1)
@@ -385,7 +385,7 @@ func TestPlayerRepository_Delete(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db, &mockCacheManager{})
+	repo := NewPlayerRepository(db)
 
 	playerID := uint64(1)
 
@@ -450,7 +450,7 @@ func TestPlayerRepository_Upsert(t *testing.T) {
 			}()
 
 			tc.setupMock(mock)
-			repo := NewPlayerRepository(db, &mockCacheManager{})
+			repo := NewPlayerRepository(db)
 
 			err := repo.Upsert(context.Background(), tc.expectedPlayer)
 			if tc.expectedError != nil {

@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"sync"
 	"time"
 
@@ -25,6 +26,7 @@ type PlayerBatchProcessor struct {
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
 	tracing       infrastructure.TracingService
+	cache         infrastructure.CacheManager
 
 	// 批次處理配置
 	batchSize    int           // 批次大小
@@ -46,6 +48,7 @@ func NewPlayerBatchProcessor(
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
+	cache infrastructure.CacheManager,
 ) *PlayerBatchProcessor {
 	bufferSize := 1000 // Channel 緩衝大小
 
@@ -54,6 +57,7 @@ func NewPlayerBatchProcessor(
 		eventProducer: eventProducer,
 		logger:        logger,
 		tracing:       tracing,
+		cache:         cache,
 
 		// 批次配置：500筆或3秒超時
 		batchSize:    500,
@@ -212,6 +216,14 @@ func (p *PlayerBatchProcessor) handleSyncFallback(request *PlayerBatchRequest) {
 		return
 	}
 
+	// Upsert 成功後，使快取失效
+	cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, request.Player.GetGlobalPlayerID())
+	if err = p.cache.Del(ctx, cacheKey); err != nil {
+		p.logger.WarnWithContext(ctx, "Cache invalidation failed",
+			p.logger.String("cache_key", cacheKey),
+			p.logger.Error("error", err))
+	}
+
 	// 單筆事件發送
 	err = p.eventProducer.PublishPlayerSync(ctx, request.Player, request.GlobalMerchantID)
 	if err != nil {
@@ -339,6 +351,16 @@ func (p *PlayerBatchProcessor) batchUpsertPlayers(
 		// 批次操作成功，所有請求都成功
 		p.logger.InfoLog("Batch upsert succeeded",
 			p.logger.Int("batch_size", len(batch)))
+
+		// 批次操作成功後，使相關快取失效
+		for _, player := range players {
+			cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, player.GetGlobalPlayerID())
+			if err = p.cache.Del(ctx, cacheKey); err != nil {
+				p.logger.WarnWithContext(ctx, "Cache invalidation failed",
+					p.logger.String("cache_key", cacheKey),
+					p.logger.Error("error", err))
+			}
+		}
 	}
 
 	return errors

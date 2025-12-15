@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
@@ -13,6 +14,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -27,6 +29,7 @@ type PlayerUseCase struct {
 	logger         infrastructure.Logger
 	redis          *redis.Client
 	tracing        infrastructure.TracingService
+	cache          infrastructure.CacheManager
 	batchProcessor *PlayerBatchProcessor
 }
 
@@ -39,6 +42,7 @@ func NewPlayerUseCase(
 	logger infrastructure.Logger,
 	redis *redis.Client,
 	tracing infrastructure.TracingService,
+	cache infrastructure.CacheManager,
 ) inbound.PlayerUseCase {
 	usecase := &PlayerUseCase{
 		playerRepo:    playerRepo,
@@ -48,12 +52,14 @@ func NewPlayerUseCase(
 		logger:        logger,
 		redis:         redis,
 		tracing:       tracing,
+		cache:         cache,
 		// 初始化批次處理器
 		batchProcessor: NewPlayerBatchProcessor(
 			playerRepo,
 			eventProducer,
 			logger,
 			tracing,
+			cache,
 		),
 	}
 
@@ -78,8 +84,18 @@ func (u *PlayerUseCase) SyncPlayer(
 	defer u.tracing.SpanEnd(span)
 
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
-	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
-	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
+	cacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, data.GlobalMerchantID)
+	merchant, err := cache.QueryWithCache(
+		ctx,
+		u.cache,
+		cacheKey,
+		5*time.Minute,
+		"merchant",
+		func(ctx context.Context) (*entity.Merchant, error) {
+			return u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
+		},
+	)
+	if err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
@@ -243,7 +259,7 @@ func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.P
 	return player, nil
 }
 
-// GetPlayerByGlobalID 通過全局ID獲取玩家
+// GetPlayerByGlobalID 通過全局ID獲取玩家（帶快取）
 func (u *PlayerUseCase) GetPlayerByGlobalID(
 	ctx context.Context,
 	globalID string,
@@ -254,7 +270,18 @@ func (u *PlayerUseCase) GetPlayerByGlobalID(
 
 	u.tracing.RecordSpanAttributes(span, attribute.String("player.global_id", globalID))
 
-	player, err := u.playerRepo.FindByGlobalID(ctx, globalID)
+	// 獲取玩家
+	cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, globalID)
+	player, err := cache.QueryWithCache(
+		ctx,
+		u.cache,
+		cacheKey,
+		5*time.Minute,
+		"player",
+		func(ctx context.Context) (*entity.Player, error) {
+			return u.playerRepo.FindByGlobalID(ctx, globalID)
+		},
+	)
 	if err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return nil, fmt.Errorf("find player: %w", err)

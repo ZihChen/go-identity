@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,36 +9,21 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
-	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 // PlayerRepository GORM 實現的玩家資料庫
 type PlayerRepository struct {
-	db    *gorm.DB
-	cache infrastructure.CacheManager
+	db *gorm.DB
 }
 
 // NewPlayerRepository 創建玩家資料庫
-func NewPlayerRepository(
-	db *gorm.DB,
-	cache infrastructure.CacheManager,
-) repository.PlayerRepository {
-	return &PlayerRepository{
-		db:    db,
-		cache: cache,
-	}
+func NewPlayerRepository(db *gorm.DB) repository.PlayerRepository {
+	return &PlayerRepository{db: db}
 }
-
-// 快取相關常數
-const (
-	playerCacheKeyPrefix = "player:global_id:"
-	playerCacheTTL       = 5 * time.Minute // 5分鐘快取TTL
-)
 
 // FindByID 通過ID查找玩家
 func (r *PlayerRepository) FindByID(ctx context.Context, id uint64) (*entity.Player, error) {
@@ -55,28 +39,11 @@ func (r *PlayerRepository) FindByID(ctx context.Context, id uint64) (*entity.Pla
 	return mapToDomainPlayer(&player), nil
 }
 
-// FindByGlobalID 通過全局ID查找玩家（帶快取）
+// FindByGlobalID 通過全局ID查找玩家
 func (r *PlayerRepository) FindByGlobalID(
 	ctx context.Context,
 	globalID string,
 ) (*entity.Player, error) {
-	cacheKey := playerCacheKeyPrefix + globalID
-
-	// 1. 先嘗試從快取獲取
-	if r.cache != nil {
-		if cachedData, err := r.cache.Get(ctx, cacheKey); err == nil {
-			var player *entity.Player
-			if unmarshalErr := json.Unmarshal([]byte(cachedData), &player); unmarshalErr == nil {
-				return player, nil
-			}
-			// 快取數據格式錯誤，繼續查詢資料庫
-		} else if !errors.Is(err, redis.Nil) {
-			// 快取服務錯誤（非 key 不存在），記錄但不中斷，繼續查詢資料庫
-			fmt.Printf("Cache get error for key %s: %v\n", cacheKey, err)
-		}
-	}
-
-	// 2. 從資料庫查詢
 	var player models.Player
 	result := r.db.WithContext(ctx).Where("global_player_id = ?", globalID).First(&player)
 	if result.Error != nil {
@@ -86,14 +53,7 @@ func (r *PlayerRepository) FindByGlobalID(
 		return &entity.Player{}, result.Error
 	}
 
-	playerEntity := mapToDomainPlayer(&player)
-
-	// 3. 更新快取（異步進行，不影響主流程）
-	if r.cache != nil {
-		go r.updateCache(ctx, cacheKey, playerEntity)
-	}
-
-	return playerEntity, nil
+	return mapToDomainPlayer(&player), nil
 }
 
 // FirstOrCreate 取得或創建，避免重複插入
@@ -130,9 +90,6 @@ func (r *PlayerRepository) Update(ctx context.Context, player *entity.Player) er
 	if result.Error != nil {
 		return result.Error
 	}
-
-	// 更新後使快取失效
-	r.invalidateCache(ctx, player.GetGlobalPlayerID())
 
 	return nil
 }
@@ -213,9 +170,6 @@ func (r *PlayerRepository) upsertWithoutRetry(ctx context.Context, player *entit
 		return fmt.Errorf("timestamp-based upsert failed: %w", result.Error)
 	}
 
-	// Upsert 後使快取失效
-	r.invalidateCache(ctx, player.GetGlobalPlayerID())
-
 	return nil
 }
 
@@ -232,10 +186,6 @@ func (r *PlayerRepository) BatchUpsert(ctx context.Context, players []*entity.Pl
 		err := r.batchUpsertWithoutRetry(ctx, players)
 
 		if err == nil {
-			// BatchUpsert 成功後使相關快取失效
-			for _, player := range players {
-				r.invalidateCache(ctx, player.GetGlobalPlayerID())
-			}
 			return nil
 		}
 
@@ -387,27 +337,4 @@ func mapToDBPlayer(player *entity.Player) *models.Player {
 	}
 
 	return dbPlayer
-}
-
-// updateCache 更新快取數據
-func (r *PlayerRepository) updateCache(
-	ctx context.Context,
-	cacheKey string,
-	player *entity.Player,
-) {
-	if playerData, err := json.Marshal(player); err == nil {
-		if _, err := r.cache.Set(ctx, cacheKey, string(playerData), playerCacheTTL); err != nil {
-			fmt.Printf("Cache set error for key %s: %v\n", cacheKey, err)
-		}
-	}
-}
-
-// invalidateCache 使快取失效
-func (r *PlayerRepository) invalidateCache(ctx context.Context, globalID string) {
-	if r.cache != nil {
-		cacheKey := playerCacheKeyPrefix + globalID
-		if client, err := r.cache.GetClient(); err == nil && client != nil {
-			client.Del(ctx, cacheKey)
-		}
-	}
 }

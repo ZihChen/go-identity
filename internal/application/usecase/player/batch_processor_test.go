@@ -33,6 +33,7 @@ func TestPlayerBatchProcessor_BasicFlow(t *testing.T) {
 		mockEventProducer,
 		mockLogger,
 		mockTracing,
+		mocks.NewNilCacheManager(),
 	)
 
 	// 啟動處理器
@@ -88,6 +89,7 @@ func TestPlayerBatchProcessor_BatchSizeLimit(t *testing.T) {
 		mockEventProducer,
 		mockLogger,
 		mockTracing,
+		mocks.NewNilCacheManager(),
 	)
 
 	// 設定較小的批次大小進行測試
