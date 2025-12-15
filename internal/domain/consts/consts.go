@@ -12,6 +12,7 @@ const (
 	ShardMutexRedisKey    = "kds:shard:mutex:%s:%s"
 	SyncPlayerTagRedisKey = "worker:sync:play_tag:%d"
 
-	RedisMerchantGlobalIDKey = "merchant:global_id:%s"
-	RedisPlayerGlobalIDKey   = "player:global_id:%s"
+	RedisMerchantGlobalIDKey    = "merchant:global_id:%s"
+	RedisPlayerGlobalIDKey      = "player:global_id:%s"
+	RedisPlayerLevelGlobalIDKey = "player_level:global_id:%s"
 )

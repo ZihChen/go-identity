@@ -84,11 +84,10 @@ func (u *PlayerUseCase) SyncPlayer(
 	defer u.tracing.SpanEnd(span)
 
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
-	cacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, data.GlobalMerchantID)
 	merchant, err := cache.QueryWithCache(
 		ctx,
 		u.cache,
-		cacheKey,
+		fmt.Sprintf(consts.RedisMerchantGlobalIDKey, data.GlobalMerchantID),
 		5*time.Minute,
 		"merchant",
 		func(ctx context.Context) (*entity.Merchant, error) {
@@ -100,10 +99,22 @@ func (u *PlayerUseCase) SyncPlayer(
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
-	level := &entity.Level{}
+	var level *entity.Level
 	if data.PlayerLevel.GlobalPlayerLevelID != "" {
 		// 檢查有無Level，沒有則建立
-		level, err = u.findOrCreateLevel(ctx, span, data, merchant.GetID())
+		level, err = cache.QueryWithCache(
+			ctx,
+			u.cache,
+			fmt.Sprintf(
+				consts.RedisPlayerLevelGlobalIDKey,
+				data.PlayerLevel.GlobalPlayerLevelID,
+			),
+			5*time.Minute,
+			"player_level",
+			func(ctx context.Context) (*entity.Level, error) {
+				return u.findOrCreateLevel(ctx, span, data, merchant.GetID())
+			},
+		)
 		if err != nil {
 			u.tracing.RecordSpanError(span, err)
 			return fmt.Errorf("find or create level: %w", err)
@@ -119,12 +130,18 @@ func (u *PlayerUseCase) SyncPlayer(
 		data.Player.UpdatedAt = time.Now()
 	}
 
+	// 取得 levelID，如果沒有 level 則使用 0
+	var levelID uint64
+	if level != nil {
+		levelID = level.GetID()
+	}
+
 	// 使用 NewPlayerWithTimes 建構子建立 Player 實體
 	player := entity.NewPlayerWithTimes(
 		merchant.GetID(),
 		data.Player.GlobalPlayerID,
 		data.Player.Account,
-		level.GetID(),
+		levelID,
 		email,
 		data.Player.UpdatedAt,
 		data.Player.UpdatedAt,
