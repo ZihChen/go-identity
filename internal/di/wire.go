@@ -48,7 +48,7 @@ var baseSet = wire.NewSet(
 
 	// 資料庫
 	provideMerchantRepository,
-	playerRepo.NewPlayerRepository,
+	providePlayerRepository,
 	managerRepo.NewManagerRepository,
 	tagRepo.NewTagRepository,
 	levelRepo.NewLevelRepository,
@@ -86,6 +86,11 @@ func provideTracingService(cfg *config.Config) (infrastructure.TracingService, e
 // MerchantRepository提供者（帶快取）
 func provideMerchantRepository(db *gorm.DB, cache infrastructure.CacheManager) repository.MerchantRepository {
 	return merchantRepo.NewMerchantRepository(db, cache)
+}
+
+// PlayerRepository提供者（帶快取）
+func providePlayerRepository(db *gorm.DB, cache infrastructure.CacheManager) repository.PlayerRepository {
+	return playerRepo.NewPlayerRepository(db, cache)
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器

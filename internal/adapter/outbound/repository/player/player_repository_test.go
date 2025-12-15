@@ -9,14 +9,55 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-redsync/redsync/v4"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
+
+// mockCacheManager 為測試創建的 mock cache manager
+type mockCacheManager struct{}
+
+func (m *mockCacheManager) Connect(ctx context.Context) error                   { return nil }
+func (m *mockCacheManager) Close() error                                        { return nil }
+func (m *mockCacheManager) Get(ctx context.Context, key string) (string, error) { return "", nil }
+func (m *mockCacheManager) Set(
+	ctx context.Context,
+	key string,
+	value interface{},
+	expiration time.Duration,
+) (string, error) {
+	return "OK", nil
+}
+func (m *mockCacheManager) SetNX(
+	ctx context.Context,
+	key string,
+	value interface{},
+	expiration time.Duration,
+) (bool, error) {
+	return true, nil
+}
+func (m *mockCacheManager) MGet(ctx context.Context, keys ...string) ([]interface{}, error) {
+	return nil, nil
+}
+func (m *mockCacheManager) Pipeline() (redis.Pipeliner, error)    { return nil, nil }
+func (m *mockCacheManager) GetClient() (*redis.Client, error)     { return nil, nil }
+func (m *mockCacheManager) HealthCheck(ctx context.Context) error { return nil }
+func (m *mockCacheManager) GetMutex(key string, expireTime time.Duration) (*redsync.Mutex, error) {
+	return nil, nil
+}
+func (m *mockCacheManager) GetMutexWithOption(
+	key string,
+	options ...redsync.Option,
+) (*redsync.Mutex, error) {
+	return nil, nil
+}
+func (m *mockCacheManager) GetRedsync() (*redsync.Redsync, error) { return nil, nil }
 
 type PlayerTestCase struct {
 	name           string
@@ -56,7 +97,7 @@ func TestPlayerRepository_FindByID(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db)
+	repo := NewPlayerRepository(db, &mockCacheManager{})
 
 	playerID := uint64(1)
 	email := "player@example.com"
@@ -114,7 +155,7 @@ func TestPlayerRepository_FindByGlobalID(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db)
+	repo := NewPlayerRepository(db, &mockCacheManager{})
 
 	globalID := "FATCAT-PLAYER-1"
 	email := "player@example.com"
@@ -198,7 +239,7 @@ func TestPlayerRepository_FirstOrCreate(t *testing.T) {
 			}()
 
 			tc.setupMock(mock)
-			repo := NewPlayerRepository(db)
+			repo := NewPlayerRepository(db, &mockCacheManager{})
 
 			err := repo.FirstOrCreate(context.Background(), tc.expectedPlayer)
 			if tc.expectedError != nil {
@@ -229,7 +270,7 @@ func TestPlayerRepository_Create(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db)
+	repo := NewPlayerRepository(db, &mockCacheManager{})
 
 	now := time.Now()
 	email := "new@example.com"
@@ -293,7 +334,7 @@ func TestPlayerRepository_Update(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db)
+	repo := NewPlayerRepository(db, &mockCacheManager{})
 
 	now := time.Now()
 	playerID := uint64(1)
@@ -344,7 +385,7 @@ func TestPlayerRepository_Delete(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewPlayerRepository(db)
+	repo := NewPlayerRepository(db, &mockCacheManager{})
 
 	playerID := uint64(1)
 
@@ -409,7 +450,7 @@ func TestPlayerRepository_Upsert(t *testing.T) {
 			}()
 
 			tc.setupMock(mock)
-			repo := NewPlayerRepository(db)
+			repo := NewPlayerRepository(db, &mockCacheManager{})
 
 			err := repo.Upsert(context.Background(), tc.expectedPlayer)
 			if tc.expectedError != nil {
