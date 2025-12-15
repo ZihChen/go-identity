@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
@@ -16,7 +17,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -63,7 +63,7 @@ func (u *TagUseCase) SyncPlayerTag(
 
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
 	merchantCacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, globalMerchantID)
-	merchant, err := cache.QueryWithCache(
+	merchant, err := utils.QueryWithCache(
 		ctx,
 		u.cache,
 		merchantCacheKey,
@@ -81,7 +81,7 @@ func (u *TagUseCase) SyncPlayerTag(
 	u.tracing.TraceEvent(span, "Checking if player exists")
 
 	playerCacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, globalPlayerID)
-	player, err := cache.QueryWithCache(
+	player, err := utils.QueryWithCache(
 		ctx,
 		u.cache,
 		playerCacheKey,
@@ -168,7 +168,7 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
 	merchantCacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, data.GlobalMerchantID)
-	merchant, err := cache.QueryWithCache(
+	merchant, err := utils.QueryWithCache(
 		ctx,
 		u.cache,
 		merchantCacheKey,

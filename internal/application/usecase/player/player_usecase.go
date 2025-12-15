@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
@@ -14,7 +15,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -84,7 +84,7 @@ func (u *PlayerUseCase) SyncPlayer(
 	defer u.tracing.SpanEnd(span)
 
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
-	merchant, err := cache.QueryWithCache(
+	merchant, err := utils.QueryWithCache(
 		ctx,
 		u.cache,
 		fmt.Sprintf(consts.RedisMerchantGlobalIDKey, data.GlobalMerchantID),
@@ -102,7 +102,7 @@ func (u *PlayerUseCase) SyncPlayer(
 	var level *entity.Level
 	if data.PlayerLevel.GlobalPlayerLevelID != "" {
 		// 檢查有無Level，沒有則建立
-		level, err = cache.QueryWithCache(
+		level, err = utils.QueryWithCache(
 			ctx,
 			u.cache,
 			fmt.Sprintf(
@@ -289,7 +289,7 @@ func (u *PlayerUseCase) GetPlayerByGlobalID(
 
 	// 獲取玩家
 	cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, globalID)
-	player, err := cache.QueryWithCache(
+	player, err := utils.QueryWithCache(
 		ctx,
 		u.cache,
 		cacheKey,
