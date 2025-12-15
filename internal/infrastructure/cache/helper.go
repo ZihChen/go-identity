@@ -29,7 +29,11 @@ func QueryWithCache[T any](
 			return entity, nil
 		}
 		// 快取數據格式錯誤，繼續查詢資料庫
-		fmt.Printf("Cache data format error for %s key %s, continuing with database query\n", entityName, cacheKey)
+		fmt.Printf(
+			"Cache data format error for %s key %s, continuing with database query\n",
+			entityName,
+			cacheKey,
+		)
 	} else if !errors.Is(err, redis.Nil) {
 		// 快取服務錯誤（非 key 不存在），記錄但不中斷，繼續查詢資料庫
 		fmt.Printf("Cache get error for %s key %s: %v\n", entityName, cacheKey, err)
