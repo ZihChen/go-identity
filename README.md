@@ -329,7 +329,8 @@ fat_identity_cat/
 │       ├── logger/             # 日誌元件
 │       ├── models/             # 資料庫模型
 │       ├── queue/              # 任務隊列
-│       └── tracing/            # 分布式追踪器
+│       ├── tracing/            # 分布式追踪器
+│       └── utils/              # 工具方法
 ├── migrations/                 # 資料庫 schema migrations檔案
 ├── test/                       # 集成測試
 │   ├── mocks/                  # 測試 Mocks (v3.0 重新組織)

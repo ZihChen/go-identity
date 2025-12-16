@@ -163,7 +163,7 @@ Consumer Service (Simplified v2.0)
 ### 技術文檔
 - [Consumer 重構最終總結](CONSUMER_REFACTOR_FINAL_SUMMARY.md)
 - [BackoffManager 架構變更說明](../../../test/TEST_UPDATES.md)
-- [代碼重構最佳實踐](../../../../../CLAUDE.md)
+- [代碼重構最佳實踐](../../../../../../CLAUDE.md)
 
 ### 代碼變更
 - 主要修改文件：`internal/infrastructure/kds/consumer.go`

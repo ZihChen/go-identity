@@ -232,3 +232,12 @@ func (m *Manager) HealthCheck(ctx context.Context) error {
 	}
 	return client.Ping(ctx).Err()
 }
+
+// Del 刪除 key 的值
+func (m *Manager) Del(ctx context.Context, key string) error {
+	client, err := m.GetClient()
+	if err != nil {
+		return err
+	}
+	return client.Del(ctx, key).Err()
+}

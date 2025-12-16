@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -113,4 +114,56 @@ func (l *Level) SetCreatedAt(createdAt time.Time) {
 
 func (l *Level) SetUpdatedAt(updatedAt time.Time) {
 	l.updatedAt = updatedAt
+}
+
+// MarshalJSON 自定義 JSON 序列化
+// Level entity 需要 JSON 序列化以支援 Redis 快取
+func (l *Level) MarshalJSON() ([]byte, error) {
+	type Alias struct {
+		ID                  uint64     `json:"id"`
+		MerchantID          uint64     `json:"merchant_id"`
+		Name                string     `json:"name"`
+		GlobalPlayerLevelID string     `json:"global_player_level_id"`
+		CreatedAt           time.Time  `json:"created_at"`
+		UpdatedAt           time.Time  `json:"updated_at"`
+		DeletedAt           *time.Time `json:"deleted_at,omitempty"`
+	}
+	return json.Marshal(Alias{
+		ID:                  l.id,
+		MerchantID:          l.merchantID,
+		Name:                l.name,
+		GlobalPlayerLevelID: l.globalPlayerLevelID,
+		CreatedAt:           l.createdAt,
+		UpdatedAt:           l.updatedAt,
+		DeletedAt:           l.deletedAt,
+	})
+}
+
+// UnmarshalJSON 自定義 JSON 反序列化
+// 用於從 Redis 快取或 HTTP 請求中恢復 Level 實體
+func (l *Level) UnmarshalJSON(data []byte) error {
+	type Alias struct {
+		ID                  uint64     `json:"id"`
+		MerchantID          uint64     `json:"merchant_id"`
+		Name                string     `json:"name"`
+		GlobalPlayerLevelID string     `json:"global_player_level_id"`
+		CreatedAt           time.Time  `json:"created_at"`
+		UpdatedAt           time.Time  `json:"updated_at"`
+		DeletedAt           *time.Time `json:"deleted_at,omitempty"`
+	}
+
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	l.id = aux.ID
+	l.merchantID = aux.MerchantID
+	l.name = aux.Name
+	l.globalPlayerLevelID = aux.GlobalPlayerLevelID
+	l.createdAt = aux.CreatedAt
+	l.updatedAt = aux.UpdatedAt
+	l.deletedAt = aux.DeletedAt
+
+	return nil
 }

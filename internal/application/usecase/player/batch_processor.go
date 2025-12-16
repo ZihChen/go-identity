@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
@@ -25,6 +26,7 @@ type PlayerBatchProcessor struct {
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
 	tracing       infrastructure.TracingService
+	cache         infrastructure.CacheManager
 
 	// 批次處理配置
 	batchSize    int           // 批次大小
@@ -46,6 +48,7 @@ func NewPlayerBatchProcessor(
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
+	cache infrastructure.CacheManager,
 ) *PlayerBatchProcessor {
 	bufferSize := 1000 // Channel 緩衝大小
 
@@ -54,6 +57,7 @@ func NewPlayerBatchProcessor(
 		eventProducer: eventProducer,
 		logger:        logger,
 		tracing:       tracing,
+		cache:         cache,
 
 		// 批次配置：500筆或3秒超時
 		batchSize:    500,
@@ -212,6 +216,14 @@ func (p *PlayerBatchProcessor) handleSyncFallback(request *PlayerBatchRequest) {
 		return
 	}
 
+	// Upsert 成功後，使快取失效
+	cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, request.Player.GetGlobalPlayerID())
+	if err = p.cache.Del(ctx, cacheKey); err != nil {
+		p.logger.WarnWithContext(ctx, "Cache invalidation failed",
+			p.logger.String("cache_key", cacheKey),
+			p.logger.Error("error", err))
+	}
+
 	// 單筆事件發送
 	err = p.eventProducer.PublishPlayerSync(ctx, request.Player, request.GlobalMerchantID)
 	if err != nil {
@@ -339,6 +351,13 @@ func (p *PlayerBatchProcessor) batchUpsertPlayers(
 		// 批次操作成功，所有請求都成功
 		p.logger.InfoLog("Batch upsert succeeded",
 			p.logger.Int("batch_size", len(batch)))
+
+		// 批次操作成功後，使用 Pipeline 批次失效相關快取
+		if err = p.batchInvalidateCache(ctx, players); err != nil {
+			p.logger.WarnWithContext(ctx, "Batch cache invalidation failed",
+				p.logger.Int("player_count", len(players)),
+				p.logger.Error("error", err))
+		}
 	}
 
 	return errors
@@ -406,4 +425,70 @@ func (p *PlayerBatchProcessor) countSuccessful(dbErrors, eventErrors []error) in
 		}
 	}
 	return count
+}
+
+// batchInvalidateCache 使用 Pipeline 批次失效玩家快取
+func (p *PlayerBatchProcessor) batchInvalidateCache(
+	ctx context.Context,
+	players []*entity.Player,
+) error {
+	if len(players) == 0 {
+		return nil
+	}
+
+	// 獲取 Redis Pipeline
+	pipeline, err := p.cache.Pipeline()
+	if err != nil || pipeline == nil {
+		// Pipeline 不可用時，回退到逐個刪除
+		return p.fallbackInvalidateCache(ctx, players)
+	}
+
+	// 批次添加刪除命令到 Pipeline
+	cacheKeys := make([]string, 0, len(players))
+	for _, player := range players {
+		cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, player.GetGlobalPlayerID())
+		cacheKeys = append(cacheKeys, cacheKey)
+		pipeline.Del(ctx, cacheKey)
+	}
+
+	// 執行 Pipeline
+	_, err = pipeline.Exec(ctx)
+	if err != nil {
+		// Pipeline 執行失敗時，回退到逐個刪除
+		p.logger.WarnWithContext(
+			ctx,
+			"Pipeline execution failed, falling back to individual deletions",
+			p.logger.Error("error", err),
+		)
+		return p.fallbackInvalidateCache(ctx, players)
+	}
+
+	p.logger.InfoWithContext(ctx, "Batch cache invalidation completed using pipeline",
+		p.logger.Int("cache_keys_deleted", len(cacheKeys)))
+
+	return nil
+}
+
+// fallbackInvalidateCache 回退機制：逐個失效快取
+func (p *PlayerBatchProcessor) fallbackInvalidateCache(
+	ctx context.Context,
+	players []*entity.Player,
+) error {
+	successCount := 0
+	for _, player := range players {
+		cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, player.GetGlobalPlayerID())
+		if err := p.cache.Del(ctx, cacheKey); err != nil {
+			p.logger.WarnWithContext(ctx, "Individual cache invalidation failed",
+				p.logger.String("cache_key", cacheKey),
+				p.logger.Error("error", err))
+		} else {
+			successCount++
+		}
+	}
+
+	p.logger.InfoWithContext(ctx, "Fallback cache invalidation completed",
+		p.logger.Int("total_keys", len(players)),
+		p.logger.Int("successful_deletions", successCount))
+
+	return nil
 }

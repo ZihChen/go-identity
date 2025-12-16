@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
@@ -27,7 +28,7 @@ type TagUseCase struct {
 	eventProducer service.EventProducer
 	logger        infrastructure.Logger
 	tracing       infrastructure.TracingService
-	redisManager  infrastructure.CacheManager
+	cache         infrastructure.CacheManager
 }
 
 func NewTagUseCase(
@@ -38,7 +39,7 @@ func NewTagUseCase(
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
-	redisManager infrastructure.CacheManager,
+	cache infrastructure.CacheManager,
 ) inbound.TagUseCase {
 	return &TagUseCase{
 		tagRepo:       tagRepo,
@@ -48,7 +49,7 @@ func NewTagUseCase(
 		eventProducer: eventProducer,
 		logger:        logger,
 		tracing:       tracing,
-		redisManager:  redisManager,
+		cache:         cache,
 	}
 }
 
@@ -61,14 +62,35 @@ func (u *TagUseCase) SyncPlayerTag(
 	defer u.tracing.SpanEnd(span)
 
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
-	merchant, err := u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
+	merchantCacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, globalMerchantID)
+	merchant, err := utils.QueryWithCache(
+		ctx,
+		u.cache,
+		merchantCacheKey,
+		5*time.Minute,
+		"merchant",
+		func(ctx context.Context) (*entity.Merchant, error) {
+			return u.merchantRepo.FindByGlobalID(ctx, globalMerchantID)
+		},
+	)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
 	}
 
 	u.tracing.TraceEvent(span, "Checking if player exists")
-	player, err := u.playerRepo.FindByGlobalID(ctx, globalPlayerID)
+
+	playerCacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, globalPlayerID)
+	player, err := utils.QueryWithCache(
+		ctx,
+		u.cache,
+		playerCacheKey,
+		5*time.Minute,
+		"player",
+		func(ctx context.Context) (*entity.Player, error) {
+			return u.playerRepo.FindByGlobalID(ctx, globalPlayerID)
+		},
+	)
 	if err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find player by global_id: %w", err)
@@ -145,7 +167,17 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 	defer u.tracing.SpanEnd(span)
 
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
-	merchant, err := u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
+	merchantCacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, data.GlobalMerchantID)
+	merchant, err := utils.QueryWithCache(
+		ctx,
+		u.cache,
+		merchantCacheKey,
+		5*time.Minute,
+		"merchant",
+		func(ctx context.Context) (*entity.Merchant, error) {
+			return u.merchantRepo.FindByGlobalID(ctx, data.GlobalMerchantID)
+		},
+	)
 	if err != nil && !errors.Is(err, errmsg.ErrRepoMerchantNotFound) {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("find merchant: %w", err)
@@ -296,7 +328,7 @@ func (u *TagUseCase) executeLocked(ctx context.Context, playerID uint64, fn func
 		tries := 5 + attempt*2                                    // 7, 9, 11次
 		baseDelay := time.Duration(50*attempt) * time.Millisecond // 50ms, 100ms, 150ms
 
-		mutex, err := u.redisManager.GetMutexWithOption(mutexKey,
+		mutex, err := u.cache.GetMutexWithOption(mutexKey,
 			redsync.WithExpiry(expiry),
 			redsync.WithTries(tries),
 			redsync.WithRetryDelay(baseDelay),

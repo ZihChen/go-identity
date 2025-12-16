@@ -47,7 +47,7 @@ var baseSet = wire.NewSet(
 	provideTracingService,
 
 	// 資料庫
-	provideMerchantRepository,
+	merchantRepo.NewMerchantRepository,
 	playerRepo.NewPlayerRepository,
 	managerRepo.NewManagerRepository,
 	tagRepo.NewTagRepository,
@@ -60,8 +60,8 @@ var baseSet = wire.NewSet(
 	provideEventProducer,
 
 	// 用例層
-	merchantUsecase.NewMerchantUseCase,
-	playerUsecase.NewPlayerUseCase,
+	provideMerchantUseCase,
+	providePlayerUseCase,
 	managerUsecase.NewManagerUseCase,
 	tagUsecase.NewTagUseCase,
 	levelUsecase.NewLevelUseCase,
@@ -83,9 +83,29 @@ func provideTracingService(cfg *config.Config) (infrastructure.TracingService, e
 	return tracingService, nil
 }
 
-// MerchantRepository提供者（帶快取）
-func provideMerchantRepository(db *gorm.DB, cache infrastructure.CacheManager) repository.MerchantRepository {
-	return merchantRepo.NewMerchantRepository(db, cache)
+// MerchantUseCase提供者（帶快取）
+func provideMerchantUseCase(
+	merchantRepo repository.MerchantRepository,
+	eventProducer service.EventProducer,
+	logger infrastructure.Logger,
+	tracing infrastructure.TracingService,
+	cache infrastructure.CacheManager,
+) inbound.MerchantUseCase {
+	return merchantUsecase.NewMerchantUseCase(merchantRepo, eventProducer, logger, tracing, cache)
+}
+
+// PlayerUseCase提供者（帶快取）
+func providePlayerUseCase(
+	playerRepo repository.PlayerRepository,
+	merchantRepo repository.MerchantRepository,
+	levelRepo repository.LevelRepository,
+	eventProducer service.EventProducer,
+	logger infrastructure.Logger,
+	redis *redis.Client,
+	tracing infrastructure.TracingService,
+	cache infrastructure.CacheManager,
+) inbound.PlayerUseCase {
+	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, eventProducer, logger, redis, tracing, cache)
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器

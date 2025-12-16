@@ -44,7 +44,7 @@ docs/claude/
   - 常見陷阱避免方法
 
 ### 歷史歸檔
-- **[archieve/2025-09/consumer-refactor/](./archieve/2025-09/consumer-refactor/)** - Consumer 重構完整歷史
+- **[archieve/2025-09/consumer-refactor/](archieve/2025/2025-09/consumer-refactor/)** - Consumer 重構完整歷史
   - 三階段重構過程
   - 技術決策記錄
   - 性能驗證結果

@@ -16,28 +16,28 @@
 
 ### 📄 核心歷史文檔
 
-1. **[CONSUMER_REFACTOR_FINAL_SUMMARY.md](./CONSUMER_REFACTOR_FINAL_SUMMARY.md)**  
+1. **[CONSUMER_REFACTOR_FINAL_SUMMARY.md](CONSUMER_REFACTOR_FINAL_SUMMARY.md)**  
    📋 **最終總結文檔** - 完整的專案成果和技術實現總結
    - 三階段重構歷程回顧
    - 最終架構成果
    - 性能驗證結果 (10,000+ records/sec)
    - 代碼品質指標
 
-2. **[CONSUMER_REFACTOR_ARCHIVE.md](./CONSUMER_REFACTOR_ARCHIVE.md)**  
+2. **[CONSUMER_REFACTOR_ARCHIVE.md](CONSUMER_REFACTOR_ARCHIVE.md)**  
    📚 **歷史歸檔文檔** - 完整的重構歷史和技術決策記錄
    - 重構決策分析
    - v3.0 vs v2.0 對比
    - 經驗教訓總結
    - 技術債務處理
 
-3. **[CONSUMER_SIMPLE_REFACTOR_SUMMARY.md](./CONSUMER_SIMPLE_REFACTOR_SUMMARY.md)**  
+3. **[CONSUMER_SIMPLE_REFACTOR_SUMMARY.md](CONSUMER_SIMPLE_REFACTOR_SUMMARY.md)**  
    🚀 **v2.0 實現總結** - 簡化版本的具體實現詳情
    - 核心改進內容
    - 文件變更清單
    - 性能預期效果
    - 使用方法說明
 
-4. **[TEST_UPDATES.md](./TEST_UPDATES.md)**  
+4. **[TEST_UPDATES.md](TEST_UPDATES.md)**  
    🧪 **測試更新記錄** - BackoffManager 提取後的測試調整
    - 測試架構變更
    - 新增公共構造函數

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
@@ -18,7 +19,7 @@ import (
 // Helper function specific to tag tests
 func createTagMockDependencies(
 	t *testing.T,
-) (*mocks.TagRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.PlayerRepositoryMock, *mocks.PlayerTagRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, *mocks.RedisManagerMock) {
+) (*mocks.TagRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.PlayerRepositoryMock, *mocks.PlayerTagRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, infrastructure.CacheManager) {
 	// Explicitly use imports to avoid "unused import" errors
 	var _ context.Context
 	var _ entity.Tag
@@ -30,8 +31,8 @@ func createTagMockDependencies(
 	playerTagRepo := mocks.NewPlayerTagRepositoryMock(t)
 	eventProducer := mocks.NewEventProducerMock(t)
 	logger := mocks.NewMockLogger(t)
-	redisManager := mocks.NewRedisManagerMock(t)
-	return tagRepo, merchantRepo, playerRepo, playerTagRepo, eventProducer, logger, redisManager
+	cacheManager := mocks.NewNilCacheManager()
+	return tagRepo, merchantRepo, playerRepo, playerTagRepo, eventProducer, logger, cacheManager
 }
 
 func createTagSyncEvent() *event.TagSyncEvent {
@@ -83,7 +84,7 @@ func createPlayerTagSyncData() []event.TagData {
 
 // Tests
 func TestNewTagUseCase(t *testing.T) {
-	tagRepo, merchantRepo, playerRepo, playerTagRepo, eventProducer, logger, _ := createTagMockDependencies(
+	tagRepo, merchantRepo, playerRepo, playerTagRepo, eventProducer, logger, cacheManager := createTagMockDependencies(
 		t,
 	)
 
@@ -95,7 +96,7 @@ func TestNewTagUseCase(t *testing.T) {
 		eventProducer,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	assert.NotNil(t, useCase)
@@ -104,7 +105,7 @@ func TestNewTagUseCase(t *testing.T) {
 
 func TestTagUseCase_SyncTag_CreateNew(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	tagRepo, merchantRepo, _, _, eventProducer, logger, _ := createTagMockDependencies(t)
+	tagRepo, merchantRepo, _, _, eventProducer, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks
 	merchant := factories.CreateTestMerchant()
@@ -126,7 +127,7 @@ func TestTagUseCase_SyncTag_CreateNew(t *testing.T) {
 		eventProducer,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Create test event data
@@ -144,7 +145,7 @@ func TestTagUseCase_SyncTag_CreateNew(t *testing.T) {
 
 func TestTagUseCase_SyncTag_ClosedTag(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	tagRepo, merchantRepo, _, _, eventProducer, logger, _ := createTagMockDependencies(t)
+	tagRepo, merchantRepo, _, _, eventProducer, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks
 	merchant := factories.CreateTestMerchant()
@@ -166,7 +167,7 @@ func TestTagUseCase_SyncTag_ClosedTag(t *testing.T) {
 		eventProducer,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Create test event data with closed tag
@@ -185,7 +186,7 @@ func TestTagUseCase_SyncTag_ClosedTag(t *testing.T) {
 
 func TestTagUseCase_SyncTag_MerchantNotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	_, merchantRepo, _, _, _, logger, _ := createTagMockDependencies(t)
+	_, merchantRepo, _, _, _, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks - merchant not found
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").
@@ -200,7 +201,7 @@ func TestTagUseCase_SyncTag_MerchantNotFound(t *testing.T) {
 		nil,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Create test event data
@@ -217,7 +218,7 @@ func TestTagUseCase_SyncTag_MerchantNotFound(t *testing.T) {
 
 func TestTagUseCase_SyncTag_UpsertError(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	tagRepo, merchantRepo, _, _, _, logger, _ := createTagMockDependencies(t)
+	tagRepo, merchantRepo, _, _, _, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks
 	merchant := factories.CreateTestMerchant()
@@ -236,7 +237,7 @@ func TestTagUseCase_SyncTag_UpsertError(t *testing.T) {
 		nil,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Create test event data
@@ -254,7 +255,7 @@ func TestTagUseCase_SyncTag_UpsertError(t *testing.T) {
 
 func TestTagUseCase_SyncTag_PublishError(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	tagRepo, merchantRepo, _, _, eventProducer, logger, _ := createTagMockDependencies(t)
+	tagRepo, merchantRepo, _, _, eventProducer, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks
 	merchant := factories.CreateTestMerchant()
@@ -276,7 +277,7 @@ func TestTagUseCase_SyncTag_PublishError(t *testing.T) {
 		eventProducer,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Create test event data
@@ -298,7 +299,7 @@ func TestTagUseCase_SyncTag_PublishError(t *testing.T) {
 
 func TestTagUseCase_publishTagSyncEvent(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	_, _, _, _, eventProducer, logger, _ := createTagMockDependencies(t)
+	_, _, _, _, eventProducer, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks
 	tag := factories.CreateTestTag()
@@ -316,7 +317,7 @@ func TestTagUseCase_publishTagSyncEvent(t *testing.T) {
 		eventProducer,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Execute the private function through a test-only wrapper
@@ -333,7 +334,7 @@ func TestTagUseCase_publishTagSyncEvent(t *testing.T) {
 
 func TestTagUseCase_publishTagSyncEvent_Error(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	_, _, _, _, eventProducer, logger, _ := createTagMockDependencies(t)
+	_, _, _, _, eventProducer, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks
 	tag := factories.CreateTestTag()
@@ -351,7 +352,7 @@ func TestTagUseCase_publishTagSyncEvent_Error(t *testing.T) {
 		eventProducer,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Execute the private function through a test-only wrapper
@@ -369,7 +370,7 @@ func TestTagUseCase_publishTagSyncEvent_Error(t *testing.T) {
 
 func TestTagUseCase_publishPlayerTagsSyncEvent(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	_, _, _, _, eventProducer, logger, _ := createTagMockDependencies(t)
+	_, _, _, _, eventProducer, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks
 	tags := []*entity.Tag{factories.CreateTestTag()}
@@ -387,7 +388,7 @@ func TestTagUseCase_publishPlayerTagsSyncEvent(t *testing.T) {
 		eventProducer,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Execute the private function through a test-only wrapper
@@ -405,7 +406,7 @@ func TestTagUseCase_publishPlayerTagsSyncEvent(t *testing.T) {
 
 func TestTagUseCase_publishPlayerTagsSyncEvent_Error(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	_, _, _, _, eventProducer, logger, _ := createTagMockDependencies(t)
+	_, _, _, _, eventProducer, logger, cacheManager := createTagMockDependencies(t)
 
 	// Setup mocks
 	tags := []*entity.Tag{factories.CreateTestTag()}
@@ -423,7 +424,7 @@ func TestTagUseCase_publishPlayerTagsSyncEvent_Error(t *testing.T) {
 		eventProducer,
 		logger,
 		mocks.NewNilTracingService(),
-		nil,
+		cacheManager,
 	)
 
 	// Execute the private function through a test-only wrapper

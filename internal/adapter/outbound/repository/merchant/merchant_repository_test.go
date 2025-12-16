@@ -100,7 +100,7 @@ func TestMerchantRepository_FindByID(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewMerchantRepository(db, &mockCacheManager{})
+	repo := NewMerchantRepository(db)
 
 	merchantID := uint64(1)
 	expectedMerchant := &models.Merchant{
@@ -152,7 +152,7 @@ func TestMerchantRepository_FindByGlobalID(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewMerchantRepository(db, &mockCacheManager{})
+	repo := NewMerchantRepository(db)
 
 	globalID := "FATCAT-MERCHANT-1"
 	expectedMerchant := &models.Merchant{
@@ -205,7 +205,7 @@ func TestMerchantRepository_Create(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewMerchantRepository(db, &mockCacheManager{})
+	repo := NewMerchantRepository(db)
 
 	now := time.Now()
 	merchant := &models.Merchant{
@@ -260,7 +260,7 @@ func TestMerchantRepository_Update(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewMerchantRepository(db, &mockCacheManager{})
+	repo := NewMerchantRepository(db)
 
 	now := time.Now()
 	merchantID := uint64(1)
@@ -306,7 +306,7 @@ func TestMerchantRepository_Delete(t *testing.T) {
 	db, err := gorm.Open(decorator, &gorm.Config{})
 	require.NoError(t, err)
 
-	repo := NewMerchantRepository(db, &mockCacheManager{})
+	repo := NewMerchantRepository(db)
 
 	merchantID := uint64(1)
 
@@ -361,7 +361,7 @@ func TestMerchantRepository_FirstOrCreate(t *testing.T) {
 	}()
 
 	testCases.setupMock(mock)
-	repo := NewMerchantRepository(db, &mockCacheManager{})
+	repo := NewMerchantRepository(db)
 
 	err := repo.FirstOrCreate(context.Background(), testCases.expectedMerchant)
 	if testCases.expectedError != nil {
@@ -413,7 +413,7 @@ func TestMerchantRepository_Upsert(t *testing.T) {
 
 			tc.setupMock(mock)
 
-			repo := NewMerchantRepository(db, &mockCacheManager{})
+			repo := NewMerchantRepository(db)
 
 			err := repo.Upsert(context.Background(), tc.expectedMerchant)
 

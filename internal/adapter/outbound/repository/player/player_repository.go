@@ -169,6 +169,7 @@ func (r *PlayerRepository) upsertWithoutRetry(ctx context.Context, player *entit
 	if result.Error != nil {
 		return fmt.Errorf("timestamp-based upsert failed: %w", result.Error)
 	}
+
 	return nil
 }
 
