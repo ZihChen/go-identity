@@ -15,16 +15,16 @@
 
 ### 🛠️ 專案重構工作
 
-- **[player-tags-upsert-refactor/](./player-tags-upsert-refactor/)** - 玩家同步 Deadlock 優化項目
+- **[player-tags-upsert-refactor/](../archieve/2025/2025-12/player-tags-upsert-refactor/)** - 玩家同步 Deadlock 優化項目
   - **CLAUDE-2025-12-03-v1.2.md** - Repository 層 MySQL deadlock retry 實作指南
   - 解決 0.81% deadlock 錯誤率，提升至 99.95%+ 成功率
   - 三層防護架構：Asynq + Redis + MySQL deadlock retry
 
-- **[redis-refactor/](./redis-refactor/)** - Redis 快取功能增強項目
+- **[redis-refactor/](../archieve/2025/2025-12/redis-refactor/)** - Redis 快取功能增強項目
   - **CLAUDE-2025-11-20-v1.0.md** - 四階段 Redis 優化實作
   - Pipeline 安全性修復、健康檢查、介面標準化、重試策略優化
 
-- **[queue-perf/](./queue-perf/)** - 佇列效能優化項目
+- **[queue-perf/](../archieve/2025/2025-12/queue-perf/)** - 佇列效能優化項目
   - **CLAUDE-2025-12-02-v1.0.md** - 佇列效能分析與優化建議
 
 ## 使用指南
