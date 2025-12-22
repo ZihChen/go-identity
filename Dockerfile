@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1.23-alpine AS builder
+FROM --platform=${BUILDPLATFORM} golang:1.24-alpine AS builder
 
 # 添加構建參數
 ARG TARGETOS
@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     -o fat-identity-cat
 
 # Install Delve debugger 並指定安裝位置
-RUN GOBIN=/usr/local/bin go install github.com/go-delve/delve/cmd/dlv@v1.25.1
+RUN GOBIN=/usr/local/bin go install github.com/go-delve/delve/cmd/dlv@latest
 
 # 創建最終運行時映像
 FROM alpine:latest

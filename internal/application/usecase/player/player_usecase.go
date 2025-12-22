@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
@@ -15,6 +14,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"

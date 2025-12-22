@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
@@ -18,6 +17,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -120,7 +120,7 @@ func (u *TagUseCase) SyncPlayerTag(
 
 	if len(tagsToUpsert) == 0 {
 		u.logger.InfoWithContext(ctx, "No tags need updating, skipping database operation")
-		tagsToUpsert = tagsToInsert // 使用原始列表進行後續查詢
+		// 使用原始列表進行後續查詢
 	} else {
 		// 只對需要更新的標籤執行資料庫操作
 		u.tracing.TraceEvent(span, "Executing batch upsert for filtered tags")
@@ -431,7 +431,10 @@ func (u *TagUseCase) executeLocked(ctx context.Context, playerID uint64, fn func
 }
 
 // filterTagsNeedingUpdate 使用快取篩選出需要更新的標籤
-func (u *TagUseCase) filterTagsNeedingUpdate(ctx context.Context, tags []*entity.Tag) ([]*entity.Tag, error) {
+func (u *TagUseCase) filterTagsNeedingUpdate(
+	ctx context.Context,
+	tags []*entity.Tag,
+) ([]*entity.Tag, error) {
 	if len(tags) == 0 {
 		return []*entity.Tag{}, nil
 	}

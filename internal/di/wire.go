@@ -8,8 +8,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/api"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/consumer"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/adapter/inbound/handler/worker"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	agentRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/agent"
 	failedTaskEventRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/failed_task_event"
 	levelRepo "github.com/jvdiamondtech/ms-identity-cat/internal/adapter/outbound/repository/level"
@@ -24,7 +22,9 @@ import (
 	merchantUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/merchant"
 	playerUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/player"
 	tagUsecase "github.com/jvdiamondtech/ms-identity-cat/internal/application/usecase/tag"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
@@ -107,7 +107,6 @@ func providePlayerUseCase(
 ) inbound.PlayerUseCase {
 	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, eventProducer, logger, redis, tracing, cache)
 }
-
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
 func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*api.HTTPHandler, error) {
