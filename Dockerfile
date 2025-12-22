@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1.23-alpine AS builder
+FROM --platform=${BUILDPLATFORM} golang:1.24-alpine AS builder
 
 # 添加構建參數
 ARG TARGETOS

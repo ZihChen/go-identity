@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
@@ -13,6 +12,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"go.opentelemetry.io/otel/attribute"
 )
 

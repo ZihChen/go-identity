@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
@@ -17,6 +17,8 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
+	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -108,11 +110,27 @@ func (u *TagUseCase) SyncPlayerTag(
 		tagsGlobalIDs[k] = item.Tag.GlobalTagID
 	}
 
-	// 更新或創建Tags
-	u.tracing.TraceEvent(span, "Start operation tags batch upsert")
-	if err = u.tagRepo.BatchUpsert(ctx, tagsToInsert); err != nil {
+	// 使用快取優化的標籤批次處理邏輯
+	u.tracing.TraceEvent(span, "Start optimized tags batch processing with cache")
+	tagsToUpsert, err := u.filterTagsNeedingUpdate(ctx, tagsToInsert)
+	if err != nil {
 		u.tracing.RecordSpanError(span, err)
-		return fmt.Errorf("batch upsert tags failed: %w", err)
+		return fmt.Errorf("filter tags needing update failed: %w", err)
+	}
+
+	if len(tagsToUpsert) == 0 {
+		u.logger.InfoWithContext(ctx, "No tags need updating, skipping database operation")
+		// 使用原始列表進行後續查詢
+	} else {
+		// 只對需要更新的標籤執行資料庫操作
+		u.tracing.TraceEvent(span, "Executing batch upsert for filtered tags")
+		if err = u.tagRepo.BatchUpsert(ctx, tagsToUpsert); err != nil {
+			u.tracing.RecordSpanError(span, err)
+			return fmt.Errorf("batch upsert tags failed: %w", err)
+		}
+
+		// 更新快取 (非同步)
+		go u.updateTagCache(context.Background(), tagsToUpsert)
 	}
 	u.logger.InfoWithContext(
 		ctx,
@@ -203,6 +221,12 @@ func (u *TagUseCase) SyncTag(ctx context.Context, data *event.TagSyncEvent) erro
 	if err = u.tagRepo.Upsert(ctx, tagToInsert); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("upsert tag: %w", err)
+	}
+	cacheKey := fmt.Sprintf(consts.RedisTagGlobalIDKey, tagToInsert.GetGlobalTagID())
+	if err = u.cache.Del(ctx, cacheKey); err != nil {
+		u.logger.WarnWithContext(ctx, "Cache invalidation failed",
+			u.logger.String("cache_key", cacheKey),
+			u.logger.Error("error", err))
 	}
 	u.logger.InfoWithContext(ctx, "Upsert tag completed", u.logger.Any("tag", tagToInsert))
 
@@ -404,4 +428,146 @@ func (u *TagUseCase) executeLocked(ctx context.Context, playerID uint64, fn func
 
 	// 不應該到達這裡
 	return fmt.Errorf("unexpected error: failed to acquire lock for player %d", playerID)
+}
+
+// filterTagsNeedingUpdate 使用快取篩選出需要更新的標籤
+func (u *TagUseCase) filterTagsNeedingUpdate(
+	ctx context.Context,
+	tags []*entity.Tag,
+) ([]*entity.Tag, error) {
+	if len(tags) == 0 {
+		return []*entity.Tag{}, nil
+	}
+
+	// 如果快取不可用，回退至所有標籤都需要處理
+	if u.cache == nil {
+		return tags, nil
+	}
+
+	tagsNeedingUpdate := make([]*entity.Tag, 0, len(tags))
+
+	for _, tag := range tags {
+		cacheKey := fmt.Sprintf(consts.RedisTagGlobalIDKey, tag.GetGlobalTagID())
+
+		// 嘗試從快取獲取現有標籤
+		cachedData, err := u.cache.Get(ctx, cacheKey)
+		if err != nil {
+			if errors.Is(err, redis.Nil) {
+				// 標籤不在快取中，需要處理
+				tagsNeedingUpdate = append(tagsNeedingUpdate, tag)
+				continue
+			}
+			// 快取錯誤，為安全起見假設需要處理
+			tagsNeedingUpdate = append(tagsNeedingUpdate, tag)
+			continue
+		}
+
+		// 解析快取中的標籤
+		var cachedTag entity.Tag
+		if err = json.Unmarshal([]byte(cachedData), &cachedTag); err != nil {
+			// 快取資料格式錯誤，需要處理
+			tagsNeedingUpdate = append(tagsNeedingUpdate, tag)
+			continue
+		}
+
+		// 比較標籤是否需要更新
+		if u.tagNeedsUpdate(tag, &cachedTag) {
+			tagsNeedingUpdate = append(tagsNeedingUpdate, tag)
+		}
+	}
+
+	u.logger.InfoWithContext(ctx, "Filtered tags for update",
+		u.logger.Int("original_count", len(tags)),
+		u.logger.Int("filtered_count", len(tagsNeedingUpdate)),
+		u.logger.Float64("reduction_ratio", float64(len(tags)-len(tagsNeedingUpdate))/float64(len(tags))*100),
+	)
+
+	return tagsNeedingUpdate, nil
+}
+
+// tagNeedsUpdate 比較兩個標籤以確定是否需要更新
+func (u *TagUseCase) tagNeedsUpdate(newTag, cachedTag *entity.Tag) bool {
+	// 比較可能變更的關鍵欄位
+	if newTag.GetName() != cachedTag.GetName() {
+		return true
+	}
+	return false
+}
+
+// updateTagCache 更新標籤快取（非同步）使用 Pipeline 批次執行
+func (u *TagUseCase) updateTagCache(ctx context.Context, tags []*entity.Tag) {
+	if u.cache == nil || len(tags) == 0 {
+		return
+	}
+
+	// 獲取 Pipeline
+	pipeline, err := u.cache.Pipeline()
+	if err != nil {
+		u.logger.ErrorWithContext(ctx, "Failed to create pipeline for cache update",
+			u.logger.Error("error", err),
+		)
+		// 回退到逐個更新
+		u.updateTagCacheFallback(ctx, tags)
+		return
+	}
+
+	// 批次準備 Pipeline 命令
+	cacheCommands := 0
+	for _, tag := range tags {
+		cacheKey := fmt.Sprintf(consts.RedisTagGlobalIDKey, tag.GetGlobalTagID())
+
+		tagData, err := json.Marshal(tag)
+		if err != nil {
+			u.logger.ErrorWithContext(ctx, "Failed to marshal tag for cache",
+				u.logger.String("global_tag_id", tag.GetGlobalTagID()),
+				u.logger.Error("error", err),
+			)
+			continue
+		}
+
+		// 添加 SET 命令到 Pipeline（快取 5 分鐘）
+		pipeline.Set(ctx, cacheKey, string(tagData), 10*time.Minute)
+		cacheCommands++
+	}
+
+	// 執行 Pipeline
+	if cacheCommands > 0 {
+		_, err = pipeline.Exec(ctx)
+		if err != nil {
+			u.logger.ErrorWithContext(ctx, "Failed to execute pipeline for cache update",
+				u.logger.Int("commands_count", cacheCommands),
+				u.logger.Error("error", err),
+			)
+			// Pipeline 失敗，回退到逐個更新
+			u.updateTagCacheFallback(ctx, tags)
+		} else {
+			u.logger.DebugWithContext(ctx, "Successfully updated tag cache via pipeline",
+				u.logger.Int("tags_updated", cacheCommands),
+			)
+		}
+	}
+}
+
+// updateTagCacheFallback 回退方案：逐個更新快取
+func (u *TagUseCase) updateTagCacheFallback(ctx context.Context, tags []*entity.Tag) {
+	for _, tag := range tags {
+		cacheKey := fmt.Sprintf(consts.RedisTagGlobalIDKey, tag.GetGlobalTagID())
+
+		tagData, err := json.Marshal(tag)
+		if err != nil {
+			u.logger.ErrorWithContext(ctx, "Failed to marshal tag for cache (fallback)",
+				u.logger.String("global_tag_id", tag.GetGlobalTagID()),
+				u.logger.Error("error", err),
+			)
+			continue
+		}
+
+		// 快取 5 分鐘
+		if _, err = u.cache.Set(ctx, cacheKey, string(tagData), 10*time.Minute); err != nil {
+			u.logger.ErrorWithContext(ctx, "Failed to set tag cache (fallback)",
+				u.logger.String("cache_key", cacheKey),
+				u.logger.Error("error", err),
+			)
+		}
+	}
 }
