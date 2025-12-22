@@ -15,4 +15,5 @@ const (
 	RedisMerchantGlobalIDKey    = "merchant:global_id:%s"
 	RedisPlayerGlobalIDKey      = "player:global_id:%s"
 	RedisPlayerLevelGlobalIDKey = "player_level:global_id:%s"
+	RedisTagGlobalIDKey         = "tag:global_id:%s"
 )

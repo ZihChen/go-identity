@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -114,4 +115,53 @@ func (t *Tag) SetCreatedAt(createdAt time.Time) {
 
 func (t *Tag) SetUpdatedAt(updatedAt time.Time) {
 	t.updatedAt = updatedAt
+}
+
+// MarshalJSON implements custom JSON marshaling for Redis cache storage
+// 這個方法使 Tag 可以被正確序列化為 JSON 格式存入 Redis
+func (t *Tag) MarshalJSON() ([]byte, error) {
+	type Alias struct {
+		ID          uint64     `json:"id"`
+		MerchantID  uint64     `json:"merchant_id"`
+		Name        string     `json:"name"`
+		GlobalTagID string     `json:"global_tag_id"`
+		CreatedAt   time.Time  `json:"created_at"`
+		UpdatedAt   time.Time  `json:"updated_at"`
+		DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	}
+	return json.Marshal(Alias{
+		ID:          t.id,
+		MerchantID:  t.merchantID,
+		Name:        t.name,
+		GlobalTagID: t.globalTagID,
+		CreatedAt:   t.createdAt,
+		UpdatedAt:   t.updatedAt,
+		DeletedAt:   t.deletedAt,
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for Redis cache retrieval
+// 這個方法使 Tag 可以從 JSON 格式正確反序列化
+func (t *Tag) UnmarshalJSON(data []byte) error {
+	type Alias struct {
+		ID          uint64     `json:"id"`
+		MerchantID  uint64     `json:"merchant_id"`
+		Name        string     `json:"name"`
+		GlobalTagID string     `json:"global_tag_id"`
+		CreatedAt   time.Time  `json:"created_at"`
+		UpdatedAt   time.Time  `json:"updated_at"`
+		DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	}
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	t.id = aux.ID
+	t.merchantID = aux.MerchantID
+	t.name = aux.Name
+	t.globalTagID = aux.GlobalTagID
+	t.createdAt = aux.CreatedAt
+	t.updatedAt = aux.UpdatedAt
+	t.deletedAt = aux.DeletedAt
+	return nil
 }

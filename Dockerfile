@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     -o fat-identity-cat
 
 # Install Delve debugger 並指定安裝位置
-RUN GOBIN=/usr/local/bin go install github.com/go-delve/delve/cmd/dlv@latest
+RUN GOBIN=/usr/local/bin go install github.com/go-delve/delve/cmd/dlv@v1.25.1
 
 # 創建最終運行時映像
 FROM alpine:latest

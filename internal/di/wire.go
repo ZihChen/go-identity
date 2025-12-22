@@ -108,6 +108,7 @@ func providePlayerUseCase(
 	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, eventProducer, logger, redis, tracing, cache)
 }
 
+
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
 func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*api.HTTPHandler, error) {
 	wire.Build(
