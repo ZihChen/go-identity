@@ -3,12 +3,12 @@ package config
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/viper"
+	"time"
 )
 
 // Config 應用程序配置
@@ -23,6 +23,7 @@ type Config struct {
 	Events   EventsConfig
 	Consumer ConsumerConfig
 	CORS     CORSConfig
+	Auth     AuthConfig
 }
 
 // AppConfig 應用程序基本配置
@@ -143,6 +144,14 @@ type CORSConfig struct {
 	ExposedHeaders   []string // 暴露的回應頭
 	AllowCredentials bool     // 是否允許憑證
 	MaxAge           int      // 預檢請求快取時間(小時)
+}
+
+// AuthConfig API認證配置
+type AuthConfig struct {
+	Enabled        bool
+	APIKeys        map[string]string
+	HeaderKey      string
+	EncryptionType string
 }
 
 // LoadConfig 加載配置
@@ -268,6 +277,12 @@ func LoadConfig() (*Config, error) {
 			ExposedHeaders:   getSliceWithDefault("CORS_EXPOSED_HEADERS", []string{"Content-Type"}),
 			AllowCredentials: getBoolWithDefault("CORS_ALLOW_CREDENTIALS", false),
 			MaxAge:           getIntWithDefault("CORS_MAX_AGE", 12),
+		},
+		Auth: AuthConfig{
+			Enabled:        viper.GetBool("AUTH_ENABLED"),
+			APIKeys:        parseAPIKeyMap(viper.GetString("AUTH_API_KEYS")),
+			HeaderKey:      viper.GetString("AUTH_HEADER_KEY"),
+			EncryptionType: viper.GetString("AUTH_ENCRYPTION_TYPE"),
 		},
 	}
 
@@ -429,6 +444,12 @@ func (c *Config) PrintConfig() {
 	fmt.Printf("  AllowCredentials: %t\n", c.CORS.AllowCredentials)
 	fmt.Printf("  MaxAge: %d hours\n", c.CORS.MaxAge)
 
+	fmt.Printf("\n[Auth]\n")
+	fmt.Printf("  Enabled: %t\n", c.Auth.Enabled)
+	fmt.Printf("  HeaderKey: %s\n", c.Auth.HeaderKey)
+	fmt.Printf("  EncryptionType: %s\n", c.Auth.EncryptionType)
+	fmt.Printf("  APIKeys Count: %d\n", len(c.Auth.APIKeys))
+
 	fmt.Println("\n==============================")
 }
 
@@ -452,4 +473,20 @@ func maskAPIKey(key string) string {
 		return "********"
 	}
 	return key[:4] + "****" + key[len(key)-4:]
+}
+
+// parseAPIKeyMap 解析JSON格式的API Key映射字符串
+func parseAPIKeyMap(apiKeysString string) map[string]string {
+	if apiKeysString == "" {
+		return map[string]string{}
+	}
+
+	keyMap := make(map[string]string)
+	err := jsoniter.Unmarshal([]byte(apiKeysString), &keyMap)
+	if err != nil {
+		// 如果JSON解析失败，返回空map
+		return map[string]string{}
+	}
+
+	return keyMap
 }

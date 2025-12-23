@@ -38,16 +38,26 @@ func (rm *Manager) SetupRoutersWithMiddleware(
 		middleware.NewTracingMiddleware(handler.GetTracingService()),
 	)
 
+	var authMiddleware gin.HandlerFunc
+	if cfg.Auth.Enabled {
+		authMiddleware = middleware.AuthMiddleware(middleware.AuthConfig{
+			APIKeys:        cfg.Auth.APIKeys,
+			HeaderKey:      cfg.Auth.HeaderKey,
+			EncryptionType: cfg.Auth.EncryptionType,
+		})
+	}
+
 	// 註冊所有路由
-	rm.registerRoutes(router)
+	rm.registerRoutes(router, authMiddleware)
 }
 
 // registerRoutes 註冊所有路由，每個路由器使用各自的中間件
 func (rm *Manager) registerRoutes(
 	router *gin.Engine,
+	middleware gin.HandlerFunc,
 ) {
 	// 註冊 API 路由
-	rm.apiRouter.RegisterRoutes(router)
+	rm.apiRouter.RegisterRoutes(router, middleware)
 
 	// 註冊 Swagger 路由
 	rm.swaggerRouter.RegisterRoutes(router)
