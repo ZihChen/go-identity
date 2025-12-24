@@ -5,7 +5,6 @@ metadata:
   labels:
     {{- include "fatidentitycat.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.app.replicas }}
   selector:
     matchLabels:
       {{- include "fatidentitycat.labels" . | nindent 6 }}
