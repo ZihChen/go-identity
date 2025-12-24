@@ -105,7 +105,7 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 	playerLevelUseCase := usecase3.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger, tracingService)
 	agentRepository := repository6.NewAgentRepository(db)
 	agentUseCase := usecase4.NewAgentUseCase(agentRepository, merchantRepository, eventProducer, logger, tracingService)
-	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, agentUseCase, logger, tracingService)
+	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, agentUseCase, logger, tracingService, queueService)
 	return workerHandler, nil
 }
 
@@ -142,7 +142,7 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 	playerLevelUseCase := usecase3.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger, tracingService)
 	agentRepository := repository6.NewAgentRepository(db)
 	agentUseCase := usecase4.NewAgentUseCase(agentRepository, merchantRepository, eventProducer, logger, tracingService)
-	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, agentUseCase, logger, tracingService)
+	workerHandler := worker.NewWorkerHandler(merchantUseCase, playerUseCase, managerUseCase, tagUseCase, playerLevelUseCase, agentUseCase, logger, tracingService, queueService)
 	failedTaskEventRepository := repository7.NewFailedTaskEventRepository(db)
 	failedTaskEventUseCase := usecase5.NewFailedTaskEventUseCase(failedTaskEventRepository, logger, tracingService)
 	server, err := provideWorkerServer(cfg, logger, failedTaskEventUseCase, redisManager, tracingService)
