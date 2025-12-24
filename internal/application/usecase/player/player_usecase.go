@@ -30,6 +30,7 @@ type PlayerUseCase struct {
 	redis          *redis.Client
 	tracing        infrastructure.TracingService
 	cache          infrastructure.CacheManager
+	jwtService     service.JWTService
 	batchProcessor *PlayerBatchProcessor
 }
 
@@ -43,6 +44,7 @@ func NewPlayerUseCase(
 	redis *redis.Client,
 	tracing infrastructure.TracingService,
 	cache infrastructure.CacheManager,
+	jwtService service.JWTService,
 ) inbound.PlayerUseCase {
 	usecase := &PlayerUseCase{
 		playerRepo:    playerRepo,
@@ -53,6 +55,7 @@ func NewPlayerUseCase(
 		redis:         redis,
 		tracing:       tracing,
 		cache:         cache,
+		jwtService:    jwtService,
 		// 初始化批次處理器
 		batchProcessor: NewPlayerBatchProcessor(
 			playerRepo,
@@ -346,4 +349,62 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 		u.logger.String("last_active_at", player.GetLastActiveAt().String()))
 
 	return nil
+}
+
+// PlayerLogin 玩家登入並生成JWT token
+func (u *PlayerUseCase) PlayerLogin(
+	ctx context.Context,
+	account, playerGlobalID string,
+) (string, error) {
+	// 創建 span 並跟踪此操作
+	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.PlayerLogin")
+	defer u.tracing.SpanEnd(span)
+
+	u.tracing.RecordSpanAttributes(span,
+		attribute.String("player.account", account),
+		attribute.String("player.global_id", playerGlobalID))
+
+	// 驗證參數
+	if account == "" {
+		err := errors.New("account is required")
+		u.tracing.RecordSpanError(span, err)
+		return "", err
+	}
+
+	if playerGlobalID == "" {
+		err := errors.New("player_global_id is required")
+		u.tracing.RecordSpanError(span, err)
+		return "", err
+	}
+
+	// 查找玩家是否存在
+	player, err := u.playerRepo.FindByGlobalID(ctx, playerGlobalID)
+	if err != nil {
+		if errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
+			u.logger.InfoLog("Player not found for login attempt",
+				u.logger.String("account", account),
+				u.logger.String("global_id", playerGlobalID))
+			u.tracing.RecordSpanError(span, err)
+			return "", err
+		}
+		u.tracing.RecordSpanError(span, err)
+		return "", fmt.Errorf("find player: %w", err)
+	}
+
+	// 生成JWT token
+	token, err := u.jwtService.GenerateToken(account, player.GetGlobalPlayerID())
+	if err != nil {
+		u.logger.ErrorLog("Failed to generate JWT token",
+			u.logger.String("account", account),
+			u.logger.String("global_id", playerGlobalID),
+			u.logger.Error("err", err))
+		u.tracing.RecordSpanError(span, err)
+		return "", fmt.Errorf("generate token: %w", err)
+	}
+
+	u.logger.InfoWithContext(ctx, "Player login successful",
+		u.logger.String("account", account),
+		u.logger.String("global_id", playerGlobalID))
+
+	return token, nil
 }

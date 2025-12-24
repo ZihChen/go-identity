@@ -38,6 +38,7 @@ func (r *APIRouter) RegisterRoutes(router *gin.Engine, authMiddleware gin.Handle
 		players.GET("/:id", r.handler.GetPlayerByID)
 		players.GET("/global/:global_id", r.handler.GetPlayerByGlobalID)
 		players.PUT("/:id/active", r.handler.UpdatePlayerLastActive)
+		players.POST("/login", r.handler.PlayerLogin)
 	}
 
 	// 管理員相關路由

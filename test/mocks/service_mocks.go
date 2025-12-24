@@ -82,6 +82,23 @@ func (m *EventProducerMock) PublishAgentSync(
 	return args.Error(0)
 }
 
+// JWTServiceMock 統一的 JWT Service Mock
+type JWTServiceMock struct {
+	*BaseMock
+}
+
+// NewJWTServiceMock 創建新的 JWT Service Mock
+func NewJWTServiceMock(t *testing.T) *JWTServiceMock {
+	return &JWTServiceMock{
+		BaseMock: NewBaseMock(t),
+	}
+}
+
+func (m *JWTServiceMock) GenerateToken(account, playerGlobalID string) (string, error) {
+	args := m.Called(account, playerGlobalID)
+	return args.String(0), args.Error(1)
+}
+
 // RedisManagerMock 統一的 Redis Manager Mock
 type RedisManagerMock struct {
 	*BaseMock

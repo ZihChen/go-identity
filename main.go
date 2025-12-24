@@ -20,6 +20,9 @@ import (
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 // @host localhost:8080
 // @BasePath
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name API-Key
 func main() {
 	cmd.Execute()
 }

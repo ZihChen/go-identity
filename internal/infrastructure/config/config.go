@@ -3,12 +3,13 @@ package config
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/viper"
-	"time"
 )
 
 // Config 應用程序配置
@@ -152,6 +153,13 @@ type AuthConfig struct {
 	APIKeys        map[string]string
 	HeaderKey      string
 	EncryptionType string
+	JWT            JWTConfig
+}
+
+// JWTConfig JWT配置
+type JWTConfig struct {
+	Secret string
+	Issuer string
 }
 
 // LoadConfig 加載配置
@@ -283,6 +291,10 @@ func LoadConfig() (*Config, error) {
 			APIKeys:        parseAPIKeyMap(viper.GetString("AUTH_API_KEYS")),
 			HeaderKey:      viper.GetString("AUTH_HEADER_KEY"),
 			EncryptionType: viper.GetString("AUTH_ENCRYPTION_TYPE"),
+			JWT: JWTConfig{
+				Secret: viper.GetString("JWT_SECRET"),
+				Issuer: viper.GetString("JWT_ISSUER"),
+			},
 		},
 	}
 
@@ -449,6 +461,8 @@ func (c *Config) PrintConfig() {
 	fmt.Printf("  HeaderKey: %s\n", c.Auth.HeaderKey)
 	fmt.Printf("  EncryptionType: %s\n", c.Auth.EncryptionType)
 	fmt.Printf("  APIKeys Count: %d\n", len(c.Auth.APIKeys))
+	fmt.Printf("  JWT.Secret: %s\n", maskAPIKey(c.Auth.JWT.Secret))
+	fmt.Printf("  JWT.Issuer: %s\n", c.Auth.JWT.Issuer)
 
 	fmt.Println("\n==============================")
 }

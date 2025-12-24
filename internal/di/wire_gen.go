@@ -31,6 +31,7 @@ import (
 	repository8 "github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/jwt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
@@ -63,7 +64,8 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 	if err != nil {
 		return nil, err
 	}
-	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client, tracingService, redisManager)
+	jwtService := provideJWTService(cfg)
+	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client, tracingService, redisManager, jwtService)
 	managerRepository := repository4.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger, tracingService)
 	httpHandler := api.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger, tracingService, eventProducer)
@@ -93,7 +95,8 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 	if err != nil {
 		return nil, err
 	}
-	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client, tracingService, redisManager)
+	jwtService := provideJWTService(cfg)
+	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client, tracingService, redisManager, jwtService)
 	managerRepository := repository4.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger, tracingService)
 	tagRepository := repository5.NewTagRepository(db)
@@ -129,7 +132,8 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 	if err != nil {
 		return nil, err
 	}
-	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client, tracingService, redisManager)
+	jwtService := provideJWTService(cfg)
+	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, eventProducer, logger, client, tracingService, redisManager, jwtService)
 	managerRepository := repository4.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger, tracingService)
 	tagRepository := repository5.NewTagRepository(db)
@@ -180,6 +184,7 @@ type WorkerComponents struct {
 
 var baseSet = wire.NewSet(queue.NewQueueService, provideRedisClient,
 	provideTracingService, repository.NewMerchantRepository, repository2.NewPlayerRepository, repository4.NewManagerRepository, repository5.NewTagRepository, repository3.NewLevelRepository, repository6.NewAgentRepository, repository7.NewFailedTaskEventRepository, repository2.NewPlayerTagRepository, provideEventProducer,
+	provideJWTService,
 
 	provideMerchantUseCase,
 	providePlayerUseCase, usecase.NewManagerUseCase, usecase2.NewTagUseCase, usecase3.NewLevelUseCase, usecase4.NewAgentUseCase, usecase5.NewFailedTaskEventUseCase,
@@ -210,6 +215,11 @@ func provideMerchantUseCase(
 	return usecase6.NewMerchantUseCase(merchantRepo, eventProducer, logger, tracing2, cache)
 }
 
+// JWT服務提供者
+func provideJWTService(cfg *config.Config) service.JWTService {
+	return jwt.NewJWTService(cfg.Auth.JWT.Secret, cfg.Auth.JWT.Issuer)
+}
+
 // PlayerUseCase提供者（帶快取）
 func providePlayerUseCase(
 	playerRepo repository8.PlayerRepository,
@@ -219,8 +229,9 @@ func providePlayerUseCase(
 	logger infrastructure.Logger, redis2 *redis.Client, tracing2 infrastructure.TracingService,
 
 	cache infrastructure.CacheManager,
+	jwtService service.JWTService,
 ) inbound.PlayerUseCase {
-	return usecase7.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, eventProducer, logger, redis2, tracing2, cache)
+	return usecase7.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, eventProducer, logger, redis2, tracing2, cache, jwtService)
 }
 
 // 提供 worker 服務器
