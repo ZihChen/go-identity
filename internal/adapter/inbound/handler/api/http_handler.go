@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/application/dto"
 	domainModel "github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
@@ -483,5 +484,53 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 		"status":   "success",
 		"event_id": eventID,
 		"message":  "Test event sent to KDS successfully",
+	})
+}
+
+// PlayerLogin 玩家登入
+// @Summary 玩家登入
+// @Description 玩家登入並獲取JWT token
+// @Tags 玩家
+// @Accept json
+// @Produce json
+// @Param request body dto.PlayerLoginRequest true "登入請求"
+// @Success 200 {object} dto.PlayerLoginResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security ApiKeyAuth
+// @Router /api/v1/players/login [post]
+func (h *HTTPHandler) PlayerLogin(c *gin.Context) {
+	var req dto.PlayerLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request format",
+		})
+		return
+	}
+
+	token, err := h.playerUseCase.PlayerLogin(c.Request.Context(), req.Account, req.PlayerGlobalID)
+	if err != nil {
+		if errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Player not found",
+			})
+			return
+		}
+
+		h.logger.ErrorLog("Failed to process player login",
+			h.logger.String("account", req.Account),
+			h.logger.String("player_global_id", req.PlayerGlobalID),
+			h.logger.Error("err", err))
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to process login",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.PlayerLoginResponse{
+		Success:  true,
+		JwtToken: token,
 	})
 }

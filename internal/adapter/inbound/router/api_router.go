@@ -18,9 +18,12 @@ func NewAPIRouter(handler *api.HTTPHandler) *APIRouter {
 }
 
 // RegisterRoutes 註冊API路由
-func (r *APIRouter) RegisterRoutes(router *gin.Engine) {
+func (r *APIRouter) RegisterRoutes(router *gin.Engine, authMiddleware gin.HandlerFunc) {
 	// API 路由群組
 	api := router.Group("/api/v1")
+	if authMiddleware != nil {
+		api.Use(authMiddleware)
+	}
 
 	// 商戶相關路由
 	merchants := api.Group("/merchants")
@@ -35,6 +38,7 @@ func (r *APIRouter) RegisterRoutes(router *gin.Engine) {
 		players.GET("/:id", r.handler.GetPlayerByID)
 		players.GET("/global/:global_id", r.handler.GetPlayerByGlobalID)
 		players.PUT("/:id/active", r.handler.UpdatePlayerLastActive)
+		players.POST("/login", r.handler.PlayerLogin)
 	}
 
 	// 管理員相關路由

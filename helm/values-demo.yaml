@@ -29,7 +29,7 @@ env:
   DB_MAX_IDLE_TIME: "20m"
 
   # Redis設置
-  REDIS_DOMAIN: "qcat-bonuscat-dev.zlvgen.0001.apne1.cache.amazonaws.com"
+  REDIS_DOMAIN: "REDACTED_REDIS_HOST_DEMO"
   REDIS_PORT: "6379"
   REDIS_DB: "9"
 

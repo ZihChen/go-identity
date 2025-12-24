@@ -276,6 +276,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/login": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "玩家登入並獲取JWT token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "玩家"
+                ],
+                "summary": "玩家登入",
+                "parameters": [
+                    {
+                        "description": "登入請求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}": {
             "get": {
                 "description": "根據玩家ID獲取玩家信息",
@@ -378,6 +435,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/test/kds": {
+            "post": {
+                "description": "發送代理同步測試事件到KDS",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "測試"
+                ],
+                "summary": "發送KDS測試事件",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "檢查服務是否正常運行",
@@ -409,104 +495,44 @@ const docTemplate = `{
                 }
             }
         },
-        "api.Manager": {
+        "api.LoginRequest": {
             "type": "object",
+            "required": [
+                "account",
+                "player_global_id"
+            ],
             "properties": {
                 "account": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "winston883"
                 },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "global_manager_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "merchant_id": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
+                "player_global_id": {
+                    "type": "string",
+                    "example": "FATCAT-PLAYER-883"
                 }
             }
+        },
+        "api.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "jwt_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "api.Manager": {
+            "type": "object"
         },
         "api.Merchant": {
-            "type": "object",
-            "properties": {
-                "api_key": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "type": "string"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "global_merchant_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "api.Player": {
-            "type": "object",
-            "properties": {
-                "account": {
-                    "type": "string"
-                },
-                "api_key": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "global_player_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "last_active_at": {
-                    "type": "string"
-                },
-                "level_id": {
-                    "type": "integer"
-                },
-                "merchant_id": {
-                    "type": "integer"
-                },
-                "player_level": {
-                    "$ref": "#/definitions/entity.PlayerLevel"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "api.SuccessResponse": {
             "type": "object",
@@ -516,17 +542,13 @@ const docTemplate = `{
                     "example": "success"
                 }
             }
-        },
-        "entity.PlayerLevel": {
-            "type": "object",
-            "properties": {
-                "global_player_level_id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "name": "API-Key",
+            "in": "header"
         }
     }
 }`

@@ -27,6 +27,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/jwt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
@@ -58,6 +59,7 @@ var baseSet = wire.NewSet(
 
 	// 服務
 	provideEventProducer,
+	provideJWTService,
 
 	// 用例層
 	provideMerchantUseCase,
@@ -94,6 +96,11 @@ func provideMerchantUseCase(
 	return merchantUsecase.NewMerchantUseCase(merchantRepo, eventProducer, logger, tracing, cache)
 }
 
+// JWT服務提供者
+func provideJWTService(cfg *config.Config) service.JWTService {
+	return jwt.NewJWTService(cfg.Auth.JWT.Secret, cfg.Auth.JWT.Issuer)
+}
+
 // PlayerUseCase提供者（帶快取）
 func providePlayerUseCase(
 	playerRepo repository.PlayerRepository,
@@ -104,8 +111,9 @@ func providePlayerUseCase(
 	redis *redis.Client,
 	tracing infrastructure.TracingService,
 	cache infrastructure.CacheManager,
+	jwtService service.JWTService,
 ) inbound.PlayerUseCase {
-	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, eventProducer, logger, redis, tracing, cache)
+	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, eventProducer, logger, redis, tracing, cache, jwtService)
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器

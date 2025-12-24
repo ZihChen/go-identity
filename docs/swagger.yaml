@@ -5,82 +5,37 @@ definitions:
         example: An error occurred
         type: string
     type: object
-  api.Manager:
+  api.LoginRequest:
     properties:
       account:
+        example: winston883
         type: string
-      created_at:
+      player_global_id:
+        example: FATCAT-PLAYER-883
         type: string
-      deleted_at:
+    required:
+    - account
+    - player_global_id
+    type: object
+  api.LoginResponse:
+    properties:
+      jwt_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
-      email:
-        type: string
-      global_manager_id:
-        type: string
-      id:
-        type: integer
-      merchant_id:
-        type: integer
-      updated_at:
-        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  api.Manager:
     type: object
   api.Merchant:
-    properties:
-      api_key:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        type: string
-      display_name:
-        type: string
-      global_merchant_id:
-        type: string
-      id:
-        type: integer
-      name:
-        type: string
-      updated_at:
-        type: string
     type: object
   api.Player:
-    properties:
-      account:
-        type: string
-      api_key:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        type: string
-      email:
-        type: string
-      global_player_id:
-        type: string
-      id:
-        type: integer
-      last_active_at:
-        type: string
-      level_id:
-        type: integer
-      merchant_id:
-        type: integer
-      player_level:
-        $ref: '#/definitions/entity.PlayerLevel'
-      updated_at:
-        type: string
     type: object
   api.SuccessResponse:
     properties:
       status:
         example: success
-        type: string
-    type: object
-  entity.PlayerLevel:
-    properties:
-      global_player_level_id:
-        type: string
-      name:
         type: string
     type: object
 host: localhost:8080
@@ -332,6 +287,61 @@ paths:
       summary: 通過全局ID獲取玩家
       tags:
       - 玩家
+  /api/v1/players/login:
+    post:
+      consumes:
+      - application/json
+      description: 玩家登入並獲取JWT token
+      parameters:
+      - description: 登入請求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: 玩家登入
+      tags:
+      - 玩家
+  /api/v1/test/kds:
+    post:
+      consumes:
+      - application/json
+      description: 發送代理同步測試事件到KDS
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: 發送KDS測試事件
+      tags:
+      - 測試
   /health:
     get:
       description: 檢查服務是否正常運行
@@ -345,4 +355,9 @@ paths:
       summary: 健康檢查
       tags:
       - 系統
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: API-Key
+    type: apiKey
 swagger: "2.0"
