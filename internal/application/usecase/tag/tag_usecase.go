@@ -476,10 +476,15 @@ func (u *TagUseCase) filterTagsNeedingUpdate(
 		}
 	}
 
-	u.logger.InfoWithContext(ctx, "Filtered tags for update",
+	u.logger.InfoWithContext(
+		ctx,
+		"Filtered tags for update",
 		u.logger.Int("original_count", len(tags)),
 		u.logger.Int("filtered_count", len(tagsNeedingUpdate)),
-		u.logger.Float64("reduction_ratio", float64(len(tags)-len(tagsNeedingUpdate))/float64(len(tags))*100),
+		u.logger.Float64(
+			"reduction_ratio",
+			float64(len(tags)-len(tagsNeedingUpdate))/float64(len(tags))*100,
+		),
 	)
 
 	return tagsNeedingUpdate, nil
