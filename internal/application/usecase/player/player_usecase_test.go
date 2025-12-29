@@ -8,6 +8,7 @@ import (
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
@@ -21,16 +22,17 @@ import (
 // Helper functions
 func createMockDependencies(
 	t *testing.T,
-) (*mocks.PlayerRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.LevelRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, *redis.Client, *mocks.NilCacheManager, *mocks.JWTServiceMock) {
+) (*mocks.PlayerRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.LevelRepositoryMock, *mocks.PlayerTagRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, *redis.Client, *mocks.NilCacheManager, *mocks.JWTServiceMock) {
 	playerRepo := mocks.NewPlayerRepositoryMock(t)
 	merchantRepo := mocks.NewMerchantRepositoryMock(t)
 	levelRepo := mocks.NewLevelRepositoryMock(t)
+	playerTagRepo := mocks.NewPlayerTagRepositoryMock(t)
 	eventProducer := mocks.NewEventProducerMock(t)
 	logger := mocks.NewMockLogger(t)
 	redisClient, _ := redismock.NewClientMock()
 	cache := mocks.NewNilCacheManager().(*mocks.NilCacheManager)
 	jwtService := mocks.NewJWTServiceMock(t)
-	return playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService
+	return playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService
 }
 
 func createPlayerSyncEvent() *event.CloudEvent {
@@ -61,7 +63,7 @@ func createPlayerSyncEvent() *event.CloudEvent {
 
 // Tests
 func TestNewPlayerUseCase(t *testing.T) {
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -69,6 +71,7 @@ func TestNewPlayerUseCase(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -83,13 +86,18 @@ func TestNewPlayerUseCase(t *testing.T) {
 
 func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
 	// Setup mocks for batch processing
 	merchant := factories.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
+
+	// Mock player repository for tag query
+	existingPlayer := factories.CreateTestPlayer()
+	playerRepo.On("FindByGlobalID", mock.Anything, mock.Anything).Return(existingPlayer, nil)
+	playerTagRepo.On("FindTagsByPlayerID", mock.Anything, mock.Anything).Return([]*entity.Tag{}, nil)
 
 	// Use BatchUpsert instead of Upsert since we're using batch processor
 	playerRepo.On("BatchUpsert", mock.Anything, mock.AnythingOfType("[]*entity.Player")).
@@ -103,6 +111,8 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 	logger.On("InfoLog", mock.AnythingOfType("string"), mock.Anything).Return()
 	logger.On("InfoWithContext", mock.Anything, mock.AnythingOfType("string"), mock.Anything).
 		Return()
+	logger.On("WarnWithContext", mock.Anything, mock.AnythingOfType("string"), mock.Anything).
+		Return().Maybe()
 	logger.On("ErrorLog", mock.AnythingOfType("string"), mock.Anything).Return()
 
 	// Create the use case
@@ -110,6 +120,7 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -149,7 +160,7 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 
 func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -157,12 +168,21 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 	merchant := factories.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
+	// Mock player repository for tag query
+	existingPlayer := factories.CreateTestPlayer()
+	playerRepo.On("FindByGlobalID", mock.Anything, mock.Anything).Return(existingPlayer, nil)
+	playerTagRepo.On("FindTagsByPlayerID", mock.Anything, mock.Anything).Return([]*entity.Tag{}, nil)
+
 	// BatchUpsert fails
 	playerRepo.On("BatchUpsert", mock.Anything, mock.AnythingOfType("[]*entity.Player")).
 		Return(errors.New("timestamp-based upsert failed"))
 
 	// Setup logger
 	logger.On("InfoLog", mock.AnythingOfType("string"), mock.Anything).Return()
+	logger.On("InfoWithContext", mock.Anything, mock.AnythingOfType("string"), mock.Anything).
+		Return()
+	logger.On("WarnWithContext", mock.Anything, mock.AnythingOfType("string"), mock.Anything).
+		Return().Maybe()
 	logger.On("ErrorLog", mock.AnythingOfType("string"), mock.Anything).Return()
 
 	// Create the use case
@@ -170,6 +190,7 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -209,7 +230,7 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -222,6 +243,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -241,7 +263,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -254,6 +276,7 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -274,7 +297,7 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -287,6 +310,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -306,7 +330,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -319,6 +343,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -339,7 +364,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -353,6 +378,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -371,7 +397,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -384,6 +410,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,
@@ -403,7 +430,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -420,6 +447,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
 		playerRepo,
 		merchantRepo,
 		levelRepo,
+		playerTagRepo,
 		eventProducer,
 		logger,
 		redisClient,

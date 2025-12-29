@@ -296,3 +296,11 @@ func (m *PlayerTagRepositoryMock) DeleteByPlayerID(ctx context.Context, playerID
 	args := m.Called(ctx, playerID)
 	return args.Error(0)
 }
+
+func (m *PlayerTagRepositoryMock) FindTagsByPlayerID(ctx context.Context, playerID uint64) ([]*entity.Tag, error) {
+	args := m.Called(ctx, playerID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entity.Tag), args.Error(1)
+}

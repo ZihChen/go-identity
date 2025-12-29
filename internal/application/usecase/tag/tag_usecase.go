@@ -168,13 +168,6 @@ func (u *TagUseCase) SyncPlayerTag(
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("batch upsert player tags failed: %w", err)
 	}
-	u.tracing.TraceEvent(span, "Sync player tags relation completed")
-
-	u.tracing.TraceEvent(span, "Publishing player tags sync event to KDS")
-	if err = u.publishPlayerTagsSyncEvent(ctx, tagsToInsert, globalMerchantID, globalPlayerID); err != nil {
-		u.tracing.RecordSpanError(span, err)
-		return fmt.Errorf("publish player tags sync event: %w", err)
-	}
 
 	u.tracing.TraceEvent(span, "Player tags sync completed successfully")
 	return nil
