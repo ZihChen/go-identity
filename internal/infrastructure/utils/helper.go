@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-redsync/redsync/v4"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/redis/go-redis/v9"
 )
@@ -55,4 +56,115 @@ func QueryWithCache[T any](
 	}()
 
 	return entity, nil
+}
+
+// ExecuteWithLock 使用分佈式鎖執行函數的共用方法
+func ExecuteWithLock(
+	ctx context.Context,
+	cache infrastructure.CacheManager,
+	logger infrastructure.Logger,
+	mutexKey string,
+	entityID uint64,
+	entityType string,
+	fn func() error,
+) error {
+	// 智能重試機制：3次嘗試，每次使用遞增參數
+	maxAttempts := 3
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		// 智能遞增參數策略
+		expiry := time.Duration(10+attempt*5) * time.Second
+		tries := 5 + attempt*2
+		baseDelay := time.Duration(50*attempt) * time.Millisecond
+
+		mutex, err := cache.GetMutexWithOption(mutexKey,
+			redsync.WithExpiry(expiry),
+			redsync.WithTries(tries),
+			redsync.WithRetryDelay(baseDelay),
+		)
+		if err != nil {
+			logger.ErrorWithContext(ctx, "Failed to create mutex",
+				logger.String("mutex_key", mutexKey),
+				logger.String("entity_type", entityType),
+				logger.UInt64("entity_id", entityID),
+				logger.Int("attempt", attempt),
+				logger.Error("err", err),
+			)
+			if attempt < maxAttempts {
+				// 指數退避策略: 500ms → 2s → 4.5s
+				backoffTime := time.Duration(attempt*attempt) * 500 * time.Millisecond
+				time.Sleep(backoffTime)
+				continue
+			}
+			return fmt.Errorf(
+				"failed to create mutex for %s %d after %d attempts: %w",
+				entityType,
+				entityID,
+				maxAttempts,
+				err,
+			)
+		}
+
+		if err = mutex.Lock(); err != nil {
+			logger.WarnWithContext(ctx, "Failed to acquire lock",
+				logger.String("mutex_key", mutexKey),
+				logger.String("entity_type", entityType),
+				logger.UInt64("entity_id", entityID),
+				logger.Int("attempt", attempt),
+				logger.String("expiry", expiry.String()),
+				logger.Int("tries", tries),
+				logger.Error("err", err),
+			)
+
+			if attempt < maxAttempts {
+				// 指數退避策略
+				backoffTime := time.Duration(attempt*attempt) * 500 * time.Millisecond
+				logger.InfoWithContext(ctx, "Retrying after backoff",
+					logger.String("entity_type", entityType),
+					logger.UInt64("entity_id", entityID),
+					logger.String("backoff_time", backoffTime.String()),
+					logger.Int("next_attempt", attempt+1),
+				)
+				time.Sleep(backoffTime)
+				continue
+			}
+			return fmt.Errorf(
+				"failed to acquire lock for %s %d after %d attempts: %w",
+				entityType,
+				entityID,
+				maxAttempts,
+				err,
+			)
+		}
+
+		// 成功獲取鎖
+		logger.InfoWithContext(ctx, "Successfully acquired lock",
+			logger.String("entity_type", entityType),
+			logger.UInt64("entity_id", entityID),
+			logger.Int("attempt", attempt),
+			logger.String("expiry", expiry.String()),
+			logger.Int("tries", tries),
+		)
+
+		defer func() {
+			ok, unlockErr := mutex.Unlock()
+			if !ok || unlockErr != nil {
+				logger.ErrorWithContext(ctx, "Failed to unlock mutex",
+					logger.String("mutex_key", mutexKey),
+					logger.String("entity_type", entityType),
+					logger.UInt64("entity_id", entityID),
+					logger.Error("err", unlockErr),
+					logger.Bool("unlock_success", ok),
+				)
+			}
+		}()
+
+		return fn()
+	}
+
+	return fmt.Errorf(
+		"failed to execute with lock for %s %d after %d attempts",
+		entityType,
+		entityID,
+		maxAttempts,
+	)
 }
