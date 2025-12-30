@@ -92,7 +92,7 @@ func (p *Player) GetCreatedAt() time.Time     { return p.createdAt }
 func (p *Player) GetUpdatedAt() time.Time     { return p.updatedAt }
 func (p *Player) GetDeletedAt() *time.Time    { return p.deletedAt }
 func (p *Player) GetPlayerLevel() PlayerLevel { return p.playerLevel }
-func (p *Player) GetTags() []*Tag           { return p.tags }
+func (p *Player) GetTags() []*Tag             { return p.tags }
 
 // UpdateLastActive 業務方法
 func (p *Player) UpdateLastActive() {

@@ -297,7 +297,10 @@ func (m *PlayerTagRepositoryMock) DeleteByPlayerID(ctx context.Context, playerID
 	return args.Error(0)
 }
 
-func (m *PlayerTagRepositoryMock) FindTagsByPlayerID(ctx context.Context, playerID uint64) ([]*entity.Tag, error) {
+func (m *PlayerTagRepositoryMock) FindTagsByPlayerID(
+	ctx context.Context,
+	playerID uint64,
+) ([]*entity.Tag, error) {
 	args := m.Called(ctx, playerID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

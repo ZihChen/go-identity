@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
@@ -56,6 +57,11 @@ func (m *MockQueueService) EnqueueTagSync(ctx context.Context, data []byte) erro
 func (m *MockQueueService) EnqueueAgentSync(ctx context.Context, data []byte) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
+}
+
+func (m *MockQueueService) WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
+	args := m.Called(h)
+	return args.Get(0).(asynq.Handler)
 }
 
 func (m *MockQueueService) Close() error {

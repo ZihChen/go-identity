@@ -154,9 +154,12 @@ func (r *PlayerTagRepository) DeleteByPlayerID(ctx context.Context, playerID uin
 }
 
 // FindTagsByPlayerID 根據玩家ID查詢其所有標籤
-func (r *PlayerTagRepository) FindTagsByPlayerID(ctx context.Context, playerID uint64) ([]*entity.Tag, error) {
+func (r *PlayerTagRepository) FindTagsByPlayerID(
+	ctx context.Context,
+	playerID uint64,
+) ([]*entity.Tag, error) {
 	var tagModels []models.Tag
-	
+
 	// 透過 JOIN 查詢玩家的所有標籤
 	err := r.db.WithContext(ctx).
 		Table("tags t").
@@ -165,11 +168,11 @@ func (r *PlayerTagRepository) FindTagsByPlayerID(ctx context.Context, playerID u
 		Where("pt.player_id = ? AND t.deleted_at IS NULL", playerID).
 		Order("t.name ASC").
 		Find(&tagModels).Error
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to find tags for player %d: %w", playerID, err)
 	}
-	
+
 	// 轉換為實體物件
 	tags := make([]*entity.Tag, len(tagModels))
 	for i, tagModel := range tagModels {
@@ -186,6 +189,6 @@ func (r *PlayerTagRepository) FindTagsByPlayerID(ctx context.Context, playerID u
 		}
 		tags[i] = tag
 	}
-	
+
 	return tags, nil
 }
