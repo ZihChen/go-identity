@@ -140,7 +140,7 @@ func (k *KDSService) PublishPlayerSync(
 	return nil
 }
 
-// BatchPublishPlayerSync 批次發布玩家同步事件
+// BatchPublishPlayerSync 批次發布玩家同步事件（包含標籤資料）
 func (k *KDSService) BatchPublishPlayerSync(
 	ctx context.Context,
 	players []*entity.Player,
@@ -168,6 +168,23 @@ func (k *KDSService) BatchPublishPlayerSync(
 	// 構建批次事件
 	events := make([]*event.CloudEvent, len(players))
 	for i, player := range players {
+		// 從玩家實體中獲取已經準備好的標籤資料
+		var playerTags []*event.IdentityTagDataSyncEvent
+		if len(player.GetTags()) > 0 {
+			// 轉換 entity.Tag 為 event.IdentityTagDataSyncEvent
+			playerTags = make([]*event.IdentityTagDataSyncEvent, len(player.GetTags()))
+			for j, tag := range player.GetTags() {
+				playerTags[j] = &event.IdentityTagDataSyncEvent{
+					GlobalTagID: tag.GetGlobalTagID(),
+					Name:        tag.GetName(),
+				}
+			}
+			
+			k.logger.DebugWithContext(ctx, "Using player tags from entity for sync event",
+				k.logger.String("global_player_id", player.GetGlobalPlayerID()),
+				k.logger.Int("tags_count", len(playerTags)))
+		}
+		
 		// 構建事件數據
 		syncEvent := event.IdentityPlayerSyncEvent{
 			GlobalMerchantID: globalMerchantIDs[i],
@@ -183,6 +200,7 @@ func (k *KDSService) BatchPublishPlayerSync(
 				GlobalPlayerLevelID: player.GetPlayerLevel().GlobalPlayerLevelID,
 				Name:                player.GetPlayerLevel().Name,
 			},
+			Tags:             playerTags, // 包含標籤資料
 		}
 
 		if player.GetLastActiveAt() != nil && !player.GetLastActiveAt().IsZero() {

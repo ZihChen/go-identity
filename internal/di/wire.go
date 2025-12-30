@@ -106,6 +106,7 @@ func providePlayerUseCase(
 	playerRepo repository.PlayerRepository,
 	merchantRepo repository.MerchantRepository,
 	levelRepo repository.LevelRepository,
+	playerTagRepo repository.PlayerTagRepository,
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	redis *redis.Client,
@@ -113,7 +114,7 @@ func providePlayerUseCase(
 	cache infrastructure.CacheManager,
 	jwtService service.JWTService,
 ) inbound.PlayerUseCase {
-	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, eventProducer, logger, redis, tracing, cache, jwtService)
+	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redis, tracing, cache, jwtService)
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器

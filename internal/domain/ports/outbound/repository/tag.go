@@ -15,4 +15,5 @@ type TagRepository interface {
 type PlayerTagRepository interface {
 	BatchUpdate(ctx context.Context, playerID uint64, tagIDs []uint64) error
 	DeleteByPlayerID(ctx context.Context, playerID uint64) error
+	FindTagsByPlayerID(ctx context.Context, playerID uint64) ([]*entity.Tag, error)
 }

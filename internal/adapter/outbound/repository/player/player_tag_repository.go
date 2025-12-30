@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/models"
 	"gorm.io/gorm"
@@ -150,4 +151,41 @@ func (r *PlayerTagRepository) DeleteByPlayerID(ctx context.Context, playerID uin
 		return fmt.Errorf("delete player tags failed: %w", result.Error)
 	}
 	return nil
+}
+
+// FindTagsByPlayerID 根據玩家ID查詢其所有標籤
+func (r *PlayerTagRepository) FindTagsByPlayerID(ctx context.Context, playerID uint64) ([]*entity.Tag, error) {
+	var tagModels []models.Tag
+	
+	// 透過 JOIN 查詢玩家的所有標籤
+	err := r.db.WithContext(ctx).
+		Table("tags t").
+		Select("t.*").
+		Joins("INNER JOIN player_tags pt ON pt.tag_id = t.id").
+		Where("pt.player_id = ? AND t.deleted_at IS NULL", playerID).
+		Order("t.name ASC").
+		Find(&tagModels).Error
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to find tags for player %d: %w", playerID, err)
+	}
+	
+	// 轉換為實體物件
+	tags := make([]*entity.Tag, len(tagModels))
+	for i, tagModel := range tagModels {
+		tag := &entity.Tag{}
+		tag.SetID(tagModel.ID)
+		tag.SetMerchantID(tagModel.MerchantID)
+		tag.SetName(tagModel.Name)
+		tag.SetGlobalTagID(tagModel.GlobalTagID)
+		tag.SetCreatedAt(tagModel.CreatedAt)
+		tag.SetUpdatedAt(tagModel.UpdatedAt)
+		if tagModel.DeletedAt.Valid {
+			deletedAt := tagModel.DeletedAt.Time
+			tag.SetDeletedAt(&deletedAt)
+		}
+		tags[i] = tag
+	}
+	
+	return tags, nil
 }

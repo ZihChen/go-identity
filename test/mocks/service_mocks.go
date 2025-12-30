@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/go-redsync/redsync/v4"
+	"github.com/hibiken/asynq"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 )
@@ -192,6 +193,11 @@ func (m *QueueServiceMock) EnqueueTagSync(ctx context.Context, data []byte) erro
 func (m *QueueServiceMock) EnqueueAgentSync(ctx context.Context, data []byte) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
+}
+
+func (m *QueueServiceMock) WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
+	// 簡單返回原始 handler，測試時不需要追蹤功能
+	return h
 }
 
 func (m *QueueServiceMock) Close() error {

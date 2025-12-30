@@ -10,6 +10,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -36,6 +37,7 @@ type WorkerHandler struct {
 	agentUseCase    inbound.AgentUseCase
 	logger          infrastructure.Logger
 	tracing         infrastructure.TracingService
+	queueService    service.QueueService
 }
 
 // NewWorkerHandler 創建Worker Handler
@@ -48,6 +50,7 @@ func NewWorkerHandler(
 	agentUseCase inbound.AgentUseCase,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
+	queueService service.QueueService,
 ) *WorkerHandler {
 	handler := &WorkerHandler{
 		merchantUseCase: merchantUseCase,
@@ -58,6 +61,7 @@ func NewWorkerHandler(
 		agentUseCase:    agentUseCase,
 		logger:          logger,
 		tracing:         tracing,
+		queueService:    queueService,
 	}
 
 	return handler
@@ -92,30 +96,30 @@ func (h *WorkerHandler) ShutdownProcessor(ctx context.Context) error {
 }
 
 func (h *WorkerHandler) RegisterHandlers(mux *asynq.ServeMux) {
-	// 直接使用產組器，不需要追蹤包裝器
+	// 使用追蹤包裝器確保 trace 連接
 	mux.Handle(
 		queue.TypeMerchantSync,
-		asynq.HandlerFunc(h.HandleMerchantSync),
+		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleMerchantSync)),
 	)
 	mux.Handle(
 		queue.TypePlayerSync,
-		asynq.HandlerFunc(h.HandlePlayerSync),
+		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandlePlayerSync)),
 	)
 	mux.Handle(
 		queue.TypeManagerSync,
-		asynq.HandlerFunc(h.HandleManagerSync),
+		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleManagerSync)),
 	)
 	mux.Handle(
 		queue.TypeTagSync,
-		asynq.HandlerFunc(h.HandleTagSync),
+		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleTagSync)),
 	)
 	mux.Handle(
 		queue.TypeLevelSync,
-		asynq.HandlerFunc(h.HandleLevelSync),
+		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleLevelSync)),
 	)
 	mux.Handle(
 		queue.TypeAgentSync,
-		asynq.HandlerFunc(h.HandleAgentSync),
+		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleAgentSync)),
 	)
 
 	h.logger.InfoLog("Registered worker handlers",
@@ -129,9 +133,11 @@ func (h *WorkerHandler) RegisterHandlers(mux *asynq.ServeMux) {
 
 // HandleMerchantSync 處理商戶同步任務
 func (h *WorkerHandler) HandleMerchantSync(ctx context.Context, task *asynq.Task) error {
+	if task == nil {
+		return fmt.Errorf("task is empty")
+	}
 	taskID := getTaskID(task)
 
-	// 創建處理任務的追蹤
 	ctx, span := h.tracing.TraceWorkerProcessing(ctx, queue.TypeMerchantSync, taskID)
 	defer h.tracing.SpanEnd(span)
 
@@ -317,7 +323,6 @@ func (h *WorkerHandler) HandleTagSync(ctx context.Context, task *asynq.Task) err
 
 	ctx, span := h.tracing.TraceWorkerProcessing(ctx, queue.TypeTagSync, taskID)
 	defer h.tracing.SpanEnd(span)
-	h.tracing.TraceEvent(span, "Starting level sync processing")
 
 	h.logger.InfoLog("Processing tag sync task",
 		h.logger.String("task_id", taskID),
@@ -372,7 +377,6 @@ func (h *WorkerHandler) HandleLevelSync(ctx context.Context, task *asynq.Task) e
 	ctx, span := h.tracing.TraceWorkerProcessing(ctx, queue.TypeLevelSync, taskID)
 	defer h.tracing.SpanEnd(span)
 
-	h.tracing.TraceEvent(span, "Starting level sync processing")
 	h.logger.InfoLog("Processing level sync task",
 		h.logger.String("task_id", taskID),
 		h.logger.Int("payload_size", len(task.Payload())))

@@ -29,6 +29,7 @@ func setupWorkerTest(
 	agentUseCase := mocks.NewAgentUseCaseMock(t)
 	logger := mocks.NewMockLogger(t)
 	mockTracer := mocks.NewTracingServiceMock(t)
+	queueService := mocks.NewQueueServiceMock(t)
 
 	handler := NewWorkerHandler(
 		merchantUseCase,
@@ -39,6 +40,7 @@ func setupWorkerTest(
 		agentUseCase,
 		logger,
 		mockTracer,
+		queueService,
 	)
 
 	return merchantUseCase, playerUseCase, managerUseCase, tagUseCase, agentUseCase, mockTracer, handler

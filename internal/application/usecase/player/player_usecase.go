@@ -25,6 +25,7 @@ type PlayerUseCase struct {
 	playerRepo     repository.PlayerRepository
 	merchantRepo   repository.MerchantRepository
 	levelRepo      repository.LevelRepository
+	playerTagRepo  repository.PlayerTagRepository
 	eventProducer  service.EventProducer
 	logger         infrastructure.Logger
 	redis          *redis.Client
@@ -39,6 +40,7 @@ func NewPlayerUseCase(
 	playerRepo repository.PlayerRepository,
 	merchantRepo repository.MerchantRepository,
 	levelRepo repository.LevelRepository,
+	playerTagRepo repository.PlayerTagRepository,
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
 	redis *redis.Client,
@@ -50,6 +52,7 @@ func NewPlayerUseCase(
 		playerRepo:    playerRepo,
 		merchantRepo:  merchantRepo,
 		levelRepo:     levelRepo,
+		playerTagRepo: playerTagRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
 		redis:         redis,
@@ -171,6 +174,23 @@ func (u *PlayerUseCase) SyncPlayer(
 		GlobalPlayerLevelID: data.PlayerLevel.GlobalPlayerLevelID,
 		Name:                data.PlayerLevel.Name,
 	})
+
+	// 直接從事件數據映射玩家標籤，避免不必要的DB查詢
+	u.tracing.TraceEvent(span, "Mapping player tags from event data")
+	tags := make([]*entity.Tag, len(data.PlayerTags))
+	for i, tagData := range data.PlayerTags {
+		tag := entity.NewTag(
+			merchant.GetID(),
+			tagData.Tag.GlobalTagID,
+			tagData.Tag.Name,
+		)
+		tags[i] = tag
+	}
+	player.SetTags(tags)
+
+	u.logger.InfoWithContext(ctx, "Player tags mapped from event data",
+		u.logger.String("global_player_id", player.GetGlobalPlayerID()),
+		u.logger.Int("tags_count", len(tags)))
 
 	u.tracing.TraceEvent(span, "Submit player to batch processor")
 

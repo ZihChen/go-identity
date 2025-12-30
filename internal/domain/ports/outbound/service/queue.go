@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/hibiken/asynq"
 )
 
 // QueueService 隊列服務接口
@@ -23,6 +24,9 @@ type QueueService interface {
 
 	// EnqueueAgentSync 將代理同步任務加入隊列
 	EnqueueAgentSync(ctx context.Context, data []byte) error
+
+	// WrapHandlerWithTracing 包裝處理器以添加追蹤功能
+	WrapHandlerWithTracing(h asynq.Handler) asynq.Handler
 
 	// Close 關閉隊列服務並釋放資源
 	Close() error

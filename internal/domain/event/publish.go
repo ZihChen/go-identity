@@ -14,18 +14,20 @@ type IdentityMerchantSyncEvent struct {
 
 // IdentityPlayerSyncEvent 發送到 KDS 的玩家同步事件
 type IdentityPlayerSyncEvent struct {
-	GlobalMerchantID string      `json:"global_merchant_id"`
-	GlobalPlayerID   string      `json:"global_player_id"`
-	ID               uint64      `json:"id"`
-	MerchantID       uint64      `json:"merchant_id"`
-	APIKey           string      `json:"api_key"`
-	Account          string      `json:"account"`
-	Email            *string     `json:"email,omitempty"`
-	LastActiveAt     string      `json:"last_active_at,omitempty"`
-	CreatedAt        string      `json:"created_at"`
-	UpdatedAt        string      `json:"updated_at"`
-	DeletedAt        string      `json:"deleted_at,omitempty"`
-	PlayerLevel      PlayerLevel `json:"player_level,omitempty"`
+	GlobalMerchantID string                       `json:"global_merchant_id"`
+	GlobalPlayerID   string                       `json:"global_player_id"`
+	ID               uint64                       `json:"id"`
+	MerchantID       uint64                       `json:"merchant_id"`
+	APIKey           string                       `json:"api_key"`
+	Account          string                       `json:"account"`
+	Email            *string                      `json:"email,omitempty"`
+	LastActiveAt     string                       `json:"last_active_at,omitempty"`
+	CreatedAt        string                       `json:"created_at"`
+	UpdatedAt        string                       `json:"updated_at"`
+	DeletedAt        string                       `json:"deleted_at,omitempty"`
+	PlayerLevel      PlayerLevel                  `json:"player_level,omitempty"`
+	// 新增：玩家標籤資料，統一在玩家同步事件中處理
+	Tags             []*IdentityTagDataSyncEvent  `json:"tags,omitempty"`
 }
 
 type PlayerLevel struct {
