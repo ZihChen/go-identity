@@ -175,46 +175,22 @@ func (u *PlayerUseCase) SyncPlayer(
 		Name:                data.PlayerLevel.Name,
 	})
 
-	// 查詢玩家標籤資料並設置到player entity中
-	u.tracing.TraceEvent(span, "Query player tags")
-	// 獲取玩家
-	cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, player.GetGlobalPlayerID())
-	existingPlayer, err := utils.QueryWithCache(
-		ctx,
-		u.cache,
-		cacheKey,
-		5*time.Minute,
-		"player",
-		func(ctx context.Context) (*entity.Player, error) {
-			return u.playerRepo.FindByGlobalID(ctx, player.GetGlobalPlayerID())
-		},
-	)
-	if err != nil {
-		u.logger.WarnWithContext(ctx, "Player not found for tag query, continuing without tags",
-			u.logger.String("global_player_id", player.GetGlobalPlayerID()),
-			u.logger.Error("err", err))
-		// 如果玩家不存在，設置空標籤
-		player.SetTags([]*entity.Tag{})
-		u.tracing.RecordSpanError(span, err)
-	} else {
-		// 使用內部ID查詢標籤
-		tags, err := u.playerTagRepo.FindTagsByPlayerID(ctx, existingPlayer.GetID())
-		if err != nil {
-			u.logger.WarnWithContext(ctx, "Failed to fetch player tags, continuing without tags",
-				u.logger.String("global_player_id", player.GetGlobalPlayerID()),
-				u.logger.UInt64("player_id", existingPlayer.GetID()),
-				u.logger.Error("err", err))
-			// 不要因為標籤查詢失敗而阻止玩家同步，設置空標籤
-			player.SetTags([]*entity.Tag{})
-			u.tracing.RecordSpanError(span, err)
-		} else {
-			player.SetTags(tags)
-			u.logger.InfoWithContext(ctx, "Player tags loaded successfully",
-				u.logger.String("global_player_id", player.GetGlobalPlayerID()),
-				u.logger.UInt64("player_id", existingPlayer.GetID()),
-				u.logger.Int("tags_count", len(tags)))
-		}
+	// 直接從事件數據映射玩家標籤，避免不必要的DB查詢
+	u.tracing.TraceEvent(span, "Mapping player tags from event data")
+	tags := make([]*entity.Tag, len(data.PlayerTags))
+	for i, tagData := range data.PlayerTags {
+		tag := entity.NewTag(
+			merchant.GetID(),
+			tagData.Tag.GlobalTagID,
+			tagData.Tag.Name,
+		)
+		tags[i] = tag
 	}
+	player.SetTags(tags)
+
+	u.logger.InfoWithContext(ctx, "Player tags mapped from event data",
+		u.logger.String("global_player_id", player.GetGlobalPlayerID()),
+		u.logger.Int("tags_count", len(tags)))
 
 	u.tracing.TraceEvent(span, "Submit player to batch processor")
 
