@@ -179,12 +179,12 @@ func (k *KDSService) BatchPublishPlayerSync(
 					Name:        tag.GetName(),
 				}
 			}
-			
+
 			k.logger.DebugWithContext(ctx, "Using player tags from entity for sync event",
 				k.logger.String("global_player_id", player.GetGlobalPlayerID()),
 				k.logger.Int("tags_count", len(playerTags)))
 		}
-		
+
 		// 構建事件數據
 		syncEvent := event.IdentityPlayerSyncEvent{
 			GlobalMerchantID: globalMerchantIDs[i],
@@ -200,7 +200,7 @@ func (k *KDSService) BatchPublishPlayerSync(
 				GlobalPlayerLevelID: player.GetPlayerLevel().GlobalPlayerLevelID,
 				Name:                player.GetPlayerLevel().Name,
 			},
-			Tags:             playerTags, // 包含標籤資料
+			Tags: playerTags, // 包含標籤資料
 		}
 
 		if player.GetLastActiveAt() != nil && !player.GetLastActiveAt().IsZero() {

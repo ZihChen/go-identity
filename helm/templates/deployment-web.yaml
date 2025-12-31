@@ -4,10 +4,12 @@ metadata:
   name: {{ include "fatidentitycat.fullname" . }}-web
   labels:
     {{- include "fatidentitycat.labels" . | nindent 4 }}
+    component: web
 spec:
   selector:
     matchLabels:
       {{- include "fatidentitycat.labels" . | nindent 6 }}
+      component: web
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -17,6 +19,7 @@ spec:
     metadata:
       labels:
         {{- include "fatidentitycat.labels" . | nindent 8 }}
+        component: web
       annotations:
         checksum/config: {{ include (print .Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print .Template.BasePath "/sealedsecret.yaml") . | sha256sum }}

@@ -50,6 +50,11 @@ func (m *MockQueueService) EnqueueAgentSync(ctx context.Context, data []byte) er
 	return args.Error(0)
 }
 
+func (m *MockQueueService) WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
+	args := m.Called(h)
+	return args.Get(0).(asynq.Handler)
+}
+
 // MockQueueService also needs to implement Close method for tests
 func (m *MockQueueService) Close() error {
 	args := m.Called()
@@ -67,6 +72,7 @@ func NewMockQueueService(cfg *config.Config, logger *zap.Logger) (service.QueueS
 	mockService.On("EnqueueLevelSync", mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockService.On("EnqueueTagSync", mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockService.On("EnqueueAgentSync", mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockService.On("WrapHandlerWithTracing", mock.Anything).Return(mock.Anything).Maybe()
 	mockService.On("Close").Return(nil)
 
 	return mockService, nil

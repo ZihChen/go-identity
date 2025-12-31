@@ -97,7 +97,8 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 	// Mock player repository for tag query
 	existingPlayer := factories.CreateTestPlayer()
 	playerRepo.On("FindByGlobalID", mock.Anything, mock.Anything).Return(existingPlayer, nil)
-	playerTagRepo.On("FindTagsByPlayerID", mock.Anything, mock.Anything).Return([]*entity.Tag{}, nil)
+	playerTagRepo.On("FindTagsByPlayerID", mock.Anything, mock.Anything).
+		Return([]*entity.Tag{}, nil)
 
 	// Use BatchUpsert instead of Upsert since we're using batch processor
 	playerRepo.On("BatchUpsert", mock.Anything, mock.AnythingOfType("[]*entity.Player")).
@@ -171,7 +172,8 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 	// Mock player repository for tag query
 	existingPlayer := factories.CreateTestPlayer()
 	playerRepo.On("FindByGlobalID", mock.Anything, mock.Anything).Return(existingPlayer, nil)
-	playerTagRepo.On("FindTagsByPlayerID", mock.Anything, mock.Anything).Return([]*entity.Tag{}, nil)
+	playerTagRepo.On("FindTagsByPlayerID", mock.Anything, mock.Anything).
+		Return([]*entity.Tag{}, nil)
 
 	// BatchUpsert fails
 	playerRepo.On("BatchUpsert", mock.Anything, mock.AnythingOfType("[]*entity.Player")).
