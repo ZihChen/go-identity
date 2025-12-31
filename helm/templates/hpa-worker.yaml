@@ -1,5 +1,5 @@
-# 穩定處理：min=3, max=5
-# 保守閾值：CPU 70%, Memory 80%
+# 穩定處理：min=5, max=10
+# 保守閾值：CPU 60%, Memory 70%
 # 穩定擴容：2分鐘穩定期，每次最多+1個Pod
 # 長縮容期：8分鐘穩定期，避免任務中斷
 
@@ -14,21 +14,21 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "fatidentitycat.fullname" . }}-worker
-  minReplicas: 3
-  maxReplicas: 5
+  minReplicas: 5
+  maxReplicas: 10
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 70
+          averageUtilization: 60
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 80
+          averageUtilization: 70
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 120
