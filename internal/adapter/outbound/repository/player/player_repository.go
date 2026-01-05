@@ -215,7 +215,7 @@ func (r *PlayerRepository) batchUpsertWithoutRetry(
 	}
 
 	// 批次分塊處理，避免單次SQL過大
-	const batchSize = 100
+	const batchSize = 50
 	for i := 0; i < len(playerModels); i += batchSize {
 		end := i + batchSize
 		if end > len(playerModels) {
