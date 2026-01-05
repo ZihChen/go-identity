@@ -43,8 +43,8 @@ func (d *Database) connect() error {
 	}
 
 	gormCfg := &gorm.Config{
-		PrepareStmt:            true, // 啟用預編譯語句 (語法快取)
-		SkipDefaultTransaction: true, // 關閉默認Transaction，隨應用場景自行加入Transaction
+		PrepareStmt:            false, // 啟用預編譯語句 (語法快取)
+		SkipDefaultTransaction: true,  // 關閉默認Transaction，隨應用場景自行加入Transaction
 		Logger:                 logger.Default.LogMode(logLevel),
 	}
 
