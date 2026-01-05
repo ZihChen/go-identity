@@ -59,8 +59,8 @@ func NewPlayerBatchProcessor(
 		tracing:       tracing,
 		cache:         cache,
 
-		// 批次配置：500筆或3秒超時
-		batchSize:    500,
+		// 批次配置：200筆或5秒超時
+		batchSize:    200,
 		batchTimeout: 3 * time.Second,
 		bufferSize:   bufferSize,
 		blockOnFull:  false, // 預設不阻塞，使用降級處理
