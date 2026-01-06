@@ -10,6 +10,7 @@ import (
 type PlayerRepository interface {
 	FindByID(ctx context.Context, id uint64) (*entity.Player, error)
 	FindByGlobalID(ctx context.Context, globalID string) (*entity.Player, error)
+	FindByAccountAndMerchantID(ctx context.Context, account string, merchantID uint64) (*entity.Player, error)
 	FirstOrCreate(ctx context.Context, player *entity.Player) error
 	Create(ctx context.Context, player *entity.Player) error
 	Update(ctx context.Context, player *entity.Player) error

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,7 @@ import (
 // Helper functions
 func setupTest(
 	t *testing.T,
-) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *mocks.MockLogger, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
+) (*mocks.MerchantUseCaseMock, *mocks.PlayerUseCaseMock, *mocks.ManagerUseCaseMock, *mocks.MockLogger, *mocks.JWTServiceMock, *HTTPHandler, *gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 
 	merchantUseCase := mocks.NewMerchantUseCaseMock(t)
@@ -29,6 +30,7 @@ func setupTest(
 	mockLogger := mocks.NewMockLogger(t)
 	mockTracing := mocks.NewTracingServiceMock(t)
 	mockEventProducer := mocks.NewEventProducerMock(t)
+	mockJWTService := mocks.NewJWTServiceMock(t)
 
 	handler := &HTTPHandler{
 		merchantUseCase: merchantUseCase,
@@ -37,19 +39,20 @@ func setupTest(
 		logger:          mockLogger,
 		tracing:         mockTracing,
 		eventProducer:   mockEventProducer,
+		jwtService:      mockJWTService,
 	}
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	return merchantUseCase, playerUseCase, managerUseCase, mockLogger, handler, c, w
+	return merchantUseCase, playerUseCase, managerUseCase, mockLogger, mockJWTService, handler, c, w
 }
 
 // Test helper functions are now in test/factories/factory.go
 
 // Tests for GetMerchantByID
 func TestHTTPHandler_GetMerchantByID(t *testing.T) {
-	merchantUseCase, _, _, _, handler, c, w := setupTest(t)
+	merchantUseCase, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/merchants/1", nil)
@@ -77,7 +80,7 @@ func TestHTTPHandler_GetMerchantByID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetMerchantByID_InvalidID(t *testing.T) {
-	_, _, _, _, handler, c, w := setupTest(t)
+	_, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request with invalid ID
 	c.Request = httptest.NewRequest("GET", "/api/v1/merchants/invalid", nil)
@@ -97,7 +100,7 @@ func TestHTTPHandler_GetMerchantByID_InvalidID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetMerchantByID_NotFound(t *testing.T) {
-	merchantUseCase, _, _, _, handler, c, w := setupTest(t)
+	merchantUseCase, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/merchants/999", nil)
@@ -123,7 +126,7 @@ func TestHTTPHandler_GetMerchantByID_NotFound(t *testing.T) {
 }
 
 func TestHTTPHandler_GetMerchantByID_InternalError(t *testing.T) {
-	merchantUseCase, _, _, _, handler, c, w := setupTest(t)
+	merchantUseCase, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/merchants/1", nil)
@@ -150,7 +153,7 @@ func TestHTTPHandler_GetMerchantByID_InternalError(t *testing.T) {
 
 // Tests for GetMerchantByGlobalID
 func TestHTTPHandler_GetMerchantByGlobalID(t *testing.T) {
-	merchantUseCase, _, _, _, handler, c, w := setupTest(t)
+	merchantUseCase, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/merchants/global/FATCAT-MERCHANT-1", nil)
@@ -179,7 +182,7 @@ func TestHTTPHandler_GetMerchantByGlobalID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetMerchantByGlobalID_EmptyID(t *testing.T) {
-	_, _, _, _, handler, c, w := setupTest(t)
+	_, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request with empty global ID
 	c.Request = httptest.NewRequest("GET", "/api/v1/merchants/global/", nil)
@@ -199,7 +202,7 @@ func TestHTTPHandler_GetMerchantByGlobalID_EmptyID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetMerchantByGlobalID_NotFound(t *testing.T) {
-	merchantUseCase, _, _, _, handler, c, w := setupTest(t)
+	merchantUseCase, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/merchants/global/NONEXISTENT", nil)
@@ -225,7 +228,7 @@ func TestHTTPHandler_GetMerchantByGlobalID_NotFound(t *testing.T) {
 }
 
 func TestHTTPHandler_GetMerchantByGlobalID_InternalError(t *testing.T) {
-	merchantUseCase, _, _, _, handler, c, w := setupTest(t)
+	merchantUseCase, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/merchants/global/FATCAT-MERCHANT-1", nil)
@@ -252,7 +255,7 @@ func TestHTTPHandler_GetMerchantByGlobalID_InternalError(t *testing.T) {
 
 // Tests for GetPlayerByID
 func TestHTTPHandler_GetPlayerByID(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/players/1", nil)
@@ -280,7 +283,7 @@ func TestHTTPHandler_GetPlayerByID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetPlayerByID_InvalidID(t *testing.T) {
-	_, _, _, _, handler, c, w := setupTest(t)
+	_, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request with invalid ID
 	c.Request = httptest.NewRequest("GET", "/api/v1/players/invalid", nil)
@@ -300,7 +303,7 @@ func TestHTTPHandler_GetPlayerByID_InvalidID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetPlayerByID_NotFound(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/players/999", nil)
@@ -326,7 +329,7 @@ func TestHTTPHandler_GetPlayerByID_NotFound(t *testing.T) {
 }
 
 func TestHTTPHandler_GetPlayerByID_InternalError(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/players/1", nil)
@@ -353,7 +356,7 @@ func TestHTTPHandler_GetPlayerByID_InternalError(t *testing.T) {
 
 // Tests for GetPlayerByGlobalID
 func TestHTTPHandler_GetPlayerByGlobalID(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/players/global/FATCAT-PLAYER-1", nil)
@@ -381,7 +384,7 @@ func TestHTTPHandler_GetPlayerByGlobalID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetPlayerByGlobalID_EmptyID(t *testing.T) {
-	_, _, _, _, handler, c, w := setupTest(t)
+	_, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request with empty global ID
 	c.Request = httptest.NewRequest("GET", "/api/v1/players/global/", nil)
@@ -401,7 +404,7 @@ func TestHTTPHandler_GetPlayerByGlobalID_EmptyID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetPlayerByGlobalID_NotFound(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/players/global/NONEXISTENT", nil)
@@ -427,7 +430,7 @@ func TestHTTPHandler_GetPlayerByGlobalID_NotFound(t *testing.T) {
 }
 
 func TestHTTPHandler_GetPlayerByGlobalID_InternalError(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/players/global/FATCAT-PLAYER-1", nil)
@@ -453,7 +456,7 @@ func TestHTTPHandler_GetPlayerByGlobalID_InternalError(t *testing.T) {
 }
 
 func TestHTTPHandler_UpdatePlayerLastActive(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("PUT", "/api/v1/players/1/active", nil)
@@ -478,7 +481,7 @@ func TestHTTPHandler_UpdatePlayerLastActive(t *testing.T) {
 }
 
 func TestHTTPHandler_UpdatePlayerLastActive_InvalidID(t *testing.T) {
-	_, _, _, _, handler, c, w := setupTest(t)
+	_, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request with invalid ID
 	c.Request = httptest.NewRequest("PUT", "/api/v1/players/invalid/active", nil)
@@ -498,7 +501,7 @@ func TestHTTPHandler_UpdatePlayerLastActive_InvalidID(t *testing.T) {
 }
 
 func TestHTTPHandler_UpdatePlayerLastActive_NotFound(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("PUT", "/api/v1/players/999/active", nil)
@@ -524,7 +527,7 @@ func TestHTTPHandler_UpdatePlayerLastActive_NotFound(t *testing.T) {
 }
 
 func TestHTTPHandler_UpdatePlayerLastActive_InternalError(t *testing.T) {
-	_, playerUseCase, _, _, handler, c, w := setupTest(t)
+	_, playerUseCase, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("PUT", "/api/v1/players/1/active", nil)
@@ -551,7 +554,7 @@ func TestHTTPHandler_UpdatePlayerLastActive_InternalError(t *testing.T) {
 
 // Tests for GetManagerByID
 func TestHTTPHandler_GetManagerByID(t *testing.T) {
-	_, _, managerUseCase, _, handler, c, w := setupTest(t)
+	_, _, managerUseCase, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/managers/1", nil)
@@ -579,7 +582,7 @@ func TestHTTPHandler_GetManagerByID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetManagerByID_InvalidID(t *testing.T) {
-	_, _, _, _, handler, c, w := setupTest(t)
+	_, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request with invalid ID
 	c.Request = httptest.NewRequest("GET", "/api/v1/managers/invalid", nil)
@@ -599,7 +602,7 @@ func TestHTTPHandler_GetManagerByID_InvalidID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetManagerByID_NotFound(t *testing.T) {
-	_, _, managerUseCase, _, handler, c, w := setupTest(t)
+	_, _, managerUseCase, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/managers/999", nil)
@@ -625,7 +628,7 @@ func TestHTTPHandler_GetManagerByID_NotFound(t *testing.T) {
 }
 
 func TestHTTPHandler_GetManagerByID_InternalError(t *testing.T) {
-	_, _, managerUseCase, _, handler, c, w := setupTest(t)
+	_, _, managerUseCase, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/managers/1", nil)
@@ -652,7 +655,7 @@ func TestHTTPHandler_GetManagerByID_InternalError(t *testing.T) {
 
 // Tests for GetManagerByGlobalID
 func TestHTTPHandler_GetManagerByGlobalID(t *testing.T) {
-	_, _, managerUseCase, _, handler, c, w := setupTest(t)
+	_, _, managerUseCase, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/managers/global/FATCAT-MANAGER-1", nil)
@@ -681,7 +684,7 @@ func TestHTTPHandler_GetManagerByGlobalID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetManagerByGlobalID_EmptyID(t *testing.T) {
-	_, _, _, _, handler, c, w := setupTest(t)
+	_, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request with empty global ID
 	c.Request = httptest.NewRequest("GET", "/api/v1/managers/global/", nil)
@@ -701,7 +704,7 @@ func TestHTTPHandler_GetManagerByGlobalID_EmptyID(t *testing.T) {
 }
 
 func TestHTTPHandler_GetManagerByGlobalID_NotFound(t *testing.T) {
-	_, _, managerUseCase, _, handler, c, w := setupTest(t)
+	_, _, managerUseCase, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/managers/global/NONEXISTENT", nil)
@@ -727,7 +730,7 @@ func TestHTTPHandler_GetManagerByGlobalID_NotFound(t *testing.T) {
 }
 
 func TestHTTPHandler_GetManagerByGlobalID_InternalError(t *testing.T) {
-	_, _, managerUseCase, _, handler, c, w := setupTest(t)
+	_, _, managerUseCase, _, _, handler, c, w := setupTest(t)
 
 	// Setup request
 	c.Request = httptest.NewRequest("GET", "/api/v1/managers/global/FATCAT-MANAGER-1", nil)
@@ -750,4 +753,166 @@ func TestHTTPHandler_GetManagerByGlobalID_InternalError(t *testing.T) {
 	assert.Contains(t, response["error"], "Failed to get manager")
 
 	managerUseCase.AssertExpectations()
+}
+
+// Tests for PlayerLogin
+func TestHTTPHandler_PlayerLogin_Success(t *testing.T) {
+	_, _, _, _, mockJWT, handler, c, w := setupTest(t)
+
+	// Setup request
+	requestBody := map[string]interface{}{
+		"global_merchant_id": "FATCAT-MERCHANT-001",
+		"metadata": map[string]interface{}{
+			"player_id": "883",
+			"username":  "winston",
+		},
+	}
+	body, _ := json.Marshal(requestBody)
+	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader(string(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+	
+	// Set merchant ID in context (simulating auth middleware)
+	c.Set("global_merchant_id", "FATCAT-MERCHANT-001")
+
+	// Setup mock
+	expectedToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
+	mockJWT.On("GenerateTokenWithMetadata", mock.MatchedBy(func(metadata map[string]interface{}) bool {
+		return metadata["player_id"] == "883" && metadata["username"] == "winston"
+	})).Return(expectedToken, nil)
+
+	// Execute
+	handler.PlayerLogin(c)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.True(t, response["success"].(bool))
+	assert.Equal(t, expectedToken, response["jwt_token"])
+
+	mockJWT.AssertExpectations()
+}
+
+func TestHTTPHandler_PlayerLogin_InvalidRequestFormat(t *testing.T) {
+	_, _, _, _, _, handler, c, w := setupTest(t)
+
+	// Setup request with invalid JSON
+	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader("invalid json"))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	// Execute
+	handler.PlayerLogin(c)
+
+	// Assert
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	var response map[string]string
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Contains(t, response["error"], "Invalid request format")
+}
+
+func TestHTTPHandler_PlayerLogin_MissingMerchantAuth(t *testing.T) {
+	_, _, _, _, _, handler, c, w := setupTest(t)
+
+	// Setup request
+	requestBody := map[string]interface{}{
+		"global_merchant_id": "FATCAT-MERCHANT-001",
+		"metadata": map[string]interface{}{
+			"player_id": "883",
+		},
+	}
+	body, _ := json.Marshal(requestBody)
+	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader(string(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+	
+	// NOT setting merchant ID in context
+
+	// Execute
+	handler.PlayerLogin(c)
+
+	// Assert
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+	var response map[string]string
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Contains(t, response["error"], "Missing merchant authentication")
+}
+
+func TestHTTPHandler_PlayerLogin_MerchantIDMismatch(t *testing.T) {
+	_, _, _, mockLogger, _, handler, c, w := setupTest(t)
+
+	// Setup request
+	requestBody := map[string]interface{}{
+		"global_merchant_id": "FATCAT-MERCHANT-001",
+		"metadata": map[string]interface{}{
+			"player_id": "883",
+		},
+	}
+	body, _ := json.Marshal(requestBody)
+	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader(string(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+	
+	// Set different merchant ID in context
+	c.Set("global_merchant_id", "FATCAT-MERCHANT-002")
+
+	// Setup mock logger
+	mockLogger.On("WarnLog", mock.Anything, mock.Anything).Return()
+
+	// Execute
+	handler.PlayerLogin(c)
+
+	// Assert
+	assert.Equal(t, http.StatusForbidden, w.Code)
+
+	var response map[string]string
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Contains(t, response["error"], "Merchant ID does not match API key")
+
+	mockLogger.AssertExpectations()
+}
+
+func TestHTTPHandler_PlayerLogin_JWTGenerationError(t *testing.T) {
+	_, _, _, mockLogger, mockJWT, handler, c, w := setupTest(t)
+
+	// Setup request
+	requestBody := map[string]interface{}{
+		"global_merchant_id": "FATCAT-MERCHANT-001",
+		"metadata": map[string]interface{}{
+			"player_id": "883",
+		},
+	}
+	body, _ := json.Marshal(requestBody)
+	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader(string(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+	
+	// Set merchant ID in context
+	c.Set("global_merchant_id", "FATCAT-MERCHANT-001")
+
+	// Setup mock to return error
+	mockJWT.On("GenerateTokenWithMetadata", mock.Anything).Return("", errors.New("jwt generation failed"))
+	mockLogger.On("ErrorLog", mock.Anything, mock.Anything).Return()
+
+	// Execute
+	handler.PlayerLogin(c)
+
+	// Assert
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	var response map[string]string
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Contains(t, response["error"], "Failed to generate token")
+
+	mockJWT.AssertExpectations()
+	mockLogger.AssertExpectations()
 }

@@ -67,9 +67,10 @@ func (m *PlayerUseCaseMock) StopBatchProcessor(ctx context.Context) error {
 
 func (m *PlayerUseCaseMock) PlayerLogin(
 	ctx context.Context,
-	account, playerGlobalID string,
+	merchantID uint64,
+	account, playerGlobalID *string,
 ) (string, error) {
-	args := m.Called(ctx, account, playerGlobalID)
+	args := m.Called(ctx, merchantID, account, playerGlobalID)
 	return args.String(0), args.Error(1)
 }
 

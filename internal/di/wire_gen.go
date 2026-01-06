@@ -69,7 +69,7 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, playerTagRepository, eventProducer, logger, client, tracingService, redisManager, jwtService)
 	managerRepository := repository4.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger, tracingService)
-	httpHandler := api.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger, tracingService, eventProducer)
+	httpHandler := api.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger, tracingService, eventProducer, jwtService)
 	return httpHandler, nil
 }
 

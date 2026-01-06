@@ -20,5 +20,5 @@ type PlayerUseCase interface {
 	GetPlayerByID(ctx context.Context, id uint64) (*entity.Player, error)
 	GetPlayerByGlobalID(ctx context.Context, globalID string) (*entity.Player, error)
 	UpdatePlayerLastActive(ctx context.Context, id uint64) error
-	PlayerLogin(ctx context.Context, account, playerGlobalID string) (string, error)
+	PlayerLogin(ctx context.Context, merchantID uint64, account, playerGlobalID *string) (string, error)
 }

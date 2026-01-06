@@ -276,7 +276,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "玩家登入並獲取JWT token",
+                "description": "玩家登入 API。只驗證 global_merchant_id 與 API-Key 是否匹配，不查詢資料庫。metadata 中的資料會被加密到 JWT token 中。\n\n請求參數說明：\n- global_merchant_id: (必填) 商戶全局 ID，必須與 API-Key 對應的 merchant ID 一致\n- metadata: (必填) 任意 JSON 物件，請求方可自行決定包含的資料，完整內容會被加密到 JWT token 中\n\n範例 metadata:\n```json\n{\n\"player_id\": \"883\",\n\"username\": \"winston\",\n\"custom_field\": \"any value\"\n}\n```",
                 "consumes": [
                     "application/json"
                 ],
@@ -286,7 +286,7 @@
                 "tags": [
                     "玩家"
                 ],
-                "summary": "玩家登入",
+                "summary": "玩家登入並生成 JWT token",
                 "parameters": [
                     {
                         "description": "登入請求",
@@ -294,31 +294,37 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.LoginRequest"
+                            "$ref": "#/definitions/dto.PlayerLoginRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "成功生成 JWT token",
                         "schema": {
-                            "$ref": "#/definitions/api.LoginResponse"
+                            "$ref": "#/definitions/dto.PlayerLoginResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "請求格式錯誤或 metadata 為空",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "401": {
+                        "description": "缺少 API-Key 認證",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "global_merchant_id 與 API-Key 不匹配",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "JWT token 生成失敗",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -488,36 +494,6 @@
                 }
             }
         },
-        "api.LoginRequest": {
-            "type": "object",
-            "required": [
-                "account",
-                "player_global_id"
-            ],
-            "properties": {
-                "account": {
-                    "type": "string",
-                    "example": "winston883"
-                },
-                "player_global_id": {
-                    "type": "string",
-                    "example": "FATCAT-PLAYER-883"
-                }
-            }
-        },
-        "api.LoginResponse": {
-            "type": "object",
-            "properties": {
-                "jwt_token": {
-                    "type": "string",
-                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                },
-                "success": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
         "api.Manager": {
             "type": "object"
         },
@@ -533,6 +509,22 @@
                 "status": {
                     "type": "string",
                     "example": "success"
+                }
+            }
+        },
+        "dto.PlayerLoginRequest": {
+            "type": "object"
+        },
+        "dto.PlayerLoginResponse": {
+            "type": "object",
+            "properties": {
+                "jwt_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         }
