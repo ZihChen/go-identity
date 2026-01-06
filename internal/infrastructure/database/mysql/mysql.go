@@ -43,7 +43,7 @@ func (d *Database) connect() error {
 	}
 
 	gormCfg := &gorm.Config{
-		PrepareStmt:            false, // 啟用預編譯語句 (語法快取)
+		PrepareStmt:            false, // 關閉預編譯語句以降低PlanetScale內存消耗
 		SkipDefaultTransaction: true,  // 關閉默認Transaction，隨應用場景自行加入Transaction
 		Logger:                 logger.Default.LogMode(logLevel),
 	}
@@ -151,6 +151,67 @@ func (d *Database) startHealthChecker() {
 					d.logger.ErrorLog("Failed to reconnect to database", d.logger.Error("err", err))
 				}
 			} else {
+				// 連線正常，輸出連接池狀態監控
+				sqlDB, err := d.dbInstance.DB()
+				if err == nil {
+					stats := sqlDB.Stats()
+
+					// 輸出詳細的連接池統計信息
+					d.logger.InfoLog("Database connection pool stats",
+						d.logger.Int("max_open_connections", stats.MaxOpenConnections),
+						d.logger.Int("open_connections", stats.OpenConnections),
+						d.logger.Int("in_use", stats.InUse),
+						d.logger.Int("idle", stats.Idle),
+						d.logger.Int64("wait_count", stats.WaitCount),
+						d.logger.String("wait_duration", stats.WaitDuration.String()),
+						d.logger.Int64("max_idle_closed", stats.MaxIdleClosed),
+						d.logger.Int64("max_lifetime_closed", stats.MaxLifetimeClosed),
+					)
+
+					// 輸出GORM配置狀態（用於驗證PrepareStmt設置）
+					d.logger.InfoLog("Database configuration status",
+						d.logger.Bool("prepare_stmt_enabled", d.dbInstance.PrepareStmt),
+						d.logger.Bool("skip_default_transaction", d.dbInstance.SkipDefaultTransaction),
+						d.logger.Int("max_idle_conns_config", d.cfg.Database.MaxIdle),
+						d.logger.Int("max_open_conns_config", d.cfg.Database.MaxOpen),
+						d.logger.String("max_lifetime_config", d.cfg.Database.MaxLifetime.String()),
+						d.logger.String("max_idle_time_config", d.cfg.Database.MaxIdleTime.String()),
+					)
+
+					// 檢測異常情況並發出警告
+					if stats.WaitCount > 0 {
+						d.logger.WarnLog("Database connection pool is experiencing waits",
+							d.logger.Int64("wait_count", stats.WaitCount),
+							d.logger.String("total_wait_duration", stats.WaitDuration.String()),
+							d.logger.String("suggestion", "Consider increasing DB_MAX_OPEN connections"),
+						)
+					}
+
+					// 檢查是否有過多的空閒連接被關閉
+					if stats.MaxIdleClosed > 100 {
+						d.logger.WarnLog("High number of idle connections being closed",
+							d.logger.Int64("max_idle_closed", stats.MaxIdleClosed),
+							d.logger.String("suggestion", "Consider increasing DB_MAX_IDLE or reducing DB_MAX_IDLE_TIME"),
+						)
+					}
+
+					// 計算連接池使用率
+					if stats.MaxOpenConnections > 0 {
+						utilizationPercent := float64(stats.OpenConnections) / float64(stats.MaxOpenConnections) * 100
+						d.logger.InfoLog("Database connection pool utilization",
+							d.logger.Float64("utilization_percent", utilizationPercent),
+						)
+
+						// 如果使用率超過80%，發出警告
+						if utilizationPercent > 80 {
+							d.logger.WarnLog("Database connection pool utilization is high",
+								d.logger.Float64("utilization_percent", utilizationPercent),
+								d.logger.String("suggestion", "Connection pool may be under pressure"),
+							)
+						}
+					}
+				}
+
 				d.logger.InfoLog("Database connection is up!")
 			}
 		case <-d.isClose:
