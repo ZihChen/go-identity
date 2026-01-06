@@ -23,10 +23,10 @@ env:
   DB_NAME: "ms_fatidentitycat_pro"
 
   # 資料庫連線池設置
-  DB_MAX_IDLE: "10"
-  DB_MAX_OPEN: "20"
-  DB_MAX_LIFETIME: "10m"
-  DB_MAX_IDLE_TIME: "5m"
+  DB_MAX_IDLE: "15"
+  DB_MAX_OPEN: "30"
+  DB_MAX_LIFETIME: "30m"
+  DB_MAX_IDLE_TIME: "15m"
 
   # Redis設置
   REDIS_DOMAIN: "REDACTED_REDIS_HOST_PRO"
