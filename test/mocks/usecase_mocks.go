@@ -65,15 +65,6 @@ func (m *PlayerUseCaseMock) StopBatchProcessor(ctx context.Context) error {
 	return args.Error(0)
 }
 
-func (m *PlayerUseCaseMock) PlayerLogin(
-	ctx context.Context,
-	merchantID uint64,
-	account, playerGlobalID *string,
-) (string, error) {
-	args := m.Called(ctx, merchantID, account, playerGlobalID)
-	return args.String(0), args.Error(1)
-}
-
 // MerchantUseCaseMock 統一的 Merchant UseCase Mock
 type MerchantUseCaseMock struct {
 	*BaseMock

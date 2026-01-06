@@ -56,26 +56,6 @@ func (r *PlayerRepository) FindByGlobalID(
 	return mapToDomainPlayer(&player), nil
 }
 
-// FindByAccountAndMerchantID 通過帳號和商戶ID查找玩家
-func (r *PlayerRepository) FindByAccountAndMerchantID(
-	ctx context.Context,
-	account string,
-	merchantID uint64,
-) (*entity.Player, error) {
-	var player models.Player
-	result := r.db.WithContext(ctx).
-		Where("account = ? AND merchant_id = ?", account, merchantID).
-		First(&player)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return &entity.Player{}, errmsg.ErrRepoPlayerNotFound
-		}
-		return &entity.Player{}, result.Error
-	}
-
-	return mapToDomainPlayer(&player), nil
-}
-
 // FirstOrCreate 取得或創建，避免重複插入
 func (r *PlayerRepository) FirstOrCreate(ctx context.Context, player *entity.Player) error {
 	playerModel := mapToDBPlayer(player)
