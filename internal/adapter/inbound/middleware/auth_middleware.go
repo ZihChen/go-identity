@@ -33,27 +33,15 @@ func AuthMiddleware(config AuthConfig) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		// 從header取得API Key
-		encryptedKey := c.GetHeader(headerKey)
-		if encryptedKey == "" {
-			utils.Unauthorized(c, "Missing API key", "The request is missing the API key").Abort()
-			return
-		}
-
-		// 解密API Key
-		decryptedKey, err := decryptAPIKey(encryptedKey, config.EncryptionType, config.AESKey)
-		if err != nil {
-			utils.Unauthorized(c, "Invalid API key format", err.Error()).Abort()
-			return
-		}
-
+		apiKey := c.GetHeader(headerKey)
 		// 使用常數時間比較驗證API Key並取得對應的merchant ID
-		merchantID, isValid := utils.ValidateAPIKeyConstantTime(decryptedKey, config.APIKeys)
+		merchantID, isValid := utils.ValidateAPIKeyConstantTime(apiKey, config.APIKeys)
 		if !isValid {
 			utils.Unauthorized(c, "Invalid API key", "The provided API key is invalid").Abort()
 			return
 		}
 
-		c.Set("api_key", decryptedKey)
+		c.Set("api_key", apiKey)
 		c.Set("global_merchant_id", merchantID)
 		c.Next()
 	}
