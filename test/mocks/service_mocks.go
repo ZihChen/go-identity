@@ -100,6 +100,11 @@ func (m *JWTServiceMock) GenerateToken(account, playerGlobalID string) (string, 
 	return args.String(0), args.Error(1)
 }
 
+func (m *JWTServiceMock) GenerateTokenWithMetadata(metadata map[string]interface{}) (string, error) {
+	args := m.Called(metadata)
+	return args.String(0), args.Error(1)
+}
+
 // RedisManagerMock 統一的 Redis Manager Mock
 type RedisManagerMock struct {
 	*BaseMock

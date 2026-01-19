@@ -42,6 +42,7 @@ type HTTPHandler struct {
 	logger          infrastructure.Logger
 	tracing         infrastructure.TracingService
 	eventProducer   service.EventProducer
+	jwtService      service.JWTService
 }
 
 // NewHTTPHandler 創建HTTP處理器
@@ -52,6 +53,7 @@ func NewHTTPHandler(
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
 	eventProducer service.EventProducer,
+	jwtService service.JWTService,
 ) *HTTPHandler {
 	return &HTTPHandler{
 		merchantUseCase: merchantUseCase,
@@ -60,6 +62,7 @@ func NewHTTPHandler(
 		logger:          logger,
 		tracing:         tracing,
 		eventProducer:   eventProducer,
+		jwtService:      jwtService,
 	}
 }
 
@@ -488,16 +491,30 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 }
 
 // PlayerLogin 玩家登入
-// @Summary 玩家登入
-// @Description 玩家登入並獲取JWT token
+// @Summary 玩家登入並生成 JWT token
+// @Description 玩家登入 API。只驗證 global_merchant_id 與 API-Key 是否匹配，不查詢資料庫。metadata 中的資料會被加密到 JWT token 中。
+// @Description
+// @Description 請求參數說明：
+// @Description - global_merchant_id: (必填) 商戶全局 ID，必須與 API-Key 對應的 merchant ID 一致
+// @Description - metadata: (必填) 任意 JSON 物件，請求方可自行決定包含的資料，完整內容會被加密到 JWT token 中
+// @Description
+// @Description 範例 metadata:
+// @Description ```json
+// @Description {
+// @Description   "player_id": "883",
+// @Description   "username": "winston",
+// @Description   "custom_field": "any value"
+// @Description }
+// @Description ```
 // @Tags 玩家
 // @Accept json
 // @Produce json
 // @Param request body dto.PlayerLoginRequest true "登入請求"
-// @Success 200 {object} dto.PlayerLoginResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Success 200 {object} dto.PlayerLoginResponse "成功生成 JWT token"
+// @Failure 400 {object} ErrorResponse "請求格式錯誤或 metadata 為空"
+// @Failure 401 {object} ErrorResponse "缺少 API-Key 認證"
+// @Failure 403 {object} ErrorResponse "global_merchant_id 與 API-Key 不匹配"
+// @Failure 500 {object} ErrorResponse "JWT token 生成失敗"
 // @Security ApiKeyAuth
 // @Router /api/v1/players/login [post]
 func (h *HTTPHandler) PlayerLogin(c *gin.Context) {
@@ -509,25 +526,50 @@ func (h *HTTPHandler) PlayerLogin(c *gin.Context) {
 		return
 	}
 
-	token, err := h.playerUseCase.PlayerLogin(c.Request.Context(), req.Account, req.PlayerGlobalID)
-	if err != nil {
-		if errors.Is(err, errmsg.ErrRepoPlayerNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Player not found",
-			})
-			return
-		}
-
-		h.logger.ErrorLog("Failed to process player login",
-			h.logger.String("account", req.Account),
-			h.logger.String("player_global_id", req.PlayerGlobalID),
-			h.logger.Error("err", err))
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to process login",
+	// 從 context 獲取 API-Key 對應的 global_merchant_id
+	contextMerchantID, exists := c.Get("global_merchant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Missing merchant authentication",
 		})
 		return
 	}
+
+	contextMerchantIDStr, ok := contextMerchantID.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Invalid merchant ID format in context",
+		})
+		return
+	}
+
+	// 驗證請求中的 global_merchant_id 與 API-Key 對應的 merchant_id 是否一致
+	if req.GlobalMerchantID != contextMerchantIDStr {
+		h.logger.WarnLog("Merchant ID mismatch",
+			h.logger.String("request_merchant_id", req.GlobalMerchantID),
+			h.logger.String("context_merchant_id", contextMerchantIDStr))
+
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Merchant ID does not match API key",
+		})
+		return
+	}
+
+	// 使用 metadata 生成 JWT token
+	token, err := h.jwtService.GenerateTokenWithMetadata(req.Metadata)
+	if err != nil {
+		h.logger.ErrorLog("Failed to generate JWT token",
+			h.logger.String("global_merchant_id", req.GlobalMerchantID),
+			h.logger.Error("err", err))
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to generate token",
+		})
+		return
+	}
+
+	h.logger.InfoLog("Player login successful",
+		h.logger.String("global_merchant_id", req.GlobalMerchantID))
 
 	c.JSON(http.StatusOK, dto.PlayerLoginResponse{
 		Success:  true,

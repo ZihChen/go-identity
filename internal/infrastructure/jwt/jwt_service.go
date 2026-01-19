@@ -10,6 +10,7 @@ import (
 // JWTService JWT服務介面
 type JWTService interface {
 	GenerateToken(account, playerGlobalID string) (string, error)
+	GenerateTokenWithMetadata(metadata map[string]interface{}) (string, error)
 }
 
 // jwtService JWT服務實現
@@ -33,6 +34,12 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
+// MetadataClaims JWT metadata claims
+type MetadataClaims struct {
+	Metadata map[string]interface{} `json:"metadata"`
+	jwt.RegisteredClaims
+}
+
 // GenerateToken 生成JWT token
 func (j *jwtService) GenerateToken(account, playerGlobalID string) (string, error) {
 	if account == "" {
@@ -49,6 +56,34 @@ func (j *jwtService) GenerateToken(account, playerGlobalID string) (string, erro
 	claims := CustomClaims{
 		Account:        account,
 		PlayerGlobalID: playerGlobalID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    j.issuer,
+			Subject:   "player",
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(j.secret))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+// GenerateTokenWithMetadata 使用 metadata 生成JWT token
+func (j *jwtService) GenerateTokenWithMetadata(metadata map[string]interface{}) (string, error) {
+	if metadata == nil || len(metadata) == 0 {
+		return "", errors.New("metadata cannot be empty")
+	}
+
+	now := time.Now()
+	// 設置過期時間為1小時
+	expirationTime := now.Add(1 * time.Hour)
+
+	claims := MetadataClaims{
+		Metadata: metadata,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    j.issuer,
 			Subject:   "player",
