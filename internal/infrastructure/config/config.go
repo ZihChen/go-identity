@@ -461,8 +461,8 @@ func (c *Config) PrintConfig() {
 	fmt.Printf("  HeaderKey: %s\n", c.Auth.HeaderKey)
 	fmt.Printf("  EncryptionType: %s\n", c.Auth.EncryptionType)
 	fmt.Printf("  APIKeys Count: %d\n", len(c.Auth.APIKeys))
-	fmt.Printf("  JWT.Secret: %s\n", maskAPIKey(c.Auth.JWT.Secret))
-	fmt.Printf("  JWT.Issuer: %s\n", c.Auth.JWT.Issuer)
+	fmt.Printf("  JWT Secret: %s\n", maskAPIKey(c.Auth.JWT.Secret))
+	fmt.Printf("  JWT Issuer: %s\n", c.Auth.JWT.Issuer)
 
 	fmt.Println("\n==============================")
 }
