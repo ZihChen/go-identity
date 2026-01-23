@@ -88,8 +88,8 @@ env:
   EVENT_IDENTITY_AGENT_SYNC: "tw.jvd.fatidentitycat.agent.sync.v1"
 
   # JWT
-  AUTH_ENABLED: true
-  AUTH_HEADER_KEY: API-Key
+  AUTH_ENABLED: "true"
+  AUTH_HEADER_KEY: "API-Key"
 
 # Usage: ./encrypt-secret-data.sh fatidentitycat fatcat-extension DB_PASSWORD=<secret>
 encryptedEnv:
