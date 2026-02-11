@@ -556,7 +556,7 @@ func (h *HTTPHandler) PlayerLogin(c *gin.Context) {
 	}
 
 	// 使用 metadata 生成 JWT token
-	token, err := h.jwtService.GenerateTokenWithMetadata(req.Metadata)
+	token, err := h.jwtService.GenerateTokenWithMetadata(req.GlobalMerchantID, req.Metadata)
 	if err != nil {
 		h.logger.ErrorLog("Failed to generate JWT token",
 			h.logger.String("global_merchant_id", req.GlobalMerchantID),

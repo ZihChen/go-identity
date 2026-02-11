@@ -104,3 +104,76 @@ func TestNewJWTService_WithEmptyIssuer(t *testing.T) {
 	// 這應該會導致fatal
 	NewJWTService("test-secret", "")
 }
+
+func TestJWTService_GenerateTokenWithMetadata(t *testing.T) {
+	tests := []struct {
+		name             string
+		secret           string
+		issuer           string
+		globalMerchantID string
+		metadata         map[string]interface{}
+		expectError      bool
+		errorMessage     string
+	}{
+		{
+			name:             "Valid token with metadata",
+			secret:           "test-secret-key",
+			issuer:           "test-issuer",
+			globalMerchantID: "FATCAT-MERCHANT-001",
+			metadata: map[string]interface{}{
+				"player_id": "883",
+				"username":  "winston",
+			},
+			expectError: false,
+		},
+		{
+			name:             "Empty global merchant ID",
+			secret:           "test-secret-key",
+			issuer:           "test-issuer",
+			globalMerchantID: "",
+			metadata: map[string]interface{}{
+				"player_id": "883",
+			},
+			expectError:  true,
+			errorMessage: "global_merchant_id cannot be empty",
+		},
+		{
+			name:             "Empty metadata",
+			secret:           "test-secret-key",
+			issuer:           "test-issuer",
+			globalMerchantID: "FATCAT-MERCHANT-001",
+			metadata:         map[string]interface{}{},
+			expectError:      true,
+			errorMessage:     "metadata cannot be empty",
+		},
+		{
+			name:             "Nil metadata",
+			secret:           "test-secret-key",
+			issuer:           "test-issuer",
+			globalMerchantID: "FATCAT-MERCHANT-001",
+			metadata:         nil,
+			expectError:      true,
+			errorMessage:     "metadata cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jwtService := NewJWTService(tt.secret, tt.issuer)
+
+			token, err := jwtService.GenerateTokenWithMetadata(tt.globalMerchantID, tt.metadata)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, tt.errorMessage, err.Error())
+				assert.Empty(t, token)
+			} else {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, token)
+
+				// Token should be a valid JWT format (header.payload.signature)
+				assert.Regexp(t, `^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`, token)
+			}
+		})
+	}
+}

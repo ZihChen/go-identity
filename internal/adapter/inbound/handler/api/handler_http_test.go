@@ -776,7 +776,7 @@ func TestHTTPHandler_PlayerLogin_Success(t *testing.T) {
 
 	// Setup mock
 	expectedToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
-	mockJWT.On("GenerateTokenWithMetadata", mock.MatchedBy(func(metadata map[string]interface{}) bool {
+	mockJWT.On("GenerateTokenWithMetadata", "FATCAT-MERCHANT-001", mock.MatchedBy(func(metadata map[string]interface{}) bool {
 		return metadata["player_id"] == "883" && metadata["username"] == "winston"
 	})).Return(expectedToken, nil)
 
@@ -898,7 +898,7 @@ func TestHTTPHandler_PlayerLogin_JWTGenerationError(t *testing.T) {
 	c.Set("global_merchant_id", "FATCAT-MERCHANT-001")
 
 	// Setup mock to return error
-	mockJWT.On("GenerateTokenWithMetadata", mock.Anything).Return("", errors.New("jwt generation failed"))
+	mockJWT.On("GenerateTokenWithMetadata", mock.Anything, mock.Anything).Return("", errors.New("jwt generation failed"))
 	mockLogger.On("ErrorLog", mock.Anything, mock.Anything).Return()
 
 	// Execute

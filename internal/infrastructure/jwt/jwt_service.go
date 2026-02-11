@@ -10,7 +10,7 @@ import (
 // JWTService JWT服務介面
 type JWTService interface {
 	GenerateToken(account, playerGlobalID string) (string, error)
-	GenerateTokenWithMetadata(metadata map[string]interface{}) (string, error)
+	GenerateTokenWithMetadata(globalMerchantID string, metadata map[string]interface{}) (string, error)
 }
 
 // jwtService JWT服務實現
@@ -36,7 +36,8 @@ type CustomClaims struct {
 
 // MetadataClaims JWT metadata claims
 type MetadataClaims struct {
-	Metadata map[string]interface{} `json:"metadata"`
+	GlobalMerchantID string                 `json:"global_merchant_id"`
+	Metadata         map[string]interface{} `json:"metadata"`
 	jwt.RegisteredClaims
 }
 
@@ -73,7 +74,10 @@ func (j *jwtService) GenerateToken(account, playerGlobalID string) (string, erro
 }
 
 // GenerateTokenWithMetadata 使用 metadata 生成JWT token
-func (j *jwtService) GenerateTokenWithMetadata(metadata map[string]interface{}) (string, error) {
+func (j *jwtService) GenerateTokenWithMetadata(globalMerchantID string, metadata map[string]interface{}) (string, error) {
+	if globalMerchantID == "" {
+		return "", errors.New("global_merchant_id cannot be empty")
+	}
 	if metadata == nil || len(metadata) == 0 {
 		return "", errors.New("metadata cannot be empty")
 	}
@@ -83,7 +87,8 @@ func (j *jwtService) GenerateTokenWithMetadata(metadata map[string]interface{}) 
 	expirationTime := now.Add(1 * time.Hour)
 
 	claims := MetadataClaims{
-		Metadata: metadata,
+		GlobalMerchantID: globalMerchantID,
+		Metadata:         metadata,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    j.issuer,
 			Subject:   "player",
