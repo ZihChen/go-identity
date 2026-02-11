@@ -152,19 +152,27 @@ func (u *TagUseCase) SyncPlayerTag(
 	// 建立Player Tags關聯
 	u.tracing.TraceEvent(span, "Start sync player tags relation")
 	mutexKey := fmt.Sprintf(consts.SyncPlayerTagRedisKey, player.GetID())
-	if err = utils.ExecuteWithLock(ctx, u.cache, u.logger, mutexKey, player.GetID(), "player_tags", func() error {
-		err = u.playerTagRepo.BatchUpdate(ctx, player.GetID(), tagIDs)
-		if err != nil {
-			u.tracing.RecordSpanError(span, err)
-			return fmt.Errorf("batch update player tags failed: %w", err)
-		}
-		u.logger.InfoWithContext(ctx, "Batch upsert player tags completed",
-			u.logger.UInt64("player_id", player.GetID()),
-			u.logger.Int("count", len(tagIDs)),
-			u.logger.Any("tag_ids", tagIDs),
-		)
-		return nil
-	}); err != nil {
+	if err = utils.ExecuteWithLock(
+		ctx,
+		u.cache,
+		u.logger,
+		mutexKey,
+		player.GetID(),
+		"player_tags",
+		func() error {
+			err = u.playerTagRepo.BatchUpdate(ctx, player.GetID(), tagIDs)
+			if err != nil {
+				u.tracing.RecordSpanError(span, err)
+				return fmt.Errorf("batch update player tags failed: %w", err)
+			}
+			u.logger.InfoWithContext(ctx, "Batch upsert player tags completed",
+				u.logger.UInt64("player_id", player.GetID()),
+				u.logger.Int("count", len(tagIDs)),
+				u.logger.Any("tag_ids", tagIDs),
+			)
+			return nil
+		},
+	); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		return fmt.Errorf("batch upsert player tags failed: %w", err)
 	}

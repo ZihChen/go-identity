@@ -100,7 +100,10 @@ func (m *JWTServiceMock) GenerateToken(account, playerGlobalID string) (string, 
 	return args.String(0), args.Error(1)
 }
 
-func (m *JWTServiceMock) GenerateTokenWithMetadata(globalMerchantID string, metadata map[string]interface{}) (string, error) {
+func (m *JWTServiceMock) GenerateTokenWithMetadata(
+	globalMerchantID string,
+	metadata map[string]interface{},
+) (string, error) {
 	args := m.Called(globalMerchantID, metadata)
 	return args.String(0), args.Error(1)
 }

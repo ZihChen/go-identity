@@ -768,9 +768,13 @@ func TestHTTPHandler_PlayerLogin_Success(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(requestBody)
-	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader(string(body)))
+	c.Request = httptest.NewRequest(
+		"POST",
+		"/api/v1/players/login",
+		strings.NewReader(string(body)),
+	)
 	c.Request.Header.Set("Content-Type", "application/json")
-	
+
 	// Set merchant ID in context (simulating auth middleware)
 	c.Set("global_merchant_id", "FATCAT-MERCHANT-001")
 
@@ -778,7 +782,8 @@ func TestHTTPHandler_PlayerLogin_Success(t *testing.T) {
 	expectedToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
 	mockJWT.On("GenerateTokenWithMetadata", "FATCAT-MERCHANT-001", mock.MatchedBy(func(metadata map[string]interface{}) bool {
 		return metadata["player_id"] == "883" && metadata["username"] == "winston"
-	})).Return(expectedToken, nil)
+	})).
+		Return(expectedToken, nil)
 
 	// Execute
 	handler.PlayerLogin(c)
@@ -800,7 +805,11 @@ func TestHTTPHandler_PlayerLogin_InvalidRequestFormat(t *testing.T) {
 	_, _, _, _, _, handler, c, w := setupTest(t)
 
 	// Setup request with invalid JSON
-	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader("invalid json"))
+	c.Request = httptest.NewRequest(
+		"POST",
+		"/api/v1/players/login",
+		strings.NewReader("invalid json"),
+	)
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	// Execute
@@ -827,9 +836,13 @@ func TestHTTPHandler_PlayerLogin_MissingMerchantAuth(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(requestBody)
-	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader(string(body)))
+	c.Request = httptest.NewRequest(
+		"POST",
+		"/api/v1/players/login",
+		strings.NewReader(string(body)),
+	)
 	c.Request.Header.Set("Content-Type", "application/json")
-	
+
 	// NOT setting merchant ID in context
 
 	// Execute
@@ -856,9 +869,13 @@ func TestHTTPHandler_PlayerLogin_MerchantIDMismatch(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(requestBody)
-	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader(string(body)))
+	c.Request = httptest.NewRequest(
+		"POST",
+		"/api/v1/players/login",
+		strings.NewReader(string(body)),
+	)
 	c.Request.Header.Set("Content-Type", "application/json")
-	
+
 	// Set different merchant ID in context
 	c.Set("global_merchant_id", "FATCAT-MERCHANT-002")
 
@@ -891,14 +908,19 @@ func TestHTTPHandler_PlayerLogin_JWTGenerationError(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(requestBody)
-	c.Request = httptest.NewRequest("POST", "/api/v1/players/login", strings.NewReader(string(body)))
+	c.Request = httptest.NewRequest(
+		"POST",
+		"/api/v1/players/login",
+		strings.NewReader(string(body)),
+	)
 	c.Request.Header.Set("Content-Type", "application/json")
-	
+
 	// Set merchant ID in context
 	c.Set("global_merchant_id", "FATCAT-MERCHANT-001")
 
 	// Setup mock to return error
-	mockJWT.On("GenerateTokenWithMetadata", mock.Anything, mock.Anything).Return("", errors.New("jwt generation failed"))
+	mockJWT.On("GenerateTokenWithMetadata", mock.Anything, mock.Anything).
+		Return("", errors.New("jwt generation failed"))
 	mockLogger.On("ErrorLog", mock.Anything, mock.Anything).Return()
 
 	// Execute

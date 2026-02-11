@@ -3,7 +3,7 @@ package dto
 // PlayerLoginRequest 玩家登入請求模型
 type PlayerLoginRequest struct {
 	GlobalMerchantID string                 `json:"global_merchant_id" binding:"required" example:"FATCAT-MERCHANT-001"`
-	Metadata         map[string]interface{} `json:"metadata" binding:"required" example:"{\"player_id\":\"883\",\"username\":\"winston\"}"`
+	Metadata         map[string]interface{} `json:"metadata"           binding:"required" example:"{\"player_id\":\"883\",\"username\":\"winston\"}"`
 }
 
 // PlayerLoginResponse 玩家登入響應模型

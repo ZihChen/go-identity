@@ -109,7 +109,12 @@ func TestGetWorkerConfigByEnv(t *testing.T) {
 				if actualPriority, exists := config.QueuePriorities[queueName]; !exists {
 					t.Errorf("Queue %s not found in configuration", queueName)
 				} else if actualPriority != expectedPriority {
-					t.Errorf("Queue %s: expected priority %d, got %d", queueName, expectedPriority, actualPriority)
+					t.Errorf(
+						"Queue %s: expected priority %d, got %d",
+						queueName,
+						expectedPriority,
+						actualPriority,
+					)
 				}
 			}
 

@@ -27,9 +27,11 @@ func (r *LevelRepository) Upsert(ctx context.Context, level *entity.Level) error
 		Columns: []clause.Column{{Name: "global_player_level_id"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"name": gorm.Expr(
-				"CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END"),
+				"CASE WHEN VALUES(updated_at) > updated_at AND name != VALUES(name) THEN VALUES(name) ELSE name END",
+			),
 			"updated_at": gorm.Expr(
-				"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END")}),
+				"CASE WHEN VALUES(updated_at) > updated_at THEN VALUES(updated_at) ELSE updated_at END",
+			)}),
 	}).Create(dbLevel); result.Error != nil {
 		return fmt.Errorf("upsert level failed: %w", result.Error)
 	}

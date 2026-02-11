@@ -370,4 +370,3 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 
 	return nil
 }
-

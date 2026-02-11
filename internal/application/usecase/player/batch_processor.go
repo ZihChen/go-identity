@@ -121,7 +121,9 @@ func (p *PlayerBatchProcessor) SetBlockOnFull(block bool) {
 	if block {
 		p.logger.InfoLog("Batch processor configured to block when channel is full")
 	} else {
-		p.logger.InfoLog("Batch processor configured to use fallback processing when channel is full")
+		p.logger.InfoLog(
+			"Batch processor configured to use fallback processing when channel is full",
+		)
 	}
 }
 

@@ -169,44 +169,67 @@ func (d *Database) startHealthChecker() {
 					)
 
 					// 輸出GORM配置狀態（用於驗證PrepareStmt設置）
-					d.logger.InfoLog("Database configuration status",
+					d.logger.InfoLog(
+						"Database configuration status",
 						d.logger.Bool("prepare_stmt_enabled", d.dbInstance.PrepareStmt),
-						d.logger.Bool("skip_default_transaction", d.dbInstance.SkipDefaultTransaction),
+						d.logger.Bool(
+							"skip_default_transaction",
+							d.dbInstance.SkipDefaultTransaction,
+						),
 						d.logger.Int("max_idle_conns_config", d.cfg.Database.MaxIdle),
 						d.logger.Int("max_open_conns_config", d.cfg.Database.MaxOpen),
 						d.logger.String("max_lifetime_config", d.cfg.Database.MaxLifetime.String()),
-						d.logger.String("max_idle_time_config", d.cfg.Database.MaxIdleTime.String()),
+						d.logger.String(
+							"max_idle_time_config",
+							d.cfg.Database.MaxIdleTime.String(),
+						),
 					)
 
 					// 檢測異常情況並發出警告
 					if stats.WaitCount > 0 {
-						d.logger.WarnLog("Database connection pool is experiencing waits",
+						d.logger.WarnLog(
+							"Database connection pool is experiencing waits",
 							d.logger.Int64("wait_count", stats.WaitCount),
 							d.logger.String("total_wait_duration", stats.WaitDuration.String()),
-							d.logger.String("suggestion", "Consider increasing DB_MAX_OPEN connections"),
+							d.logger.String(
+								"suggestion",
+								"Consider increasing DB_MAX_OPEN connections",
+							),
 						)
 					}
 
 					// 檢查是否有過多的空閒連接被關閉
 					if stats.MaxIdleClosed > 100 {
-						d.logger.WarnLog("High number of idle connections being closed",
+						d.logger.WarnLog(
+							"High number of idle connections being closed",
 							d.logger.Int64("max_idle_closed", stats.MaxIdleClosed),
-							d.logger.String("suggestion", "Consider increasing DB_MAX_IDLE or reducing DB_MAX_IDLE_TIME"),
+							d.logger.String(
+								"suggestion",
+								"Consider increasing DB_MAX_IDLE or reducing DB_MAX_IDLE_TIME",
+							),
 						)
 					}
 
 					// 計算連接池使用率
 					if stats.MaxOpenConnections > 0 {
-						utilizationPercent := float64(stats.OpenConnections) / float64(stats.MaxOpenConnections) * 100
+						utilizationPercent := float64(
+							stats.OpenConnections,
+						) / float64(
+							stats.MaxOpenConnections,
+						) * 100
 						d.logger.InfoLog("Database connection pool utilization",
 							d.logger.Float64("utilization_percent", utilizationPercent),
 						)
 
 						// 如果使用率超過80%，發出警告
 						if utilizationPercent > 80 {
-							d.logger.WarnLog("Database connection pool utilization is high",
+							d.logger.WarnLog(
+								"Database connection pool utilization is high",
 								d.logger.Float64("utilization_percent", utilizationPercent),
-								d.logger.String("suggestion", "Connection pool may be under pressure"),
+								d.logger.String(
+									"suggestion",
+									"Connection pool may be under pressure",
+								),
 							)
 						}
 					}

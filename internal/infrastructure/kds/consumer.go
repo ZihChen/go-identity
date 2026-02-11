@@ -857,7 +857,11 @@ func (k *KDSService) processRecordBatches(
 
 	// 更新檢查點到最後成功的序列號
 	if lastSuccessSequence != "" {
-		if checkpointErr := k.updateCheckpoint(ctx, shardId, lastSuccessSequence); checkpointErr != nil {
+		if checkpointErr := k.updateCheckpoint(
+			ctx,
+			shardId,
+			lastSuccessSequence,
+		); checkpointErr != nil {
 			k.logger.WarnWithContext(ctx,
 				"Failed to update checkpoint",
 				k.logger.String("shard_id", shardId),

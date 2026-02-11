@@ -189,7 +189,11 @@ func TestLevelRepository_FindByGlobalID(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedLevel.GetID(), level.GetID())
 				assert.Equal(t, tc.expectedLevel.GetMerchantID(), level.GetMerchantID())
-				assert.Equal(t, tc.expectedLevel.GetGlobalPlayerLevelID(), level.GetGlobalPlayerLevelID())
+				assert.Equal(
+					t,
+					tc.expectedLevel.GetGlobalPlayerLevelID(),
+					level.GetGlobalPlayerLevelID(),
+				)
 				assert.Equal(t, tc.expectedLevel.GetName(), level.GetName())
 			}
 			assert.NoError(t, mock.ExpectationsWereMet())

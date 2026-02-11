@@ -10,7 +10,10 @@ import (
 // JWTService JWT服務介面
 type JWTService interface {
 	GenerateToken(account, playerGlobalID string) (string, error)
-	GenerateTokenWithMetadata(globalMerchantID string, metadata map[string]interface{}) (string, error)
+	GenerateTokenWithMetadata(
+		globalMerchantID string,
+		metadata map[string]interface{},
+	) (string, error)
 }
 
 // jwtService JWT服務實現
@@ -74,11 +77,14 @@ func (j *jwtService) GenerateToken(account, playerGlobalID string) (string, erro
 }
 
 // GenerateTokenWithMetadata 使用 metadata 生成JWT token
-func (j *jwtService) GenerateTokenWithMetadata(globalMerchantID string, metadata map[string]interface{}) (string, error) {
+func (j *jwtService) GenerateTokenWithMetadata(
+	globalMerchantID string,
+	metadata map[string]interface{},
+) (string, error) {
 	if globalMerchantID == "" {
 		return "", errors.New("global_merchant_id cannot be empty")
 	}
-	if metadata == nil || len(metadata) == 0 {
+	if len(metadata) == 0 {
 		return "", errors.New("metadata cannot be empty")
 	}
 

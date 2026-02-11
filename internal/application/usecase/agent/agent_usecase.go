@@ -106,7 +106,11 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 		u.logger.String("global_merchant_id", event.Merchant.GlobalMerchantID))
 
 	// 發布代理同步事件到 KDS
-	if err = u.eventProducer.PublishAgentSync(ctx, agent, merchant.GetGlobalMerchantID()); err != nil {
+	if err = u.eventProducer.PublishAgentSync(
+		ctx,
+		agent,
+		merchant.GetGlobalMerchantID(),
+	); err != nil {
 		u.tracing.RecordSpanError(span, err)
 		u.logger.ErrorWithContext(ctx, "Failed to publish agent sync event",
 			u.logger.Error("err", err),
