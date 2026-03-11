@@ -3,9 +3,7 @@ package mocks
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 )
 
 // NilTracingService 提供無操作的TracingService實現，用於測試
@@ -16,71 +14,35 @@ func NewNilTracingService() *NilTracingService {
 	return &NilTracingService{}
 }
 
-// StartSpan 無操作實現
-func (n *NilTracingService) StartSpan(
-	ctx context.Context,
-	spanName string,
-	opts ...trace.SpanStartOption,
-) (context.Context, trace.Span) {
-	return ctx, trace.SpanFromContext(ctx)
+func (n *NilTracingService) StartSpan(ctx context.Context, spanName string) (context.Context, entity.Span) {
+	return ctx, &nilSpan{}
 }
-
-// RecordSpanError 無操作實現
-func (n *NilTracingService) RecordSpanError(span trace.Span, err error) {}
-
-// RecordSpanAttributes 無操作實現
-func (n *NilTracingService) RecordSpanAttributes(span trace.Span, attrs ...attribute.KeyValue) {}
-
-// TraceEvent 無操作實現
-func (n *NilTracingService) TraceEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {}
-
-// SpanEnd 無操作實現
-func (n *NilTracingService) SpanEnd(span trace.Span) {}
-
-// GetTraceparent 無操作實現
-func (n *NilTracingService) GetTraceparent(ctx context.Context) string {
-	return ""
-}
-
-// InjectTraceparentToJSON 無操作實現
-func (n *NilTracingService) InjectTraceparentToJSON(
-	ctx context.Context,
-	data []byte,
-) ([]byte, error) {
+func (n *NilTracingService) SpanEnd(span entity.Span)              {}
+func (n *NilTracingService) RecordSpanError(span entity.Span, err error) {}
+func (n *NilTracingService) RecordSpanAttributes(span entity.Span, attrs ...entity.SpanAttr) {}
+func (n *NilTracingService) TraceEvent(span entity.Span, name string, attrs ...entity.SpanAttr) {}
+func (n *NilTracingService) RecordSpanStatus(span entity.Span, ok bool, desc string) {}
+func (n *NilTracingService) GetTraceparent(ctx context.Context) string { return "" }
+func (n *NilTracingService) InjectTraceparentToJSON(ctx context.Context, data []byte) ([]byte, error) {
 	return data, nil
 }
-
-// RecordSpanStatus 無操作實現
-func (n *NilTracingService) RecordSpanStatus(span trace.Span, code codes.Code, desc string) {}
-
-// TraceWorkerToKDS 無操作實現
-func (n *NilTracingService) TraceWorkerToKDS(
-	ctx context.Context,
-	eventType, eventID string,
-) (context.Context, trace.Span) {
-	return ctx, trace.SpanFromContext(ctx)
-}
-
-// ExtractTraceContext 無操作實現
-func (n *NilTracingService) ExtractTraceContext(
-	ctx context.Context,
-	carrier []byte,
-) context.Context {
+func (n *NilTracingService) ExtractTraceContext(ctx context.Context, carrier []byte) context.Context {
 	return ctx
 }
-
-// TraceRedisToWorker 無操作實現
-func (n *NilTracingService) TraceRedisToWorker(
-	ctx context.Context,
-	taskType, taskID string,
-) (context.Context, trace.Span) {
-	return ctx, trace.SpanFromContext(ctx)
+func (n *NilTracingService) TraceWorkerToKDS(ctx context.Context, eventType, eventID string) (context.Context, entity.Span) {
+	return ctx, &nilSpan{}
+}
+func (n *NilTracingService) TraceRedisToWorker(ctx context.Context, taskType, taskID string) (context.Context, entity.Span) {
+	return ctx, &nilSpan{}
+}
+func (n *NilTracingService) TraceWorkerProcessing(ctx context.Context, taskType, taskID string) (context.Context, entity.Span) {
+	return ctx, &nilSpan{}
 }
 
-// TraceWorkerProcessing 無操作實現
-func (n *NilTracingService) TraceWorkerProcessing(
-	ctx context.Context,
-	taskType, taskID string,
-) (context.Context, trace.Span) {
-	return ctx, trace.SpanFromContext(ctx)
-}
+// nilSpan 是無操作的 entity.Span 實作，用於測試
+type nilSpan struct{}
+
+func (n *nilSpan) End()                                    {}
+func (n *nilSpan) RecordError(_ error)                     {}
+func (n *nilSpan) AddEvent(_ string, _ ...entity.SpanAttr) {}
+func (n *nilSpan) SetStatus(_ bool, _ string)              {}
