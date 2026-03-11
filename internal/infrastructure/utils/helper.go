@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-redsync/redsync/v4"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/redis/go-redis/v9"
 )
@@ -61,7 +60,7 @@ func QueryWithCache[T any](
 // ExecuteWithLock 使用分佈式鎖執行函數的共用方法
 func ExecuteWithLock(
 	ctx context.Context,
-	cache infrastructure.CacheManager,
+	lockService infrastructure.DistributedLockService,
 	logger infrastructure.Logger,
 	mutexKey string,
 	entityID uint64,
@@ -76,11 +75,11 @@ func ExecuteWithLock(
 		tries := 5 + attempt*2
 		baseDelay := time.Duration(50*attempt) * time.Millisecond
 
-		mutex, err := cache.GetMutexWithOption(mutexKey,
-			redsync.WithExpiry(expiry),
-			redsync.WithTries(tries),
-			redsync.WithRetryDelay(baseDelay),
-		)
+		mutex, err := lockService.GetLockWithOptions(mutexKey, infrastructure.LockOptions{
+			Expiry:     expiry,
+			Tries:      tries,
+			RetryDelay: baseDelay,
+		})
 		if err != nil {
 			logger.ErrorWithContext(ctx, "Failed to create mutex",
 				logger.String("mutex_key", mutexKey),
