@@ -8,7 +8,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // FailedTaskEventUseCase 失敗任務事件用例
@@ -44,12 +43,12 @@ func (u *FailedTaskEventUseCase) CreateFailedTaskEventWithRedisInfo(
 	defer u.tracing.SpanEnd(span)
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("task.id", taskID),
-		attribute.String("task.type", taskType),
-		attribute.String("task.queue", queueName),
-		attribute.String("redis.key", redisKey),
-		attribute.String("redis.state", redisState),
-		attribute.Int("task.retry_count", retryCount))
+		entity.StringAttr("task.id", taskID),
+		entity.StringAttr("task.type", taskType),
+		entity.StringAttr("task.queue", queueName),
+		entity.StringAttr("redis.key", redisKey),
+		entity.StringAttr("redis.state", redisState),
+		entity.IntAttr("task.retry_count", retryCount))
 
 	// 創建失敗任務事件實體
 	failedEvent := entity.NewFailedTaskEvent(

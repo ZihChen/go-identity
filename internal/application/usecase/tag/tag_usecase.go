@@ -17,8 +17,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
-	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type TagUseCase struct {
@@ -30,6 +28,7 @@ type TagUseCase struct {
 	logger        infrastructure.Logger
 	tracing       infrastructure.TracingService
 	cache         infrastructure.CacheManager
+	lockService   infrastructure.DistributedLockService
 }
 
 func NewTagUseCase(
@@ -41,6 +40,7 @@ func NewTagUseCase(
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
 	cache infrastructure.CacheManager,
+	lockService infrastructure.DistributedLockService,
 ) inbound.TagUseCase {
 	return &TagUseCase{
 		tagRepo:       tagRepo,
@@ -51,6 +51,7 @@ func NewTagUseCase(
 		logger:        logger,
 		tracing:       tracing,
 		cache:         cache,
+		lockService:   lockService,
 	}
 }
 
@@ -154,7 +155,7 @@ func (u *TagUseCase) SyncPlayerTag(
 	mutexKey := fmt.Sprintf(consts.SyncPlayerTagRedisKey, player.GetID())
 	if err = utils.ExecuteWithLock(
 		ctx,
-		u.cache,
+		u.lockService,
 		u.logger,
 		mutexKey,
 		player.GetID(),
@@ -274,8 +275,8 @@ func (u *TagUseCase) publishPlayerTagsSyncEvent(
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type))
+		entity.StringAttr("outgoing.event.id", eventID),
+		entity.StringAttr("outgoing.event.type", cloudEvent.Type))
 
 	if err := u.eventProducer.PublishPlayerTagsSync(ctx, &cloudEvent); err != nil {
 		u.tracing.RecordSpanError(span, err)
@@ -323,8 +324,8 @@ func (u *TagUseCase) publishTagSyncEvent(
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type))
+		entity.StringAttr("outgoing.event.id", eventID),
+		entity.StringAttr("outgoing.event.type", cloudEvent.Type))
 
 	if err := u.eventProducer.PublishTagSync(ctx, &cloudEvent); err != nil {
 		u.tracing.RecordSpanError(span, err)
@@ -358,12 +359,7 @@ func (u *TagUseCase) filterTagsNeedingUpdate(
 		// 嘗試從快取獲取現有標籤
 		cachedData, err := u.cache.Get(ctx, cacheKey)
 		if err != nil {
-			if errors.Is(err, redis.Nil) {
-				// 標籤不在快取中，需要處理
-				tagsNeedingUpdate = append(tagsNeedingUpdate, tag)
-				continue
-			}
-			// 快取錯誤，為安全起見假設需要處理
+			// 標籤不在快取中或快取錯誤，需要處理
 			tagsNeedingUpdate = append(tagsNeedingUpdate, tag)
 			continue
 		}
@@ -405,56 +401,33 @@ func (u *TagUseCase) tagNeedsUpdate(newTag, cachedTag *entity.Tag) bool {
 	return false
 }
 
-// updateTagCache 更新標籤快取（非同步）使用 Pipeline 批次執行
+// updateTagCache 更新標籤快取（非同步）使用 BatchSet 批次執行
 func (u *TagUseCase) updateTagCache(ctx context.Context, tags []*entity.Tag) {
 	if u.cache == nil || len(tags) == 0 {
 		return
 	}
 
-	// 獲取 Pipeline
-	pipeline, err := u.cache.Pipeline()
-	if err != nil {
-		u.logger.ErrorWithContext(ctx, "Failed to create pipeline for cache update",
-			u.logger.Error("error", err),
-		)
-		// 回退到逐個更新
-		u.updateTagCacheFallback(ctx, tags)
-		return
-	}
-
-	// 批次準備 Pipeline 命令
-	cacheCommands := 0
+	entries := make([]entity.CacheSetEntry, 0, len(tags))
 	for _, tag := range tags {
 		cacheKey := fmt.Sprintf(consts.RedisTagGlobalIDKey, tag.GetGlobalTagID())
-
 		tagData, err := json.Marshal(tag)
 		if err != nil {
 			u.logger.ErrorWithContext(ctx, "Failed to marshal tag for cache",
 				u.logger.String("global_tag_id", tag.GetGlobalTagID()),
-				u.logger.Error("error", err),
-			)
+				u.logger.Error("error", err))
 			continue
 		}
-
-		// 添加 SET 命令到 Pipeline（快取 5 分鐘）
-		pipeline.Set(ctx, cacheKey, string(tagData), 10*time.Minute)
-		cacheCommands++
+		entries = append(entries, entity.CacheSetEntry{Key: cacheKey, Value: string(tagData)})
 	}
-
-	// 執行 Pipeline
-	if cacheCommands > 0 {
-		_, err = pipeline.Exec(ctx)
-		if err != nil {
-			u.logger.ErrorWithContext(ctx, "Failed to execute pipeline for cache update",
-				u.logger.Int("commands_count", cacheCommands),
-				u.logger.Error("error", err),
-			)
-			// Pipeline 失敗，回退到逐個更新
+	if len(entries) > 0 {
+		if err := u.cache.BatchSet(ctx, entries, 10*time.Minute); err != nil {
+			u.logger.ErrorWithContext(ctx, "Failed to batch update tag cache",
+				u.logger.Int("commands_count", len(entries)),
+				u.logger.Error("error", err))
 			u.updateTagCacheFallback(ctx, tags)
 		} else {
-			u.logger.DebugWithContext(ctx, "Successfully updated tag cache via pipeline",
-				u.logger.Int("tags_updated", cacheCommands),
-			)
+			u.logger.DebugWithContext(ctx, "Successfully updated tag cache via batch",
+				u.logger.Int("tags_updated", len(entries)))
 		}
 	}
 }

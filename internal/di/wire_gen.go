@@ -30,19 +30,19 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	repository8 "github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/jwt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
-	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 // Injectors from wire.go:
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*api.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*api.HTTPHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	tracingService, err := provideTracingService(cfg)
 	if err != nil {
@@ -52,7 +52,8 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 	if err != nil {
 		return nil, err
 	}
-	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, logger, tracingService)
+	distributedLockService := provideDistributedLockService(redisManager)
+	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, distributedLockService, logger, tracingService)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +62,8 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 	playerRepository := repository2.NewPlayerRepository(db)
 	levelRepository := repository3.NewLevelRepository(db)
 	playerTagRepository := repository2.NewPlayerTagRepository(db)
-	client, err := provideRedisClient(redisManager)
-	if err != nil {
-		return nil, err
-	}
 	jwtService := provideJWTService(cfg)
-	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, playerTagRepository, eventProducer, logger, client, tracingService, redisManager, jwtService)
+	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager, jwtService)
 	managerRepository := repository4.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger, tracingService)
 	httpHandler := api.NewHTTPHandler(merchantUseCase, playerUseCase, managerUseCase, logger, tracingService, eventProducer, jwtService)
@@ -74,7 +71,7 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*worker.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*worker.WorkerHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	tracingService, err := provideTracingService(cfg)
 	if err != nil {
@@ -84,7 +81,8 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 	if err != nil {
 		return nil, err
 	}
-	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, logger, tracingService)
+	distributedLockService := provideDistributedLockService(redisManager)
+	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, distributedLockService, logger, tracingService)
 	if err != nil {
 		return nil, err
 	}
@@ -93,16 +91,12 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 	playerRepository := repository2.NewPlayerRepository(db)
 	levelRepository := repository3.NewLevelRepository(db)
 	playerTagRepository := repository2.NewPlayerTagRepository(db)
-	client, err := provideRedisClient(redisManager)
-	if err != nil {
-		return nil, err
-	}
 	jwtService := provideJWTService(cfg)
-	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, playerTagRepository, eventProducer, logger, client, tracingService, redisManager, jwtService)
+	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager, jwtService)
 	managerRepository := repository4.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger, tracingService)
 	tagRepository := repository5.NewTagRepository(db)
-	tagUseCase := usecase2.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager)
+	tagUseCase := usecase2.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager, distributedLockService)
 	playerLevelUseCase := usecase3.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger, tracingService)
 	agentRepository := repository6.NewAgentRepository(db)
 	agentUseCase := usecase4.NewAgentUseCase(agentRepository, merchantRepository, eventProducer, logger, tracingService)
@@ -111,7 +105,7 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*WorkerComponents, error) {
+func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*WorkerComponents, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
 	tracingService, err := provideTracingService(cfg)
 	if err != nil {
@@ -121,7 +115,8 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 	if err != nil {
 		return nil, err
 	}
-	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, logger, tracingService)
+	distributedLockService := provideDistributedLockService(redisManager)
+	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, distributedLockService, logger, tracingService)
 	if err != nil {
 		return nil, err
 	}
@@ -130,16 +125,12 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 	playerRepository := repository2.NewPlayerRepository(db)
 	levelRepository := repository3.NewLevelRepository(db)
 	playerTagRepository := repository2.NewPlayerTagRepository(db)
-	client, err := provideRedisClient(redisManager)
-	if err != nil {
-		return nil, err
-	}
 	jwtService := provideJWTService(cfg)
-	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, playerTagRepository, eventProducer, logger, client, tracingService, redisManager, jwtService)
+	playerUseCase := providePlayerUseCase(playerRepository, merchantRepository, levelRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager, jwtService)
 	managerRepository := repository4.NewManagerRepository(db)
 	managerUseCase := usecase.NewManagerUseCase(managerRepository, merchantRepository, eventProducer, logger, tracingService)
 	tagRepository := repository5.NewTagRepository(db)
-	tagUseCase := usecase2.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager)
+	tagUseCase := usecase2.NewTagUseCase(tagRepository, merchantRepository, playerRepository, playerTagRepository, eventProducer, logger, tracingService, redisManager, distributedLockService)
 	playerLevelUseCase := usecase3.NewLevelUseCase(levelRepository, merchantRepository, eventProducer, logger, tracingService)
 	agentRepository := repository6.NewAgentRepository(db)
 	agentUseCase := usecase4.NewAgentUseCase(agentRepository, merchantRepository, eventProducer, logger, tracingService)
@@ -158,7 +149,7 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 }
 
 // InitializeConsumerHandler 初始化 Consumer 服務的 Handler
-func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager) (*consumer.ConsumerHandler, error) {
+func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager) (*consumer.ConsumerHandler, error) {
 	tracingService, err := provideTracingService(cfg)
 	if err != nil {
 		return nil, err
@@ -167,7 +158,8 @@ func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger,
 	if err != nil {
 		return nil, err
 	}
-	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, logger, tracingService)
+	distributedLockService := provideDistributedLockService(redisManager)
+	kdsService, err := kds.NewKDSService(cfg, queueService, redisManager, distributedLockService, logger, tracingService)
 	if err != nil {
 		return nil, err
 	}
@@ -183,8 +175,8 @@ type WorkerComponents struct {
 	Server  *asynq.Server
 }
 
-var baseSet = wire.NewSet(queue.NewQueueService, provideRedisClient,
-	provideTracingService, repository.NewMerchantRepository, repository2.NewPlayerRepository, repository4.NewManagerRepository, repository5.NewTagRepository, repository3.NewLevelRepository, repository6.NewAgentRepository, repository7.NewFailedTaskEventRepository, repository2.NewPlayerTagRepository, provideEventProducer,
+var baseSet = wire.NewSet(queue.NewQueueService, provideTracingService,
+	provideDistributedLockService, repository.NewMerchantRepository, repository2.NewPlayerRepository, repository4.NewManagerRepository, repository5.NewTagRepository, repository3.NewLevelRepository, repository6.NewAgentRepository, repository7.NewFailedTaskEventRepository, repository2.NewPlayerTagRepository, provideEventProducer,
 	provideJWTService,
 
 	provideMerchantUseCase,
@@ -196,7 +188,7 @@ func provideEventProducer(kdsService *kds.KDSService, logger infrastructure.Logg
 	return kdsService
 }
 
-// TracingService提供者
+// TracingService 提供者
 func provideTracingService(cfg *config.Config) (infrastructure.TracingService, error) {
 	tracingService, err := tracing.NewTracingService(cfg)
 	if err != nil {
@@ -205,7 +197,12 @@ func provideTracingService(cfg *config.Config) (infrastructure.TracingService, e
 	return tracingService, nil
 }
 
-// MerchantUseCase提供者（帶快取）
+// DistributedLockService 提供者
+func provideDistributedLockService(manager *redis.Manager) infrastructure.DistributedLockService {
+	return redis.NewRedisLockService(manager)
+}
+
+// MerchantUseCase 提供者（帶快取）
 func provideMerchantUseCase(
 	merchantRepo repository8.MerchantRepository,
 	eventProducer service.EventProducer,
@@ -216,36 +213,27 @@ func provideMerchantUseCase(
 	return usecase6.NewMerchantUseCase(merchantRepo, eventProducer, logger, tracing2, cache)
 }
 
-// JWT服務提供者
+// JWT 服務提供者
 func provideJWTService(cfg *config.Config) service.JWTService {
 	return jwt.NewJWTService(cfg.Auth.JWT.Secret, cfg.Auth.JWT.Issuer)
 }
 
-// PlayerUseCase提供者（帶快取）
+// PlayerUseCase 提供者（帶快取）
 func providePlayerUseCase(
 	playerRepo repository8.PlayerRepository,
 	merchantRepo repository8.MerchantRepository,
 	levelRepo repository8.LevelRepository,
 	playerTagRepo repository8.PlayerTagRepository,
 	eventProducer service.EventProducer,
-	logger infrastructure.Logger, redis2 *redis.Client, tracing2 infrastructure.TracingService,
+	logger infrastructure.Logger, tracing2 infrastructure.TracingService,
 
 	cache infrastructure.CacheManager,
 	jwtService service.JWTService,
 ) inbound.PlayerUseCase {
-	return usecase7.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redis2, tracing2, cache, jwtService)
+	return usecase7.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, tracing2, cache, jwtService)
 }
 
-// 提供 worker 服務器
+// provideWorkerServer 提供 worker 服務器
 func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger, failedTaskUseCase inbound.FailedTaskEventUseCase, redisManager infrastructure.CacheManager, tracing2 infrastructure.TracingService) (*asynq.Server, error) {
 	return queue.NewWorkerServer(cfg, logger, failedTaskUseCase, redisManager, tracing2)
-}
-
-// 提供 Redis 客戶端
-func provideRedisClient(manager infrastructure.CacheManager) (*redis.Client, error) {
-	redisInstance, err := manager.GetClient()
-	if err != nil {
-		return nil, err
-	}
-	return redisInstance, nil
 }

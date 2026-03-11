@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // TaskCleanupService 任務清理服務
@@ -34,7 +34,7 @@ func (c *TaskCleanupService) CleanupTaskData(ctx context.Context, taskID string)
 	ctx, span := c.tracing.StartSpan(ctx, "TaskCleanupService.CleanupTaskData")
 	defer c.tracing.SpanEnd(span)
 
-	c.tracing.RecordSpanAttributes(span, attribute.String("task.id", taskID))
+	c.tracing.RecordSpanAttributes(span, entity.StringAttr("task.id", taskID))
 
 	client, err := c.manager.GetClient()
 	if err != nil {
@@ -81,7 +81,7 @@ func (c *TaskCleanupService) CleanupTaskData(ctx context.Context, taskID string)
 		c.logger.Int("deleted_keys", deletedCount))
 
 	c.tracing.TraceEvent(span, "Task cleanup completed successfully",
-		attribute.Int("deleted_keys", deletedCount))
+		entity.IntAttr("deleted_keys", deletedCount))
 
 	return nil
 }

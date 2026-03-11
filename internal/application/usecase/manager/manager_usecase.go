@@ -14,7 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // ManagerUseCase 管理員用例
@@ -50,9 +49,9 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyn
 	// 記錄事件開始處理
 	u.tracing.TraceEvent(span, "Starting manager sync processing")
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("manager.global_id", data.Manager.GlobalManagerID),
-		attribute.String("manager.account", data.Manager.Account),
-		attribute.String("merchant.global_id", data.GlobalMerchantID))
+		entity.StringAttr("manager.global_id", data.Manager.GlobalManagerID),
+		entity.StringAttr("manager.account", data.Manager.Account),
+		entity.StringAttr("merchant.global_id", data.GlobalMerchantID))
 
 	// 查找商戶是否存在
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
@@ -97,8 +96,8 @@ func (u *ManagerUseCase) SyncManager(ctx context.Context, data *event.ManagerSyn
 		u.logger.String("account", manager.GetAccount()))
 	u.tracing.TraceEvent(span, "Database operation completed")
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("manager.global_id", manager.GetGlobalManagerID()),
-		attribute.String("manager.account", manager.GetAccount()))
+		entity.StringAttr("manager.global_id", manager.GetGlobalManagerID()),
+		entity.StringAttr("manager.account", manager.GetAccount()))
 
 	// 發布管理員同步事件到KDS
 	u.tracing.TraceEvent(span, "Publishing manager sync event to KDS")
@@ -154,8 +153,8 @@ func (u *ManagerUseCase) publishManagerSyncEvent(
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type))
+		entity.StringAttr("outgoing.event.id", eventID),
+		entity.StringAttr("outgoing.event.type", cloudEvent.Type))
 
 	// 發布事件
 	if err := u.eventProducer.PublishManagerSync(ctx, &cloudEvent); err != nil {
@@ -178,7 +177,7 @@ func (u *ManagerUseCase) GetManagerByID(ctx context.Context, id uint64) (*entity
 	ctx, span := u.tracing.StartSpan(ctx, "ManagerUseCase.GetManagerByID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.Int64("manager.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, entity.Int64Attr("manager.id", int64(id)))
 
 	manager, err := u.managerRepo.FindByID(ctx, id)
 	if err != nil {
@@ -187,8 +186,8 @@ func (u *ManagerUseCase) GetManagerByID(ctx context.Context, id uint64) (*entity
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("manager.global_id", manager.GetGlobalManagerID()),
-		attribute.String("manager.account", manager.GetAccount()))
+		entity.StringAttr("manager.global_id", manager.GetGlobalManagerID()),
+		entity.StringAttr("manager.account", manager.GetAccount()))
 	return manager, nil
 }
 
@@ -201,7 +200,7 @@ func (u *ManagerUseCase) GetManagerByGlobalID(
 	ctx, span := u.tracing.StartSpan(ctx, "ManagerUseCase.GetManagerByGlobalID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.String("manager.global_id", globalID))
+	u.tracing.RecordSpanAttributes(span, entity.StringAttr("manager.global_id", globalID))
 
 	manager, err := u.managerRepo.FindByGlobalID(ctx, globalID)
 	if err != nil {
@@ -209,6 +208,6 @@ func (u *ManagerUseCase) GetManagerByGlobalID(
 		return nil, fmt.Errorf("find manager: %w", err)
 	}
 
-	u.tracing.RecordSpanAttributes(span, attribute.String("manager.account", manager.GetAccount()))
+	u.tracing.RecordSpanAttributes(span, entity.StringAttr("manager.account", manager.GetAccount()))
 	return manager, nil
 }

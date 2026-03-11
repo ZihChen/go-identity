@@ -14,7 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type LevelUseCase struct {
@@ -116,8 +115,8 @@ func (u *LevelUseCase) publishPlayerLevelSyncEvent(
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type))
+		entity.StringAttr("outgoing.event.id", eventID),
+		entity.StringAttr("outgoing.event.type", cloudEvent.Type))
 
 	if err := u.eventProducer.PublishPlayerLevelSync(ctx, &cloudEvent); err != nil {
 		u.tracing.RecordSpanError(span, err)

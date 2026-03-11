@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-redsync/redsync/v4"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/redis/go-redis/v9"
 )
@@ -42,19 +42,15 @@ func (n *NilCacheManager) SetNX(
 func (n *NilCacheManager) MGet(ctx context.Context, keys ...string) ([]interface{}, error) {
 	return nil, nil
 }
-func (n *NilCacheManager) Pipeline() (redis.Pipeliner, error) {
-	// 返回一個簡單的 nil 實現
-	return nil, nil
-}
-func (n *NilCacheManager) GetClient() (*redis.Client, error)     { return nil, nil }
 func (n *NilCacheManager) HealthCheck(ctx context.Context) error { return nil }
-func (n *NilCacheManager) GetMutex(key string, expireTime time.Duration) (*redsync.Mutex, error) {
-	return nil, nil
+
+func (n *NilCacheManager) BatchSet(
+	ctx context.Context,
+	entries []entity.CacheSetEntry,
+	ttl time.Duration,
+) error {
+	return nil
 }
-func (n *NilCacheManager) GetMutexWithOption(
-	key string,
-	options ...redsync.Option,
-) (*redsync.Mutex, error) {
-	return nil, nil
+func (n *NilCacheManager) BatchDelete(ctx context.Context, keys []string) error {
+	return nil
 }
-func (n *NilCacheManager) GetRedsync() (*redsync.Redsync, error) { return nil, nil }

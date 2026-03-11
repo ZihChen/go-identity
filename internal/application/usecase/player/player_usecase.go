@@ -15,9 +15,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
-	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // PlayerUseCase 玩家用例
@@ -28,7 +25,6 @@ type PlayerUseCase struct {
 	playerTagRepo  repository.PlayerTagRepository
 	eventProducer  service.EventProducer
 	logger         infrastructure.Logger
-	redis          *redis.Client
 	tracing        infrastructure.TracingService
 	cache          infrastructure.CacheManager
 	jwtService     service.JWTService
@@ -43,7 +39,6 @@ func NewPlayerUseCase(
 	playerTagRepo repository.PlayerTagRepository,
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
-	redis *redis.Client,
 	tracing infrastructure.TracingService,
 	cache infrastructure.CacheManager,
 	jwtService service.JWTService,
@@ -55,7 +50,6 @@ func NewPlayerUseCase(
 		playerTagRepo: playerTagRepo,
 		eventProducer: eventProducer,
 		logger:        logger,
-		redis:         redis,
 		tracing:       tracing,
 		cache:         cache,
 		jwtService:    jwtService,
@@ -216,15 +210,15 @@ func (u *PlayerUseCase) SyncPlayer(
 		u.logger.String("account", player.GetAccount()))
 	u.tracing.TraceEvent(span, "Player sync completed successfully via batch processing")
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("player.global_id", player.GetGlobalPlayerID()),
-		attribute.String("player.account", player.GetAccount()))
+		entity.StringAttr("player.global_id", player.GetGlobalPlayerID()),
+		entity.StringAttr("player.account", player.GetAccount()))
 
 	return nil
 }
 
 func (u *PlayerUseCase) findOrCreateLevel(
 	ctx context.Context,
-	span trace.Span,
+	span entity.Span,
 	data *event.PlayerSyncEvent,
 	merchantID uint64,
 ) (*entity.Level, error) {
@@ -261,7 +255,7 @@ func (u *PlayerUseCase) findOrCreateLevel(
 
 func (u *PlayerUseCase) findByGlobalID(
 	ctx context.Context,
-	span trace.Span,
+	span entity.Span,
 	globalPlayerLevelID string,
 ) (*entity.Level, error) {
 	level, err := u.levelRepo.FindByGlobalID(ctx, globalPlayerLevelID)
@@ -282,7 +276,7 @@ func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.P
 	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.Int64("player.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, entity.Int64Attr("player.id", int64(id)))
 
 	player, err := u.playerRepo.FindByID(ctx, id)
 	if err != nil {
@@ -292,8 +286,8 @@ func (u *PlayerUseCase) GetPlayerByID(ctx context.Context, id uint64) (*entity.P
 
 	// 添加玩家信息到 span
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("player.global_id", player.GetGlobalPlayerID()),
-		attribute.String("player.account", player.GetAccount()),
+		entity.StringAttr("player.global_id", player.GetGlobalPlayerID()),
+		entity.StringAttr("player.account", player.GetAccount()),
 	)
 
 	return player, nil
@@ -308,7 +302,7 @@ func (u *PlayerUseCase) GetPlayerByGlobalID(
 	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.GetPlayerByGlobalID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.String("player.global_id", globalID))
+	u.tracing.RecordSpanAttributes(span, entity.StringAttr("player.global_id", globalID))
 
 	// 獲取玩家
 	cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, globalID)
@@ -329,7 +323,7 @@ func (u *PlayerUseCase) GetPlayerByGlobalID(
 
 	// 添加玩家信息到 span
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("player.account", player.GetAccount()),
+		entity.StringAttr("player.account", player.GetAccount()),
 	)
 
 	return player, nil
@@ -341,7 +335,7 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 	ctx, span := u.tracing.StartSpan(ctx, "PlayerUseCase.UpdatePlayerLastActive")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.Int64("player.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, entity.Int64Attr("player.id", int64(id)))
 
 	// 查找玩家
 	player, err := u.playerRepo.FindByID(ctx, id)
@@ -352,8 +346,8 @@ func (u *PlayerUseCase) UpdatePlayerLastActive(ctx context.Context, id uint64) e
 
 	// 添加玩家信息到 span
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("player.global_id", player.GetGlobalPlayerID()),
-		attribute.String("player.account", player.GetAccount()),
+		entity.StringAttr("player.global_id", player.GetGlobalPlayerID()),
+		entity.StringAttr("player.account", player.GetAccount()),
 	)
 
 	// 更新最後活躍時間

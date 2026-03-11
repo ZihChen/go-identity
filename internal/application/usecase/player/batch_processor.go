@@ -429,7 +429,7 @@ func (p *PlayerBatchProcessor) countSuccessful(dbErrors, eventErrors []error) in
 	return count
 }
 
-// batchInvalidateCache 使用 Pipeline 批次失效玩家快取
+// batchInvalidateCache 使用 BatchDelete 批次失效玩家快取
 func (p *PlayerBatchProcessor) batchInvalidateCache(
 	ctx context.Context,
 	players []*entity.Player,
@@ -438,36 +438,17 @@ func (p *PlayerBatchProcessor) batchInvalidateCache(
 		return nil
 	}
 
-	// 獲取 Redis Pipeline
-	pipeline, err := p.cache.Pipeline()
-	if err != nil || pipeline == nil {
-		// Pipeline 不可用時，回退到逐個刪除
-		return p.fallbackInvalidateCache(ctx, players)
-	}
-
-	// 批次添加刪除命令到 Pipeline
-	cacheKeys := make([]string, 0, len(players))
+	keys := make([]string, 0, len(players))
 	for _, player := range players {
-		cacheKey := fmt.Sprintf(consts.RedisPlayerGlobalIDKey, player.GetGlobalPlayerID())
-		cacheKeys = append(cacheKeys, cacheKey)
-		pipeline.Del(ctx, cacheKey)
+		keys = append(keys, fmt.Sprintf(consts.RedisPlayerGlobalIDKey, player.GetGlobalPlayerID()))
 	}
-
-	// 執行 Pipeline
-	_, err = pipeline.Exec(ctx)
-	if err != nil {
-		// Pipeline 執行失敗時，回退到逐個刪除
-		p.logger.WarnWithContext(
-			ctx,
-			"Pipeline execution failed, falling back to individual deletions",
-			p.logger.Error("error", err),
-		)
+	if err := p.cache.BatchDelete(ctx, keys); err != nil {
+		p.logger.WarnWithContext(ctx, "Batch cache deletion failed, falling back",
+			p.logger.Error("error", err))
 		return p.fallbackInvalidateCache(ctx, players)
 	}
-
-	p.logger.InfoWithContext(ctx, "Batch cache invalidation completed using pipeline",
-		p.logger.Int("cache_keys_deleted", len(cacheKeys)))
-
+	p.logger.InfoWithContext(ctx, "Batch cache invalidation completed",
+		p.logger.Int("cache_keys_deleted", len(keys)))
 	return nil
 }
 

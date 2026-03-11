@@ -13,7 +13,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // AgentUseCase 代理用例
@@ -50,9 +49,9 @@ func (u *AgentUseCase) SyncAgentData(ctx context.Context, event *event.AgentSync
 	// 記錄事件開始處理
 	u.tracing.TraceEvent(span, "Starting agent sync processing")
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("agent.global_id", event.Agent.GlobalAgentID),
-		attribute.String("agent.account", event.Agent.Account),
-		attribute.String("merchant.global_id", event.Merchant.GlobalMerchantID))
+		entity.StringAttr("agent.global_id", event.Agent.GlobalAgentID),
+		entity.StringAttr("agent.account", event.Agent.Account),
+		entity.StringAttr("merchant.global_id", event.Merchant.GlobalMerchantID))
 
 	// 透過 GlobalMerchantID 取得 merchant 的資料庫 ID
 	u.tracing.TraceEvent(span, "Checking if merchant exists")
@@ -127,7 +126,7 @@ func (u *AgentUseCase) GetAgentByID(ctx context.Context, id uint64) (*entity.Age
 	ctx, span := u.tracing.StartSpan(ctx, "AgentUseCase.GetAgentByID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.Int64("agent.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, entity.Int64Attr("agent.id", int64(id)))
 
 	agent, err := u.agentRepo.FindByID(ctx, id)
 	if err != nil {
@@ -136,8 +135,8 @@ func (u *AgentUseCase) GetAgentByID(ctx context.Context, id uint64) (*entity.Age
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("agent.global_id", agent.GetGlobalAgentID()),
-		attribute.String("agent.account", agent.GetAccount()),
+		entity.StringAttr("agent.global_id", agent.GetGlobalAgentID()),
+		entity.StringAttr("agent.account", agent.GetAccount()),
 	)
 
 	return agent, nil
@@ -151,7 +150,7 @@ func (u *AgentUseCase) GetAgentByGlobalID(
 	ctx, span := u.tracing.StartSpan(ctx, "AgentUseCase.GetAgentByGlobalID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.String("agent.global_id", globalID))
+	u.tracing.RecordSpanAttributes(span, entity.StringAttr("agent.global_id", globalID))
 
 	agent, err := u.agentRepo.FindByGlobalID(ctx, globalID)
 	if err != nil {
@@ -160,8 +159,8 @@ func (u *AgentUseCase) GetAgentByGlobalID(
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("agent.account", agent.GetAccount()),
-		attribute.Int64("agent.merchant_id", int64(agent.GetMerchantID())),
+		entity.StringAttr("agent.account", agent.GetAccount()),
+		entity.Int64Attr("agent.merchant_id", int64(agent.GetMerchantID())),
 	)
 
 	return agent, nil
@@ -175,7 +174,7 @@ func (u *AgentUseCase) GetAgentsByMerchantID(
 	ctx, span := u.tracing.StartSpan(ctx, "AgentUseCase.GetAgentsByMerchantID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.Int64("merchant.id", int64(merchantID)))
+	u.tracing.RecordSpanAttributes(span, entity.Int64Attr("merchant.id", int64(merchantID)))
 
 	agents, err := u.agentRepo.FindByMerchantID(ctx, merchantID)
 	if err != nil {
@@ -183,7 +182,7 @@ func (u *AgentUseCase) GetAgentsByMerchantID(
 		return nil, fmt.Errorf("find agents by merchant: %w", err)
 	}
 
-	u.tracing.RecordSpanAttributes(span, attribute.Int("agents.count", len(agents)))
+	u.tracing.RecordSpanAttributes(span, entity.IntAttr("agents.count", len(agents)))
 
 	return agents, nil
 }

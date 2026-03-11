@@ -3,17 +3,17 @@ package worker
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/inbound"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func getTaskID(task *asynq.Task) string {
@@ -99,27 +99,27 @@ func (h *WorkerHandler) RegisterHandlers(mux *asynq.ServeMux) {
 	// 使用追蹤包裝器確保 trace 連接
 	mux.Handle(
 		queue.TypeMerchantSync,
-		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleMerchantSync)),
+		h.wrapWithTracing(asynq.HandlerFunc(h.HandleMerchantSync)),
 	)
 	mux.Handle(
 		queue.TypePlayerSync,
-		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandlePlayerSync)),
+		h.wrapWithTracing(asynq.HandlerFunc(h.HandlePlayerSync)),
 	)
 	mux.Handle(
 		queue.TypeManagerSync,
-		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleManagerSync)),
+		h.wrapWithTracing(asynq.HandlerFunc(h.HandleManagerSync)),
 	)
 	mux.Handle(
 		queue.TypeTagSync,
-		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleTagSync)),
+		h.wrapWithTracing(asynq.HandlerFunc(h.HandleTagSync)),
 	)
 	mux.Handle(
 		queue.TypeLevelSync,
-		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleLevelSync)),
+		h.wrapWithTracing(asynq.HandlerFunc(h.HandleLevelSync)),
 	)
 	mux.Handle(
 		queue.TypeAgentSync,
-		h.queueService.WrapHandlerWithTracing(asynq.HandlerFunc(h.HandleAgentSync)),
+		h.wrapWithTracing(asynq.HandlerFunc(h.HandleAgentSync)),
 	)
 
 	h.logger.InfoLog("Registered worker handlers",
@@ -504,9 +504,52 @@ func (h *WorkerHandler) validateAgentSyncEvent(event *event.AgentSyncEvent) erro
 	return nil
 }
 
+// wrapWithTracing wraps an asynq.Handler to extract trace context and record errors in tracing.
+func (h *WorkerHandler) wrapWithTracing(handler asynq.Handler) asynq.Handler {
+	return asynq.HandlerFunc(func(ctx context.Context, task *asynq.Task) error {
+		if task == nil || len(task.Payload()) == 0 || task.Type() == "" {
+			return asynq.SkipRetry
+		}
+		data := task.Payload()
+		ctxWithTrace := h.tracing.ExtractTraceContext(ctx, data)
+		ctxWithTrace, span := h.tracing.TraceRedisToWorker(
+			ctxWithTrace,
+			task.Type(),
+			task.ResultWriter().TaskID(),
+		)
+		defer h.tracing.SpanEnd(span)
+		h.tracing.TraceEvent(span, "Starting worker task processing")
+		h.tracing.RecordSpanAttributes(span, entity.IntAttr("task.payload_size_bytes", len(data)))
+
+		var jsonData map[string]interface{}
+		if err := jsoniter.Unmarshal(data, &jsonData); err == nil {
+			if id, ok := jsonData["id"].(string); ok {
+				h.tracing.RecordSpanAttributes(span, entity.StringAttr("messaging.event_id", id))
+			}
+		}
+
+		err := handler.ProcessTask(ctxWithTrace, task)
+		if err != nil {
+			h.tracing.RecordSpanError(span, err)
+			h.tracing.RecordSpanStatus(span, false, fmt.Sprintf("task processing failed: %v", err))
+			if strings.Contains(err.Error(), "(will retry)") {
+				h.tracing.TraceEvent(span, "Task processing failed, will retry",
+					entity.StringAttr("error", err.Error()))
+				return fmt.Errorf("retriable error: %w", err)
+			}
+			h.tracing.TraceEvent(span, "Task processing failed, will not retry",
+				entity.StringAttr("error", err.Error()))
+			return err
+		}
+
+		h.tracing.TraceEvent(span, "Task processed successfully")
+		return nil
+	})
+}
+
 func parseCloudEvent(
 	eventData []byte,
-	span trace.Span,
+	span entity.Span,
 	tracing infrastructure.TracingService,
 ) (*event.CloudEvent, error) {
 	var cloudEvent event.CloudEvent
@@ -515,8 +558,8 @@ func parseCloudEvent(
 		return nil, fmt.Errorf("unmarshal cloud event: %w", err)
 	}
 	tracing.RecordSpanAttributes(span,
-		attribute.String("event.id", cloudEvent.ID),
-		attribute.String("event.type", cloudEvent.Type),
-		attribute.String("event.source", cloudEvent.Source))
+		entity.StringAttr("event.id", cloudEvent.ID),
+		entity.StringAttr("event.type", cloudEvent.Type),
+		entity.StringAttr("event.source", cloudEvent.Source))
 	return &cloudEvent, nil
 }

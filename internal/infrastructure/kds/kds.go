@@ -16,6 +16,7 @@ type KDSService struct {
 	client        *kinesis.Client
 	dynamoClient  *dynamodb.Client
 	redisManager  infrastructure.CacheManager
+	lockService   infrastructure.DistributedLockService
 	streamName    string
 	consumeStream string
 	produceStream string
@@ -33,6 +34,7 @@ func NewKDSService(
 	config *cfg.Config,
 	queueService service.QueueService,
 	redisManager infrastructure.CacheManager,
+	lockService infrastructure.DistributedLockService,
 	logger infrastructure.Logger,
 	tracing infrastructure.TracingService,
 ) (*KDSService, error) {
@@ -70,6 +72,7 @@ func NewKDSService(
 		client:        kinesisClient,
 		dynamoClient:  dynamoClient,
 		redisManager:  redisManager,
+		lockService:   lockService,
 		streamName:    streamName,
 		consumeStream: config.AWS.ConsumeStream,
 		produceStream: config.AWS.ProduceStream,

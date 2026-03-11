@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -15,8 +14,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // 任務類型常量
@@ -36,6 +33,8 @@ type QueueService struct {
 	tracing infrastructure.TracingService
 	cfg     *config.Config
 }
+
+var _ service.QueueService = (*QueueService)(nil)
 
 // NewQueueService 創建佇列服務
 func NewQueueService(
@@ -110,8 +109,8 @@ func (q *QueueService) EnqueueAgentSync(ctx context.Context, data []byte) error 
 func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []byte) error {
 	ctx, span := q.tracing.StartSpan(ctx, "QueueService.enqueueTask")
 	q.tracing.RecordSpanAttributes(span,
-		attribute.String("messaging.destination", "redis_queue"),
-		attribute.String("messaging.task_type", taskType),
+		entity.StringAttr("messaging.destination", "redis_queue"),
+		entity.StringAttr("messaging.task_type", taskType),
 	)
 
 	// 提取事件ID並添加到span - 嘗試從上下文中獲取已解析的事件ID
@@ -119,14 +118,14 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 	if id, ok := ctx.Value("event_id").(string); ok && id != "" {
 		// 如果上下文中已有事件ID，直接使用
 		eventID = id
-		q.tracing.RecordSpanAttributes(span, attribute.String("messaging.event_id", id))
+		q.tracing.RecordSpanAttributes(span, entity.StringAttr("messaging.event_id", id))
 	} else {
 		// 否則從數據中解析
 		var jsonData map[string]interface{}
 		if err := json.Unmarshal(data, &jsonData); err == nil {
 			if id, ok := jsonData["id"].(string); ok {
 				eventID = id
-				q.tracing.RecordSpanAttributes(span, attribute.String("messaging.event_id", id))
+				q.tracing.RecordSpanAttributes(span, entity.StringAttr("messaging.event_id", id))
 			}
 		}
 	}
@@ -160,7 +159,7 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 		q.tracing.RecordSpanError(span, err)
 		q.tracing.RecordSpanStatus(
 			span,
-			codes.Error,
+			false,
 			fmt.Sprintf("failed to enqueue task: %v", err),
 		)
 		q.logger.ErrorLog("Failed to enqueue task",
@@ -172,12 +171,12 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 
 	// 記錄成功事件
 	q.tracing.TraceEvent(span, "Task enqueued successfully",
-		attribute.String("task.id", info.ID),
-		attribute.String("task.queue", info.Queue))
+		entity.StringAttr("task.id", info.ID),
+		entity.StringAttr("task.queue", info.Queue))
 
 	q.tracing.RecordSpanAttributes(span,
-		attribute.String("task.id", info.ID),
-		attribute.String("task.queue", info.Queue),
+		entity.StringAttr("task.id", info.ID),
+		entity.StringAttr("task.queue", info.Queue),
 	)
 
 	q.logger.InfoLog("Enqueued task successfully",
@@ -190,68 +189,6 @@ func (q *QueueService) enqueueTask(ctx context.Context, taskType string, data []
 		q.logger.String("task_timeout", workerConfig.TaskTimeout.String()))
 
 	return nil
-}
-
-// WrapHandlerWithTracing 包裝處理器以添加追蹤功能
-func (q *QueueService) WrapHandlerWithTracing(h asynq.Handler) asynq.Handler {
-	return asynq.HandlerFunc(func(ctx context.Context, task *asynq.Task) error {
-		if task == nil || len(task.Payload()) == 0 || task.Type() == "" {
-			return asynq.SkipRetry
-		}
-		// 從任務中提取 traceparent
-		data := task.Payload()
-		ctxWithTrace := q.tracing.ExtractTraceContext(ctx, data)
-
-		// 創建處理任務的 span
-		ctxWithTrace, span := q.tracing.TraceRedisToWorker(
-			ctxWithTrace,
-			task.Type(),
-			task.ResultWriter().TaskID(),
-		)
-
-		defer q.tracing.SpanEnd(span)
-
-		q.tracing.TraceEvent(span, "Starting worker task processing")
-		q.tracing.RecordSpanAttributes(span, attribute.Int("task.payload_size_bytes", len(data)))
-
-		// 提取事件ID記錄在span中
-		var jsonData map[string]interface{}
-		if err := json.Unmarshal(data, &jsonData); err == nil {
-			if id, ok := jsonData["id"].(string); ok {
-				q.tracing.RecordSpanAttributes(span, attribute.String("messaging.event_id", id))
-			}
-		}
-
-		// 處理任務
-		err := h.ProcessTask(ctxWithTrace, task)
-
-		// 處理錯誤情況
-		if err != nil {
-			q.tracing.RecordSpanError(span, err)
-			q.tracing.RecordSpanStatus(
-				span,
-				codes.Error,
-				fmt.Sprintf("task processing failed: %v", err),
-			)
-
-			// 檢查錯誤類型，決定是否需要重試
-			if strings.Contains(err.Error(), "(will retry)") {
-				// 可重試錯誤，例如暫時性的資源不可用
-				q.tracing.TraceEvent(span, "Task processing failed, will retry",
-					attribute.String("error", err.Error()))
-				return fmt.Errorf("retriable error: %w", err)
-			} else {
-				// 無法重試的錯誤
-				q.tracing.TraceEvent(span, "Task processing failed, will not retry",
-					attribute.String("error", err.Error()))
-				return err
-			}
-		}
-
-		// 記錄成功處理
-		q.tracing.TraceEvent(span, "Task processed successfully")
-		return nil
-	})
 }
 
 // Close 關閉佇列連接

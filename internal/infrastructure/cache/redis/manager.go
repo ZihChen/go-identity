@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-redsync/redsync/v4"
 	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/redis/go-redis/v9"
@@ -240,4 +241,39 @@ func (m *Manager) Del(ctx context.Context, key string) error {
 		return err
 	}
 	return client.Del(ctx, key).Err()
+}
+
+// BatchSet 使用 Pipeline 批次寫入多個 key-value 對。
+func (m *Manager) BatchSet(
+	ctx context.Context,
+	entries []entity.CacheSetEntry,
+	ttl time.Duration,
+) error {
+	client, err := m.GetClient()
+	if err != nil {
+		return fmt.Errorf("failed to get redis client for batch set: %w", err)
+	}
+	pipe := client.Pipeline()
+	for _, e := range entries {
+		pipe.Set(ctx, e.Key, e.Value, ttl)
+	}
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+// BatchDelete 使用 Pipeline 批次刪除多個 key。
+func (m *Manager) BatchDelete(ctx context.Context, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	client, err := m.GetClient()
+	if err != nil {
+		return fmt.Errorf("failed to get redis client for batch delete: %w", err)
+	}
+	pipe := client.Pipeline()
+	for _, key := range keys {
+		pipe.Del(ctx, key)
+	}
+	_, err = pipe.Exec(ctx)
+	return err
 }
