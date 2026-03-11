@@ -8,9 +8,9 @@ import (
 
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 func TestOpenObserveLogging(t *testing.T) {
@@ -79,20 +79,20 @@ func TestOpenObserveTracing(t *testing.T) {
 
 	testID := time.Now().Format("20060102150405")
 	tracingService.RecordSpanAttributes(rootSpan,
-		attribute.String("test_id", testID),
-		attribute.String("component", "test"),
+		entity.StringAttr("test_id", testID),
+		entity.StringAttr("component", "test"),
 	)
 
 	// 添加事件
 	tracingService.TraceEvent(rootSpan, "Test event",
-		attribute.String("detail", "This is a test event for OpenObserve tracing"),
+		entity.StringAttr("detail", "This is a test event for OpenObserve tracing"),
 	)
 
 	// 創建子 span
 	_, childSpan := tracingService.StartSpan(ctx, "TestOpenObserveTracingChild")
 	tracingService.RecordSpanAttributes(childSpan,
-		attribute.String("test_id", testID),
-		attribute.String("component", "test-child"),
+		entity.StringAttr("test_id", testID),
+		entity.StringAttr("component", "test-child"),
 	)
 	tracingService.TraceEvent(childSpan, "Test child event")
 	tracingService.SpanEnd(childSpan)
