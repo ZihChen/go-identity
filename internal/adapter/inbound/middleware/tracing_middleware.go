@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 )
 
@@ -26,9 +26,9 @@ func NewTracingMiddleware(tracingService infrastructure.TracingService) gin.Hand
 		defer tracingService.SpanEnd(span)
 
 		tracingService.RecordSpanAttributes(span,
-			attribute.String("http.method", c.Request.Method),
-			attribute.String("http.url", c.Request.URL.String()),
-			attribute.String("http.path", c.FullPath()),
+			entity.StringAttr("http.method", c.Request.Method),
+			entity.StringAttr("http.url", c.Request.URL.String()),
+			entity.StringAttr("http.path", c.FullPath()),
 		)
 
 		ctx = withTraceContext(ctx, tracingService)
@@ -38,7 +38,7 @@ func NewTracingMiddleware(tracingService infrastructure.TracingService) gin.Hand
 
 		tracingService.RecordSpanAttributes(
 			span,
-			attribute.Int("http.status_code", c.Writer.Status()),
+			entity.IntAttr("http.status_code", c.Writer.Status()),
 		)
 
 		if len(c.Errors) > 0 {
