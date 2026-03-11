@@ -97,6 +97,7 @@ func TestNewTagUseCase(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	assert.NotNil(t, useCase)
@@ -128,6 +129,7 @@ func TestTagUseCase_SyncTag_CreateNew(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Create test event data
@@ -168,6 +170,7 @@ func TestTagUseCase_SyncTag_ClosedTag(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Create test event data with closed tag
@@ -202,6 +205,7 @@ func TestTagUseCase_SyncTag_MerchantNotFound(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Create test event data
@@ -238,6 +242,7 @@ func TestTagUseCase_SyncTag_UpsertError(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Create test event data
@@ -278,6 +283,7 @@ func TestTagUseCase_SyncTag_PublishError(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Create test event data
@@ -318,6 +324,7 @@ func TestTagUseCase_publishTagSyncEvent(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Execute the private function through a test-only wrapper
@@ -353,6 +360,7 @@ func TestTagUseCase_publishTagSyncEvent_Error(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Execute the private function through a test-only wrapper
@@ -389,6 +397,7 @@ func TestTagUseCase_publishPlayerTagsSyncEvent(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Execute the private function through a test-only wrapper
@@ -425,6 +434,7 @@ func TestTagUseCase_publishPlayerTagsSyncEvent_Error(t *testing.T) {
 		logger,
 		mocks.NewNilTracingService(),
 		cacheManager,
+		nil,
 	)
 
 	// Execute the private function through a test-only wrapper

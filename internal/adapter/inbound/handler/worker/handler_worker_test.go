@@ -13,8 +13,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 )
 
 // Setup function for tests
@@ -47,15 +46,15 @@ func setupWorkerTest(
 }
 
 // setupTracingMocks is a helper to set up common tracing mock expectations
-func setupTracingMocks(mockTracer *mocks.TracingServiceMock, taskType string) trace.Span {
-	_, span := noop.NewTracerProvider().Tracer("test").Start(context.Background(), "test-span")
+func setupTracingMocks(mockTracer *mocks.TracingServiceMock, taskType string) entity.Span {
+	span := &mocks.NilSpan{}
 	mockTracer.On("TraceWorkerProcessing", mock.Anything, taskType, mock.AnythingOfType("string")).
 		Return(context.Background(), span)
-	mockTracer.On("RecordSpanAttributes", span, mock.AnythingOfType("[]attribute.KeyValue")).
+	mockTracer.On("RecordSpanAttributes", span, mock.Anything).
 		Return().
 		Maybe()
 	mockTracer.On("RecordSpanError", span, mock.Anything).Return().Maybe()
-	mockTracer.On("TraceEvent", span, mock.AnythingOfType("string"), mock.AnythingOfType("[]attribute.KeyValue")).
+	mockTracer.On("TraceEvent", span, mock.AnythingOfType("string"), mock.Anything).
 		Return().
 		Maybe()
 	mockTracer.On("SpanEnd", span).Return()

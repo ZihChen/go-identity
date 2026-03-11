@@ -5,14 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -22,17 +20,16 @@ import (
 // Helper functions
 func createMockDependencies(
 	t *testing.T,
-) (*mocks.PlayerRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.LevelRepositoryMock, *mocks.PlayerTagRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, *redis.Client, *mocks.NilCacheManager, *mocks.JWTServiceMock) {
+) (*mocks.PlayerRepositoryMock, *mocks.MerchantRepositoryMock, *mocks.LevelRepositoryMock, *mocks.PlayerTagRepositoryMock, *mocks.EventProducerMock, *mocks.MockLogger, *mocks.NilCacheManager, *mocks.JWTServiceMock) {
 	playerRepo := mocks.NewPlayerRepositoryMock(t)
 	merchantRepo := mocks.NewMerchantRepositoryMock(t)
 	levelRepo := mocks.NewLevelRepositoryMock(t)
 	playerTagRepo := mocks.NewPlayerTagRepositoryMock(t)
 	eventProducer := mocks.NewEventProducerMock(t)
 	logger := mocks.NewMockLogger(t)
-	redisClient, _ := redismock.NewClientMock()
 	cache := mocks.NewNilCacheManager().(*mocks.NilCacheManager)
 	jwtService := mocks.NewJWTServiceMock(t)
-	return playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService
+	return playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService
 }
 
 func createPlayerSyncEvent() *event.CloudEvent {
@@ -63,7 +60,7 @@ func createPlayerSyncEvent() *event.CloudEvent {
 
 // Tests
 func TestNewPlayerUseCase(t *testing.T) {
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -74,7 +71,6 @@ func TestNewPlayerUseCase(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -86,7 +82,7 @@ func TestNewPlayerUseCase(t *testing.T) {
 
 func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -124,7 +120,6 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -161,7 +156,7 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 
 func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -195,7 +190,6 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -232,7 +226,7 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -248,7 +242,6 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -265,7 +258,7 @@ func TestPlayerUseCase_GetPlayerByID(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -281,7 +274,6 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -299,7 +291,7 @@ func TestPlayerUseCase_GetPlayerByID_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -315,7 +307,6 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -332,7 +323,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID(t *testing.T) {
 
 func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -348,7 +339,6 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -366,7 +356,7 @@ func TestPlayerUseCase_GetPlayerByGlobalID_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -383,7 +373,6 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -399,7 +388,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -415,7 +404,6 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,
@@ -432,7 +420,7 @@ func TestPlayerUseCase_UpdatePlayerLastActive_NotFound(t *testing.T) {
 
 func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
 	ctx := factories.CreateTestContext()
-	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redisClient, cache, jwtService := createMockDependencies(
+	playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, cache, jwtService := createMockDependencies(
 		t,
 	)
 
@@ -452,7 +440,6 @@ func TestPlayerUseCase_UpdatePlayerLastActive_UpdateError(t *testing.T) {
 		playerTagRepo,
 		eventProducer,
 		logger,
-		redisClient,
 		mocks.NewNilTracingService(),
 		cache,
 		jwtService,

@@ -27,6 +27,7 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
+	redisCache "github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/cache/redis"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/jwt"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
@@ -44,6 +45,7 @@ var baseSet = wire.NewSet(
 	// 基礎設施層
 	queue.NewQueueService,
 	provideTracingService,
+	provideDistributedLockService,
 
 	// 資料庫
 	merchantRepo.NewMerchantRepository,
@@ -74,7 +76,7 @@ func provideEventProducer(kdsService *kds.KDSService, logger infrastructure.Logg
 	return kdsService
 }
 
-// TracingService提供者
+// TracingService 提供者
 func provideTracingService(cfg *config.Config) (infrastructure.TracingService, error) {
 	tracingService, err := tracing.NewTracingService(cfg)
 	if err != nil {
@@ -83,7 +85,12 @@ func provideTracingService(cfg *config.Config) (infrastructure.TracingService, e
 	return tracingService, nil
 }
 
-// MerchantUseCase提供者（帶快取）
+// DistributedLockService 提供者
+func provideDistributedLockService(manager *redisCache.Manager) infrastructure.DistributedLockService {
+	return redisCache.NewRedisLockService(manager)
+}
+
+// MerchantUseCase 提供者（帶快取）
 func provideMerchantUseCase(
 	merchantRepo repository.MerchantRepository,
 	eventProducer service.EventProducer,
@@ -94,12 +101,12 @@ func provideMerchantUseCase(
 	return merchantUsecase.NewMerchantUseCase(merchantRepo, eventProducer, logger, tracing, cache)
 }
 
-// JWT服務提供者
+// JWT 服務提供者
 func provideJWTService(cfg *config.Config) service.JWTService {
 	return jwt.NewJWTService(cfg.Auth.JWT.Secret, cfg.Auth.JWT.Issuer)
 }
 
-// PlayerUseCase提供者（帶快取）
+// PlayerUseCase 提供者（帶快取）
 func providePlayerUseCase(
 	playerRepo repository.PlayerRepository,
 	merchantRepo repository.MerchantRepository,
@@ -115,8 +122,9 @@ func providePlayerUseCase(
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*api.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB) (*api.HTTPHandler, error) {
 	wire.Build(
+		wire.Bind(new(infrastructure.CacheManager), new(*redisCache.Manager)),
 		baseSet,
 		kds.NewKDSService,
 		api.NewHTTPHandler,
@@ -125,8 +133,9 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*worker.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB) (*worker.WorkerHandler, error) {
 	wire.Build(
+		wire.Bind(new(infrastructure.CacheManager), new(*redisCache.Manager)),
 		baseSet,
 		kds.NewKDSService,
 		worker.NewWorkerHandler,
@@ -135,8 +144,9 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager, db *gorm.DB) (*WorkerComponents, error) {
+func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB) (*WorkerComponents, error) {
 	wire.Build(
+		wire.Bind(new(infrastructure.CacheManager), new(*redisCache.Manager)),
 		wire.Struct(new(WorkerComponents), "*"),
 		baseSet,
 		kds.NewKDSService,
@@ -146,19 +156,20 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 	return nil, nil
 }
 
-// 提供 worker 服務器
+// provideWorkerServer 提供 worker 服務器
 func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger, failedTaskUseCase inbound.FailedTaskEventUseCase, redisManager infrastructure.CacheManager, tracing infrastructure.TracingService) (*asynq.Server, error) {
 	return queue.NewWorkerServer(cfg, logger, failedTaskUseCase, redisManager, tracing)
 }
 
 // InitializeConsumerHandler 初始化 Consumer 服務的 Handler
-func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager infrastructure.CacheManager) (*consumer.ConsumerHandler, error) {
+func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager) (*consumer.ConsumerHandler, error) {
 	wire.Build(
+		wire.Bind(new(infrastructure.CacheManager), new(*redisCache.Manager)),
 		provideTracingService,
+		provideDistributedLockService,
 		queue.NewQueueService,
 		kds.NewKDSService,
 		consumer.NewConsumerHandler,
 	)
 	return nil, nil
 }
-

@@ -15,7 +15,7 @@ func NewNilTracingService() *NilTracingService {
 }
 
 func (n *NilTracingService) StartSpan(ctx context.Context, spanName string) (context.Context, entity.Span) {
-	return ctx, &nilSpan{}
+	return ctx, &NilSpan{}
 }
 func (n *NilTracingService) SpanEnd(span entity.Span)              {}
 func (n *NilTracingService) RecordSpanError(span entity.Span, err error) {}
@@ -30,19 +30,19 @@ func (n *NilTracingService) ExtractTraceContext(ctx context.Context, carrier []b
 	return ctx
 }
 func (n *NilTracingService) TraceWorkerToKDS(ctx context.Context, eventType, eventID string) (context.Context, entity.Span) {
-	return ctx, &nilSpan{}
+	return ctx, &NilSpan{}
 }
 func (n *NilTracingService) TraceRedisToWorker(ctx context.Context, taskType, taskID string) (context.Context, entity.Span) {
-	return ctx, &nilSpan{}
+	return ctx, &NilSpan{}
 }
 func (n *NilTracingService) TraceWorkerProcessing(ctx context.Context, taskType, taskID string) (context.Context, entity.Span) {
-	return ctx, &nilSpan{}
+	return ctx, &NilSpan{}
 }
 
-// nilSpan 是無操作的 entity.Span 實作，用於測試
-type nilSpan struct{}
+// NilSpan 是無操作的 entity.Span 實作，用於測試
+type NilSpan struct{}
 
-func (n *nilSpan) End()                                    {}
-func (n *nilSpan) RecordError(_ error)                     {}
-func (n *nilSpan) AddEvent(_ string, _ ...entity.SpanAttr) {}
-func (n *nilSpan) SetStatus(_ bool, _ string)              {}
+func (n *NilSpan) End()                                    {}
+func (n *NilSpan) RecordError(_ error)                     {}
+func (n *NilSpan) AddEvent(_ string, _ ...entity.SpanAttr) {}
+func (n *NilSpan) SetStatus(_ bool, _ string)              {}
