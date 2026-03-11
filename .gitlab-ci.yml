@@ -2,10 +2,10 @@ include:
   - component: gitlab.jvdtech.dev/fatcat/infracat/ai-review@main
 
 stages:
-#  - lint
+  - lint
   - ai-review
-#  - test
-#  - build
+  - test
+  - build
 
 # 定義一個通用的清理腳本
 .cleanup_script: &cleanup_script |
