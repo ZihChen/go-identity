@@ -157,7 +157,10 @@ func GetSpanID(ctx context.Context) string {
 }
 
 // StartSpan 開始一個新的span
-func (s *TracingService) StartSpan(ctx context.Context, spanName string) (context.Context, entity.Span) {
+func (s *TracingService) StartSpan(
+	ctx context.Context,
+	spanName string,
+) (context.Context, entity.Span) {
 	ctx, span := s.tracer.Start(ctx, spanName)
 	return ctx, newOtelSpan(span)
 }
@@ -225,7 +228,10 @@ func (s *TracingService) RecordSpanStatus(span entity.Span, ok bool, desc string
 }
 
 // TraceWorkerToKDS 從Worker到KDS的追蹤封裝
-func (s *TracingService) TraceWorkerToKDS(ctx context.Context, eventType, eventID string) (context.Context, entity.Span) {
+func (s *TracingService) TraceWorkerToKDS(
+	ctx context.Context,
+	eventType, eventID string,
+) (context.Context, entity.Span) {
 	ctx, span := s.StartSpan(ctx, "Worker.PublishToKDS")
 	s.RecordSpanAttributes(span,
 		entity.StringAttr("messaging.system", "kds"),
@@ -260,7 +266,10 @@ func (s *TracingService) ExtractTraceContext(ctx context.Context, carrier []byte
 }
 
 // TraceRedisToWorker 從Redis到Worker的追蹤封裝
-func (s *TracingService) TraceRedisToWorker(ctx context.Context, taskType, taskID string) (context.Context, entity.Span) {
+func (s *TracingService) TraceRedisToWorker(
+	ctx context.Context,
+	taskType, taskID string,
+) (context.Context, entity.Span) {
 	ctx, span := s.StartSpan(ctx, "Redis.WorkerConsume")
 	s.RecordSpanAttributes(span,
 		entity.StringAttr("messaging.system", "redis"),
@@ -271,7 +280,10 @@ func (s *TracingService) TraceRedisToWorker(ctx context.Context, taskType, taskI
 }
 
 // TraceWorkerProcessing Worker處理任務的追蹤封裝
-func (s *TracingService) TraceWorkerProcessing(ctx context.Context, taskType, taskID string) (context.Context, entity.Span) {
+func (s *TracingService) TraceWorkerProcessing(
+	ctx context.Context,
+	taskType, taskID string,
+) (context.Context, entity.Span) {
 	ctx, span := s.StartSpan(ctx, "Worker.ProcessTask")
 	s.RecordSpanAttributes(span,
 		entity.StringAttr("processing.task_type", taskType),

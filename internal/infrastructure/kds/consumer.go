@@ -243,7 +243,10 @@ func (k *KDSService) consumeShardEventsWithSemaphore(
 //
 // 返回值：
 //   - infrastructure.DistributedMutex: 成功獲取的鎖，失敗時返回 nil
-func (k *KDSService) acquireShardLock(ctx context.Context, shardId string) infrastructure.DistributedMutex {
+func (k *KDSService) acquireShardLock(
+	ctx context.Context,
+	shardId string,
+) infrastructure.DistributedMutex {
 	mutexKey := fmt.Sprintf(consts.ShardMutexRedisKey, k.consumeStream, shardId)
 	mutex, mutexErr := k.lockService.GetLock(mutexKey, k.config.Consumer.ShardLockTimeout)
 	if mutexErr != nil {

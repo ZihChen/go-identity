@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jvdiamondtech/ms-identity-cat/cmd"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 )

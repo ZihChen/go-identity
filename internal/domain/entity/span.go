@@ -20,7 +20,7 @@ type SpanAttr struct {
 // 下列輔助函數讓呼叫端無需手動建構 SpanAttr struct，
 // 對應原 go.opentelemetry.io/otel/attribute 的常用建構子。
 
-func StringAttr(key, value string) SpanAttr         { return SpanAttr{Key: key, Value: value} }
+func StringAttr(key, value string) SpanAttr          { return SpanAttr{Key: key, Value: value} }
 func IntAttr(key string, value int) SpanAttr         { return SpanAttr{Key: key, Value: value} }
 func Int64Attr(key string, value int64) SpanAttr     { return SpanAttr{Key: key, Value: value} }
 func BoolAttr(key string, value bool) SpanAttr       { return SpanAttr{Key: key, Value: value} }

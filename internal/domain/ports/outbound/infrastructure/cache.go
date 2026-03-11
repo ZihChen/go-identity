@@ -16,9 +16,19 @@ type CacheManager interface {
 
 	// 基本單筆操作
 	Get(ctx context.Context, key string) (string, error)
-	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) (string, error)
+	Set(
+		ctx context.Context,
+		key string,
+		value interface{},
+		expiration time.Duration,
+	) (string, error)
 	Del(ctx context.Context, key string) error
-	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error)
+	SetNX(
+		ctx context.Context,
+		key string,
+		value interface{},
+		expiration time.Duration,
+	) (bool, error)
 	MGet(ctx context.Context, keys ...string) ([]interface{}, error)
 
 	// 批次操作（取代 Pipeline）

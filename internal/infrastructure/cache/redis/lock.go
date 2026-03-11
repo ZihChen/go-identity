@@ -21,7 +21,10 @@ func NewRedisLockService(manager *Manager) *RedisLockService {
 	return &RedisLockService{manager: manager}
 }
 
-func (s *RedisLockService) GetLock(key string, ttl time.Duration) (infrastructure.DistributedMutex, error) {
+func (s *RedisLockService) GetLock(
+	key string,
+	ttl time.Duration,
+) (infrastructure.DistributedMutex, error) {
 	rs, err := s.manager.GetRedsync()
 	if err != nil {
 		return nil, err
@@ -29,7 +32,10 @@ func (s *RedisLockService) GetLock(key string, ttl time.Duration) (infrastructur
 	return rs.NewMutex(key, redsync.WithExpiry(ttl)), nil
 }
 
-func (s *RedisLockService) GetLockWithOptions(key string, opts infrastructure.LockOptions) (infrastructure.DistributedMutex, error) {
+func (s *RedisLockService) GetLockWithOptions(
+	key string,
+	opts infrastructure.LockOptions,
+) (infrastructure.DistributedMutex, error) {
 	rs, err := s.manager.GetRedsync()
 	if err != nil {
 		return nil, err

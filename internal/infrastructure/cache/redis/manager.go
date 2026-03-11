@@ -244,7 +244,11 @@ func (m *Manager) Del(ctx context.Context, key string) error {
 }
 
 // BatchSet 使用 Pipeline 批次寫入多個 key-value 對。
-func (m *Manager) BatchSet(ctx context.Context, entries []entity.CacheSetEntry, ttl time.Duration) error {
+func (m *Manager) BatchSet(
+	ctx context.Context,
+	entries []entity.CacheSetEntry,
+	ttl time.Duration,
+) error {
 	client, err := m.GetClient()
 	if err != nil {
 		return fmt.Errorf("failed to get redis client for batch set: %w", err)

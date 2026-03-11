@@ -8,12 +8,12 @@ import (
 
 	"github.com/hibiken/asynq"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 )
 
 // Setup function for tests

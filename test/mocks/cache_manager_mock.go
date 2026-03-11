@@ -43,7 +43,12 @@ func (n *NilCacheManager) MGet(ctx context.Context, keys ...string) ([]interface
 	return nil, nil
 }
 func (n *NilCacheManager) HealthCheck(ctx context.Context) error { return nil }
-func (n *NilCacheManager) BatchSet(ctx context.Context, entries []entity.CacheSetEntry, ttl time.Duration) error {
+
+func (n *NilCacheManager) BatchSet(
+	ctx context.Context,
+	entries []entity.CacheSetEntry,
+	ttl time.Duration,
+) error {
 	return nil
 }
 func (n *NilCacheManager) BatchDelete(ctx context.Context, keys []string) error {
