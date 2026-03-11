@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
+	infrastructure "github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/config"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
@@ -28,6 +28,8 @@ type TracingService struct {
 	provider *sdktrace.TracerProvider
 	tracer   trace.Tracer
 }
+
+var _ infrastructure.TracingService = (*TracingService)(nil)
 
 // NewTracingService 創建統一的追踪服務實例
 func NewTracingService(cfg *config.Config) (*TracingService, error) {
@@ -155,37 +157,37 @@ func GetSpanID(ctx context.Context) string {
 }
 
 // StartSpan 開始一個新的span
-func (s *TracingService) StartSpan(
-	ctx context.Context,
-	spanName string,
-	opts ...trace.SpanStartOption,
-) (context.Context, trace.Span) {
-	return s.tracer.Start(ctx, spanName, opts...)
+func (s *TracingService) StartSpan(ctx context.Context, spanName string) (context.Context, entity.Span) {
+	ctx, span := s.tracer.Start(ctx, spanName)
+	return ctx, newOtelSpan(span)
 }
 
 // RecordSpanError 記錄span錯誤
-func (s *TracingService) RecordSpanError(span trace.Span, err error) {
-	if span != nil && span.IsRecording() {
+func (s *TracingService) RecordSpanError(span entity.Span, err error) {
+	if span != nil {
 		span.RecordError(err)
 	}
 }
 
 // RecordSpanAttributes 記錄span屬性
-func (s *TracingService) RecordSpanAttributes(span trace.Span, attrs ...attribute.KeyValue) {
-	if span != nil && span.IsRecording() {
-		span.SetAttributes(attrs...)
+func (s *TracingService) RecordSpanAttributes(span entity.Span, attrs ...entity.SpanAttr) {
+	if span == nil {
+		return
+	}
+	if os, ok := span.(*otelSpan); ok {
+		os.setAttributes(attrs...)
 	}
 }
 
 // TraceEvent 追蹤事件
-func (s *TracingService) TraceEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {
-	if span != nil && span.IsRecording() {
-		span.AddEvent(name, trace.WithAttributes(attrs...))
+func (s *TracingService) TraceEvent(span entity.Span, name string, attrs ...entity.SpanAttr) {
+	if span != nil {
+		span.AddEvent(name, attrs...)
 	}
 }
 
 // SpanEnd 結束span
-func (s *TracingService) SpanEnd(span trace.Span) {
+func (s *TracingService) SpanEnd(span entity.Span) {
 	if span != nil {
 		span.End()
 	}
@@ -216,23 +218,20 @@ func (s *TracingService) InjectTraceparentToJSON(ctx context.Context, data []byt
 }
 
 // RecordSpanStatus 記錄span狀態
-func (s *TracingService) RecordSpanStatus(span trace.Span, code codes.Code, desc string) {
-	if span != nil && span.IsRecording() {
-		span.SetStatus(code, desc)
+func (s *TracingService) RecordSpanStatus(span entity.Span, ok bool, desc string) {
+	if span != nil {
+		span.SetStatus(ok, desc)
 	}
 }
 
 // TraceWorkerToKDS 從Worker到KDS的追蹤封裝
-func (s *TracingService) TraceWorkerToKDS(
-	ctx context.Context,
-	eventType, eventID string,
-) (context.Context, trace.Span) {
+func (s *TracingService) TraceWorkerToKDS(ctx context.Context, eventType, eventID string) (context.Context, entity.Span) {
 	ctx, span := s.StartSpan(ctx, "Worker.PublishToKDS")
 	s.RecordSpanAttributes(span,
-		attribute.String("messaging.system", "kds"),
-		attribute.String("messaging.operation", "publish"),
-		attribute.String("messaging.event_type", eventType),
-		attribute.String("messaging.event_id", eventID))
+		entity.StringAttr("messaging.system", "kds"),
+		entity.StringAttr("messaging.operation", "publish"),
+		entity.StringAttr("messaging.event_type", eventType),
+		entity.StringAttr("messaging.event_id", eventID))
 	return ctx, span
 }
 
@@ -261,27 +260,21 @@ func (s *TracingService) ExtractTraceContext(ctx context.Context, carrier []byte
 }
 
 // TraceRedisToWorker 從Redis到Worker的追蹤封裝
-func (s *TracingService) TraceRedisToWorker(
-	ctx context.Context,
-	taskType, taskID string,
-) (context.Context, trace.Span) {
+func (s *TracingService) TraceRedisToWorker(ctx context.Context, taskType, taskID string) (context.Context, entity.Span) {
 	ctx, span := s.StartSpan(ctx, "Redis.WorkerConsume")
 	s.RecordSpanAttributes(span,
-		attribute.String("messaging.system", "redis"),
-		attribute.String("messaging.destination", "worker"),
-		attribute.String("messaging.task_type", taskType),
-		attribute.String("messaging.task_id", taskID))
+		entity.StringAttr("messaging.system", "redis"),
+		entity.StringAttr("messaging.destination", "worker"),
+		entity.StringAttr("messaging.task_type", taskType),
+		entity.StringAttr("messaging.task_id", taskID))
 	return ctx, span
 }
 
 // TraceWorkerProcessing Worker處理任務的追蹤封裝
-func (s *TracingService) TraceWorkerProcessing(
-	ctx context.Context,
-	taskType, taskID string,
-) (context.Context, trace.Span) {
+func (s *TracingService) TraceWorkerProcessing(ctx context.Context, taskType, taskID string) (context.Context, entity.Span) {
 	ctx, span := s.StartSpan(ctx, "Worker.ProcessTask")
 	s.RecordSpanAttributes(span,
-		attribute.String("processing.task_type", taskType),
-		attribute.String("processing.task_id", taskID))
+		entity.StringAttr("processing.task_type", taskType),
+		entity.StringAttr("processing.task_id", taskID))
 	return ctx, span
 }
