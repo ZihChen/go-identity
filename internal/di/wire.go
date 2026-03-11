@@ -31,7 +31,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/kds"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/queue"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/tracing"
-	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -44,7 +43,6 @@ type WorkerComponents struct {
 var baseSet = wire.NewSet(
 	// 基礎設施層
 	queue.NewQueueService,
-	provideRedisClient,
 	provideTracingService,
 
 	// 資料庫
@@ -109,12 +107,11 @@ func providePlayerUseCase(
 	playerTagRepo repository.PlayerTagRepository,
 	eventProducer service.EventProducer,
 	logger infrastructure.Logger,
-	redis *redis.Client,
 	tracing infrastructure.TracingService,
 	cache infrastructure.CacheManager,
 	jwtService service.JWTService,
 ) inbound.PlayerUseCase {
-	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, redis, tracing, cache, jwtService)
+	return playerUsecase.NewPlayerUseCase(playerRepo, merchantRepo, levelRepo, playerTagRepo, eventProducer, logger, tracing, cache, jwtService)
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
@@ -165,11 +162,3 @@ func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger,
 	return nil, nil
 }
 
-// 提供 Redis 客戶端
-func provideRedisClient(manager infrastructure.CacheManager) (*redis.Client, error) {
-	redisInstance, err := manager.GetClient()
-	if err != nil {
-		return nil, err
-	}
-	return redisInstance, nil
-}

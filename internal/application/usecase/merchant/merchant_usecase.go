@@ -13,7 +13,6 @@ import (
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/repository"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/service"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/infrastructure/utils"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // MerchantUseCase 商戶用例
@@ -50,8 +49,8 @@ func (u *MerchantUseCase) SyncMerchant(ctx context.Context, data *event.Merchant
 	// 記錄事件開始處理
 	u.tracing.TraceEvent(span, "Starting merchant sync processing")
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("merchant.global_id", data.GlobalMerchantID),
-		attribute.String("merchant.name", data.Merchant.Name))
+		entity.StringAttr("merchant.global_id", data.GlobalMerchantID),
+		entity.StringAttr("merchant.name", data.Merchant.Name))
 
 	if data.Merchant.UpdatedAt.IsZero() {
 		data.Merchant.UpdatedAt = time.Now()
@@ -104,7 +103,7 @@ func (u *MerchantUseCase) GetMerchantByID(
 	ctx, span := u.tracing.StartSpan(ctx, "MerchantUseCase.GetMerchantByID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.Int64("merchant.id", int64(id)))
+	u.tracing.RecordSpanAttributes(span, entity.Int64Attr("merchant.id", int64(id)))
 
 	merchant, err := u.merchantRepo.FindByID(ctx, id)
 	if err != nil {
@@ -113,8 +112,8 @@ func (u *MerchantUseCase) GetMerchantByID(
 	}
 
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("merchant.global_id", merchant.GetGlobalMerchantID()),
-		attribute.String("merchant.name", merchant.GetName()),
+		entity.StringAttr("merchant.global_id", merchant.GetGlobalMerchantID()),
+		entity.StringAttr("merchant.name", merchant.GetName()),
 	)
 
 	return merchant, nil
@@ -129,7 +128,7 @@ func (u *MerchantUseCase) GetMerchantByGlobalID(
 	ctx, span := u.tracing.StartSpan(ctx, "MerchantUseCase.GetMerchantByGlobalID")
 	defer u.tracing.SpanEnd(span)
 
-	u.tracing.RecordSpanAttributes(span, attribute.String("merchant.global_id", globalID))
+	u.tracing.RecordSpanAttributes(span, entity.StringAttr("merchant.global_id", globalID))
 
 	// 獲取商戶
 	cacheKey := fmt.Sprintf(consts.RedisMerchantGlobalIDKey, globalID)
@@ -150,7 +149,7 @@ func (u *MerchantUseCase) GetMerchantByGlobalID(
 
 	// 添加商戶信息到 span
 	u.tracing.RecordSpanAttributes(span,
-		attribute.String("merchant.name", merchant.GetName()),
+		entity.StringAttr("merchant.name", merchant.GetName()),
 	)
 
 	return merchant, nil
