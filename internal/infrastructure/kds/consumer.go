@@ -14,11 +14,11 @@ import (
 	dynamodbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
-	"github.com/go-redsync/redsync/v4"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/consts"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"go.opentelemetry.io/otel/attribute"
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/ports/outbound/infrastructure"
 )
 
 const (
@@ -212,7 +212,7 @@ func (k *KDSService) ConsumeAllEvents(ctx context.Context) error {
 func (k *KDSService) consumeShardEventsWithSemaphore(
 	ctx context.Context,
 	shardId, initialIterator string,
-	shardMutex *redsync.Mutex,
+	shardMutex infrastructure.DistributedMutex,
 	shardWaiters *sync.WaitGroup,
 	shardErrs chan<- error,
 	semaphore chan struct{},
@@ -242,10 +242,10 @@ func (k *KDSService) consumeShardEventsWithSemaphore(
 //   - shardId: 分片ID
 //
 // 返回值：
-//   - *redsync.Mutex: 成功獲取的鎖，失敗時返回 nil
-func (k *KDSService) acquireShardLock(ctx context.Context, shardId string) *redsync.Mutex {
+//   - infrastructure.DistributedMutex: 成功獲取的鎖，失敗時返回 nil
+func (k *KDSService) acquireShardLock(ctx context.Context, shardId string) infrastructure.DistributedMutex {
 	mutexKey := fmt.Sprintf(consts.ShardMutexRedisKey, k.consumeStream, shardId)
-	mutex, mutexErr := k.redisManager.GetMutex(mutexKey, k.config.Consumer.ShardLockTimeout)
+	mutex, mutexErr := k.lockService.GetLock(mutexKey, k.config.Consumer.ShardLockTimeout)
 	if mutexErr != nil {
 		// Redis連線異常仍執行後面程序
 		k.logger.WarnWithContext(ctx, "Failed to create mutex, skipping lock logic",
@@ -464,24 +464,16 @@ func (k *KDSService) batchMarkEventsProcessed(ctx context.Context, eventIDs []st
 	if len(eventIDs) == 0 {
 		return
 	}
-
-	// 使用 Pipeline 批次設置
-	pipeline, err := k.redisManager.Pipeline()
-	if err != nil {
-		k.logger.WarnWithContext(ctx, "Failed to get Redis pipeline",
-			k.logger.Error("err", err))
-		return
-	}
-
+	entries := make([]entity.CacheSetEntry, 0, len(eventIDs))
 	for _, eventID := range eventIDs {
 		if eventID != "" {
-			key := processedEventKeyPrefix + eventID
-			pipeline.Set(ctx, key, "1", eventProcessedTTL)
+			entries = append(entries, entity.CacheSetEntry{
+				Key:   processedEventKeyPrefix + eventID,
+				Value: "1",
+			})
 		}
 	}
-
-	// 執行 pipeline
-	if _, err := pipeline.Exec(ctx); err != nil {
+	if err := k.redisManager.BatchSet(ctx, entries, eventProcessedTTL); err != nil {
 		k.logger.WarnWithContext(ctx, "Failed to batch mark events as processed",
 			k.logger.Error("err", err))
 	}
@@ -576,10 +568,10 @@ func (k *KDSService) processRecord(
 
 	// 記錄 span 屬性
 	k.tracing.RecordSpanAttributes(eventSpan,
-		attribute.String("messaging.shard_id", shardID),
-		attribute.String("messaging.sequence_number", sequenceNumber),
-		attribute.String("messaging.event_id", eventID),
-		attribute.String("messaging.event_type", eventType),
+		entity.StringAttr("messaging.shard_id", shardID),
+		entity.StringAttr("messaging.sequence_number", sequenceNumber),
+		entity.StringAttr("messaging.event_id", eventID),
+		entity.StringAttr("messaging.event_type", eventType),
 	)
 
 	// 將事件ID添加到上下文
@@ -667,7 +659,7 @@ func (k *KDSService) composeDynamoDBKey(shardId string) string {
 func (k *KDSService) consumeShardEvents(
 	ctx context.Context,
 	shardId, initialIterator string,
-	shardMutex *redsync.Mutex,
+	shardMutex infrastructure.DistributedMutex,
 	shardWaiters *sync.WaitGroup,
 	shardErrs chan<- error,
 ) {

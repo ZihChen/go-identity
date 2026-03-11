@@ -12,8 +12,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // PublishMerchantSync 發布商戶同步事件
@@ -51,9 +49,9 @@ func (k *KDSService) PublishMerchantSync(ctx context.Context, merchant *entity.M
 	}
 
 	k.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type),
-		attribute.String("merchant.global_id", merchant.GetGlobalMerchantID()),
+		entity.StringAttr("outgoing.event.id", eventID),
+		entity.StringAttr("outgoing.event.type", cloudEvent.Type),
+		entity.StringAttr("merchant.global_id", merchant.GetGlobalMerchantID()),
 	)
 
 	// 發布事件
@@ -120,9 +118,9 @@ func (k *KDSService) PublishPlayerSync(
 	}
 
 	k.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type),
-		attribute.String("player.global_id", player.GetGlobalPlayerID()),
+		entity.StringAttr("outgoing.event.id", eventID),
+		entity.StringAttr("outgoing.event.type", cloudEvent.Type),
+		entity.StringAttr("player.global_id", player.GetGlobalPlayerID()),
 	)
 
 	// 發布事件
@@ -159,8 +157,8 @@ func (k *KDSService) BatchPublishPlayerSync(
 	}
 
 	k.tracing.RecordSpanAttributes(span,
-		attribute.Int("batch.size", len(players)),
-		attribute.String("batch.operation", "player_sync"))
+		entity.IntAttr("batch.size", len(players)),
+		entity.StringAttr("batch.operation", "player_sync"))
 
 	k.logger.InfoWithContext(ctx, "Starting batch publish player sync events",
 		k.logger.Int("batch_size", len(players)))
@@ -269,9 +267,9 @@ func (k *KDSService) batchPublishEvents(ctx context.Context, events []*event.Clo
 	}
 
 	k.tracing.RecordSpanAttributes(span,
-		attribute.Int("batch.records_count", len(records)),
-		attribute.String("messaging.system", "kds"),
-		attribute.String("messaging.operation", "batch_send"))
+		entity.IntAttr("batch.records_count", len(records)),
+		entity.StringAttr("messaging.system", "kds"),
+		entity.StringAttr("messaging.operation", "batch_send"))
 
 	// 執行批次發送
 	response, err := k.client.PutRecords(ctx, &kinesis.PutRecordsInput{
@@ -412,9 +410,9 @@ func (k *KDSService) PublishAgentSync(
 	}
 
 	k.tracing.RecordSpanAttributes(span,
-		attribute.String("outgoing.event.id", eventID),
-		attribute.String("outgoing.event.type", cloudEvent.Type),
-		attribute.String("agent.global_id", agent.GetGlobalAgentID()),
+		entity.StringAttr("outgoing.event.id", eventID),
+		entity.StringAttr("outgoing.event.type", cloudEvent.Type),
+		entity.StringAttr("agent.global_id", agent.GetGlobalAgentID()),
 	)
 
 	// 發布事件
@@ -464,10 +462,10 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 
 	// 添加屬性到 span
 	k.tracing.RecordSpanAttributes(span,
-		attribute.String("messaging.system", "kds"),
-		attribute.String("messaging.operation", "send"),
-		attribute.String("messaging.event_type", eventType),
-		attribute.Int("messaging.payload_size_bytes", len(data)),
+		entity.StringAttr("messaging.system", "kds"),
+		entity.StringAttr("messaging.operation", "send"),
+		entity.StringAttr("messaging.event_type", eventType),
+		entity.IntAttr("messaging.payload_size_bytes", len(data)),
 	)
 
 	// 嘗試在 JSON 載荷中添加 traceparent
@@ -480,7 +478,7 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 				data = newData
 				k.tracing.RecordSpanAttributes(
 					span,
-					attribute.Bool("messaging.trace_propagated", true),
+					entity.BoolAttr("messaging.trace_propagated", true),
 				)
 			}
 		}
@@ -491,7 +489,7 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 
 	// 記錄事件到 span
 	k.tracing.TraceEvent(span, "Sending message to KDS",
-		attribute.String("messaging.partition_key", partitionKey),
+		entity.StringAttr("messaging.partition_key", partitionKey),
 	)
 
 	res, err := k.client.PutRecord(ctx, &kinesis.PutRecordInput{
@@ -504,7 +502,7 @@ func (k *KDSService) Send(ctx context.Context, data []byte, eventType string) er
 			k.logger.String("event_type", eventType),
 			k.logger.Error("err", err))
 		k.tracing.RecordSpanError(span, err)
-		k.tracing.RecordSpanStatus(span, codes.Error, err.Error())
+		k.tracing.RecordSpanStatus(span, false, err.Error())
 		return fmt.Errorf("put record to kinesis: %w", err)
 	}
 
@@ -526,10 +524,10 @@ func (k *KDSService) SendToConsumeStream(ctx context.Context, data []byte, event
 
 	// 添加屬性到 span
 	k.tracing.RecordSpanAttributes(span,
-		attribute.String("messaging.system", "kds"),
-		attribute.String("messaging.operation", "send_to_consume_stream"),
-		attribute.String("messaging.event_type", eventType),
-		attribute.Int("messaging.payload_size_bytes", len(data)),
+		entity.StringAttr("messaging.system", "kds"),
+		entity.StringAttr("messaging.operation", "send_to_consume_stream"),
+		entity.StringAttr("messaging.event_type", eventType),
+		entity.IntAttr("messaging.payload_size_bytes", len(data)),
 	)
 
 	// 嘗試在 JSON 載荷中添加 traceparent
@@ -542,7 +540,7 @@ func (k *KDSService) SendToConsumeStream(ctx context.Context, data []byte, event
 				data = newData
 				k.tracing.RecordSpanAttributes(
 					span,
-					attribute.Bool("messaging.trace_propagated", true),
+					entity.BoolAttr("messaging.trace_propagated", true),
 				)
 			}
 		}
@@ -553,8 +551,8 @@ func (k *KDSService) SendToConsumeStream(ctx context.Context, data []byte, event
 
 	// 記錄事件到 span
 	k.tracing.TraceEvent(span, "Sending message to Consumer Stream",
-		attribute.String("messaging.partition_key", partitionKey),
-		attribute.String("messaging.stream_name", k.consumeStream),
+		entity.StringAttr("messaging.partition_key", partitionKey),
+		entity.StringAttr("messaging.stream_name", k.consumeStream),
 	)
 
 	res, err := k.client.PutRecord(ctx, &kinesis.PutRecordInput{
@@ -568,7 +566,7 @@ func (k *KDSService) SendToConsumeStream(ctx context.Context, data []byte, event
 			k.logger.String("stream_name", k.consumeStream),
 			k.logger.Error("err", err))
 		k.tracing.RecordSpanError(span, err)
-		k.tracing.RecordSpanStatus(span, codes.Error, err.Error())
+		k.tracing.RecordSpanStatus(span, false, err.Error())
 		return fmt.Errorf("put record to consume stream: %w", err)
 	}
 
