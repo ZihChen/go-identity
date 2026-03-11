@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -503,7 +504,7 @@ func (h *WorkerHandler) validateAgentSyncEvent(event *event.AgentSyncEvent) erro
 	return nil
 }
 
-// wrapWithTracing wraps an asynq.Handler to extract trace context from the task payload.
+// wrapWithTracing wraps an asynq.Handler to extract trace context and record errors in tracing.
 func (h *WorkerHandler) wrapWithTracing(handler asynq.Handler) asynq.Handler {
 	return asynq.HandlerFunc(func(ctx context.Context, task *asynq.Task) error {
 		if task == nil || len(task.Payload()) == 0 || task.Type() == "" {
@@ -526,7 +527,23 @@ func (h *WorkerHandler) wrapWithTracing(handler asynq.Handler) asynq.Handler {
 				h.tracing.RecordSpanAttributes(span, entity.StringAttr("messaging.event_id", id))
 			}
 		}
-		return handler.ProcessTask(ctxWithTrace, task)
+
+		err := handler.ProcessTask(ctxWithTrace, task)
+		if err != nil {
+			h.tracing.RecordSpanError(span, err)
+			h.tracing.RecordSpanStatus(span, false, fmt.Sprintf("task processing failed: %v", err))
+			if strings.Contains(err.Error(), "(will retry)") {
+				h.tracing.TraceEvent(span, "Task processing failed, will retry",
+					entity.StringAttr("error", err.Error()))
+				return fmt.Errorf("retriable error: %w", err)
+			}
+			h.tracing.TraceEvent(span, "Task processing failed, will not retry",
+				entity.StringAttr("error", err.Error()))
+			return err
+		}
+
+		h.tracing.TraceEvent(span, "Task processed successfully")
+		return nil
 	})
 }
 
