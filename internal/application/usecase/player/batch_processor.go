@@ -84,7 +84,7 @@ func (p *PlayerBatchProcessor) Start(ctx context.Context) error {
 
 	go p.processBatches(ctx)
 
-	p.logger.InfoLog("Player batch processor started",
+	p.logger.InfoWithContext(ctx, "Player batch processor started",
 		p.logger.Int("batch_size", p.batchSize),
 		p.logger.String("batch_timeout", p.batchTimeout.String()))
 
@@ -107,7 +107,7 @@ func (p *PlayerBatchProcessor) Stop(ctx context.Context) error {
 	p.started = false
 	p.mu.Unlock()
 
-	p.logger.InfoLog("Player batch processor stopped")
+	p.logger.InfoWithContext(ctx, "Player batch processor stopped")
 	return nil
 }
 
@@ -211,7 +211,7 @@ func (p *PlayerBatchProcessor) handleSyncFallback(request *PlayerBatchRequest) {
 	// 降級為單筆處理，確保資料不遺失
 	err := p.playerRepo.Upsert(ctx, request.Player)
 	if err != nil {
-		p.logger.ErrorLog("Fallback sync upsert failed",
+		p.logger.ErrorWithContext(ctx, "Fallback sync upsert failed",
 			p.logger.String("global_player_id", request.Player.GetGlobalPlayerID()),
 			p.logger.Error("error", err))
 		request.CompletionChannel <- err
@@ -229,14 +229,14 @@ func (p *PlayerBatchProcessor) handleSyncFallback(request *PlayerBatchRequest) {
 	// 單筆事件發送
 	err = p.eventProducer.PublishPlayerSync(ctx, request.Player, request.GlobalMerchantID)
 	if err != nil {
-		p.logger.ErrorLog("Fallback sync publish failed",
+		p.logger.ErrorWithContext(ctx, "Fallback sync publish failed",
 			p.logger.String("global_player_id", request.Player.GetGlobalPlayerID()),
 			p.logger.Error("error", err))
 		request.CompletionChannel <- err
 		return
 	}
 
-	p.logger.InfoLog("Fallback sync processing completed",
+	p.logger.InfoWithContext(ctx, "Fallback sync processing completed",
 		p.logger.String("global_player_id", request.Player.GetGlobalPlayerID()))
 
 	request.CompletionChannel <- nil
@@ -293,7 +293,7 @@ func (p *PlayerBatchProcessor) processBatch(ctx context.Context, batch []*Player
 	defer p.tracing.SpanEnd(span)
 
 	batchSize := len(batch)
-	p.logger.InfoLog("Processing player batch",
+	p.logger.InfoWithContext(ctx, "Processing player batch",
 		p.logger.Int("batch_size", batchSize))
 
 	// 第一步：批次寫入資料庫
@@ -315,7 +315,7 @@ func (p *PlayerBatchProcessor) processBatch(ctx context.Context, batch []*Player
 		close(request.CompletionChannel)
 	}
 
-	p.logger.InfoLog("Player batch processed",
+	p.logger.InfoWithContext(ctx, "Player batch processed",
 		p.logger.Int("batch_size", batchSize),
 		p.logger.Int("successful_count", p.countSuccessful(dbErrors, eventErrors)))
 }
@@ -342,7 +342,7 @@ func (p *PlayerBatchProcessor) batchUpsertPlayers(
 
 	if err != nil {
 		// 如果批次操作失敗，所有請求都標記為失敗
-		p.logger.ErrorLog("Batch upsert failed for entire batch",
+		p.logger.ErrorWithContext(ctx, "Batch upsert failed for entire batch",
 			p.logger.Int("batch_size", len(batch)),
 			p.logger.Error("error", err))
 
@@ -351,7 +351,7 @@ func (p *PlayerBatchProcessor) batchUpsertPlayers(
 		}
 	} else {
 		// 批次操作成功，所有請求都成功
-		p.logger.InfoLog("Batch upsert succeeded",
+		p.logger.InfoWithContext(ctx, "Batch upsert succeeded",
 			p.logger.Int("batch_size", len(batch)))
 
 		// 批次操作成功後，使用 Pipeline 批次失效相關快取
@@ -391,7 +391,7 @@ func (p *PlayerBatchProcessor) batchPublishEvents(
 
 	// 如果有成功的玩家，進行批次事件發送
 	if len(successfulPlayers) > 0 {
-		p.logger.InfoLog("Batch publishing player sync events",
+		p.logger.InfoWithContext(ctx, "Batch publishing player sync events",
 			p.logger.Int("successful_players_count", len(successfulPlayers)))
 
 		batchErr := p.eventProducer.BatchPublishPlayerSync(
@@ -401,7 +401,7 @@ func (p *PlayerBatchProcessor) batchPublishEvents(
 		)
 
 		if batchErr != nil {
-			p.logger.ErrorLog("Batch publish player sync events failed",
+			p.logger.ErrorWithContext(ctx, "Batch publish player sync events failed",
 				p.logger.Int("failed_count", len(successfulPlayers)),
 				p.logger.Error("error", batchErr))
 
@@ -410,7 +410,7 @@ func (p *PlayerBatchProcessor) batchPublishEvents(
 				errors[idx] = batchErr
 			}
 		} else {
-			p.logger.InfoLog("Batch publish player sync events succeeded",
+			p.logger.InfoWithContext(ctx, "Batch publish player sync events succeeded",
 				p.logger.Int("successful_count", len(successfulPlayers)))
 		}
 	}

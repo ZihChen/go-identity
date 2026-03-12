@@ -114,7 +114,7 @@ func (h *HTTPHandler) GetMerchantByID(c *gin.Context) {
 			return
 		}
 
-		h.logger.ErrorLog("Failed to get merchant by ID",
+		h.logger.ErrorWithContext(c.Request.Context(), "Failed to get merchant by ID",
 			h.logger.UInt64("id", id),
 			h.logger.Error("err", err))
 
@@ -157,7 +157,7 @@ func (h *HTTPHandler) GetMerchantByGlobalID(c *gin.Context) {
 			return
 		}
 
-		h.logger.ErrorLog("Failed to get merchant by global ID",
+		h.logger.ErrorWithContext(c.Request.Context(), "Failed to get merchant by global ID",
 			h.logger.String("global_id", globalID),
 			h.logger.Error("err", err))
 
@@ -200,7 +200,7 @@ func (h *HTTPHandler) GetPlayerByID(c *gin.Context) {
 			return
 		}
 
-		h.logger.ErrorLog("Failed to get player by ID",
+		h.logger.ErrorWithContext(c.Request.Context(), "Failed to get player by ID",
 			h.logger.UInt64("id", id),
 			h.logger.Error("err", err))
 
@@ -243,7 +243,7 @@ func (h *HTTPHandler) GetPlayerByGlobalID(c *gin.Context) {
 			return
 		}
 
-		h.logger.ErrorLog("Failed to get player by global ID",
+		h.logger.ErrorWithContext(c.Request.Context(), "Failed to get player by global ID",
 			h.logger.String("global_id", globalID),
 			h.logger.Error("err", err))
 
@@ -284,7 +284,7 @@ func (h *HTTPHandler) UpdatePlayerLastActive(c *gin.Context) {
 			return
 		}
 
-		h.logger.ErrorLog("Failed to update player last active time",
+		h.logger.ErrorWithContext(c.Request.Context(), "Failed to update player last active time",
 			h.logger.UInt64("id", id),
 			h.logger.Error("err", err))
 
@@ -329,7 +329,7 @@ func (h *HTTPHandler) GetManagerByID(c *gin.Context) {
 			return
 		}
 
-		h.logger.ErrorLog("Failed to get manager by ID",
+		h.logger.ErrorWithContext(c.Request.Context(), "Failed to get manager by ID",
 			h.logger.UInt64("id", id),
 			h.logger.Error("err", err))
 
@@ -372,7 +372,7 @@ func (h *HTTPHandler) GetManagerByGlobalID(c *gin.Context) {
 			return
 		}
 
-		h.logger.ErrorLog("Failed to get manager by global ID",
+		h.logger.ErrorWithContext(c.Request.Context(), "Failed to get manager by global ID",
 			h.logger.String("global_id", globalID),
 			h.logger.Error("err", err))
 
@@ -448,7 +448,7 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 		SendToConsumeStream(ctx context.Context, data []byte, eventType string) error
 	})
 	if !ok {
-		h.logger.ErrorLog("Event producer does not support SendToConsumeStream method")
+		h.logger.ErrorWithContext(ctx, "Event producer does not support SendToConsumeStream method")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Event producer not supported",
 		})
@@ -458,7 +458,7 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 	// 將事件序列化
 	eventBytes, err := json.Marshal(testEvent)
 	if err != nil {
-		h.logger.ErrorLog("Failed to marshal test event",
+		h.logger.ErrorWithContext(ctx, "Failed to marshal test event",
 			h.logger.String("event_id", eventID),
 			h.logger.Error("err", err))
 
@@ -469,7 +469,7 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 	}
 
 	if err := kdsService.SendToConsumeStream(ctx, eventBytes, testEvent.Type); err != nil {
-		h.logger.ErrorLog("Failed to send KDS test event to consume stream",
+		h.logger.ErrorWithContext(ctx, "Failed to send KDS test event to consume stream",
 			h.logger.String("event_id", eventID),
 			h.logger.Error("err", err))
 
@@ -479,7 +479,7 @@ func (h *HTTPHandler) SendKDSTestEvent(c *gin.Context) {
 		return
 	}
 
-	h.logger.InfoLog("KDS test event sent successfully",
+	h.logger.InfoWithContext(ctx, "KDS test event sent successfully",
 		h.logger.String("event_id", eventID),
 		h.logger.String("event_type", testEvent.Type))
 
@@ -545,7 +545,7 @@ func (h *HTTPHandler) PlayerLogin(c *gin.Context) {
 
 	// 驗證請求中的 global_merchant_id 與 API-Key 對應的 merchant_id 是否一致
 	if req.GlobalMerchantID != contextMerchantIDStr {
-		h.logger.WarnLog("Merchant ID mismatch",
+		h.logger.WarnWithContext(c.Request.Context(), "Merchant ID mismatch",
 			h.logger.String("request_merchant_id", req.GlobalMerchantID),
 			h.logger.String("context_merchant_id", contextMerchantIDStr))
 
@@ -558,7 +558,7 @@ func (h *HTTPHandler) PlayerLogin(c *gin.Context) {
 	// 使用 metadata 生成 JWT token
 	token, err := h.jwtService.GenerateTokenWithMetadata(req.GlobalMerchantID, req.Metadata)
 	if err != nil {
-		h.logger.ErrorLog("Failed to generate JWT token",
+		h.logger.ErrorWithContext(c.Request.Context(), "Failed to generate JWT token",
 			h.logger.String("global_merchant_id", req.GlobalMerchantID),
 			h.logger.Error("err", err))
 
@@ -568,7 +568,7 @@ func (h *HTTPHandler) PlayerLogin(c *gin.Context) {
 		return
 	}
 
-	h.logger.InfoLog("Player login successful",
+	h.logger.InfoWithContext(c.Request.Context(), "Player login successful",
 		h.logger.String("global_merchant_id", req.GlobalMerchantID))
 
 	c.JSON(http.StatusOK, dto.PlayerLoginResponse{
