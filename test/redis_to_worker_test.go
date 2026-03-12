@@ -81,6 +81,7 @@ func setupWorkerComponents(
 		mockLogger,
 		redisManager,
 		db.GetDBConnection(),
+		mocks.NewNilTracingService(),
 	)
 	require.NoError(t, err, "Should initialize worker components without error")
 

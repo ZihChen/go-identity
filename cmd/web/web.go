@@ -198,6 +198,7 @@ func initializeServices(
 		logger,
 		redisManager,
 		db.GetDBConnection(),
+		tracer,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize web server: %w", err)

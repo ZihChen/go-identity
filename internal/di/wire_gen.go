@@ -42,12 +42,8 @@ import (
 // Injectors from wire.go:
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*api.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB, tracingService infrastructure.TracingService) (*api.HTTPHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
-	tracingService, err := provideTracingService(cfg)
-	if err != nil {
-		return nil, err
-	}
 	queueService, err := queue.NewQueueService(cfg, logger, tracingService)
 	if err != nil {
 		return nil, err
@@ -71,12 +67,8 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*worker.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB, tracingService infrastructure.TracingService) (*worker.WorkerHandler, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
-	tracingService, err := provideTracingService(cfg)
-	if err != nil {
-		return nil, err
-	}
 	queueService, err := queue.NewQueueService(cfg, logger, tracingService)
 	if err != nil {
 		return nil, err
@@ -105,12 +97,8 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB) (*WorkerComponents, error) {
+func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, db *gorm.DB, tracingService infrastructure.TracingService) (*WorkerComponents, error) {
 	merchantRepository := repository.NewMerchantRepository(db)
-	tracingService, err := provideTracingService(cfg)
-	if err != nil {
-		return nil, err
-	}
 	queueService, err := queue.NewQueueService(cfg, logger, tracingService)
 	if err != nil {
 		return nil, err
@@ -149,11 +137,7 @@ func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger
 }
 
 // InitializeConsumerHandler 初始化 Consumer 服務的 Handler
-func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager) (*consumer.ConsumerHandler, error) {
-	tracingService, err := provideTracingService(cfg)
-	if err != nil {
-		return nil, err
-	}
+func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redis.Manager, tracingService infrastructure.TracingService) (*consumer.ConsumerHandler, error) {
 	queueService, err := queue.NewQueueService(cfg, logger, tracingService)
 	if err != nil {
 		return nil, err
@@ -175,7 +159,7 @@ type WorkerComponents struct {
 	Server  *asynq.Server
 }
 
-var baseSet = wire.NewSet(queue.NewQueueService, provideTracingService,
+var baseSet = wire.NewSet(queue.NewQueueService,
 	provideDistributedLockService, repository.NewMerchantRepository, repository2.NewPlayerRepository, repository4.NewManagerRepository, repository5.NewTagRepository, repository3.NewLevelRepository, repository6.NewAgentRepository, repository7.NewFailedTaskEventRepository, repository2.NewPlayerTagRepository, provideEventProducer,
 	provideJWTService,
 

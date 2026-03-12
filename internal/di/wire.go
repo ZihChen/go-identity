@@ -44,7 +44,6 @@ type WorkerComponents struct {
 var baseSet = wire.NewSet(
 	// 基礎設施層
 	queue.NewQueueService,
-	provideTracingService,
 	provideDistributedLockService,
 
 	// 資料庫
@@ -122,7 +121,7 @@ func providePlayerUseCase(
 }
 
 // InitializeWebServer 初始化 Web 服務的 HTTP 處理器
-func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB) (*api.HTTPHandler, error) {
+func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB, tracingService infrastructure.TracingService) (*api.HTTPHandler, error) {
 	wire.Build(
 		wire.Bind(new(infrastructure.CacheManager), new(*redisCache.Manager)),
 		baseSet,
@@ -133,7 +132,7 @@ func InitializeWebServer(cfg *config.Config, logger infrastructure.Logger, redis
 }
 
 // InitializeWorkerServer 初始化 Worker 服務的處理器
-func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB) (*worker.WorkerHandler, error) {
+func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB, tracingService infrastructure.TracingService) (*worker.WorkerHandler, error) {
 	wire.Build(
 		wire.Bind(new(infrastructure.CacheManager), new(*redisCache.Manager)),
 		baseSet,
@@ -144,7 +143,7 @@ func InitializeWorkerServer(cfg *config.Config, logger infrastructure.Logger, re
 }
 
 // InitializeWorkerComponents 初始化 Worker 服務的所有組件
-func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB) (*WorkerComponents, error) {
+func InitializeWorkerComponents(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, db *gorm.DB, tracingService infrastructure.TracingService) (*WorkerComponents, error) {
 	wire.Build(
 		wire.Bind(new(infrastructure.CacheManager), new(*redisCache.Manager)),
 		wire.Struct(new(WorkerComponents), "*"),
@@ -162,10 +161,9 @@ func provideWorkerServer(cfg *config.Config, logger infrastructure.Logger, faile
 }
 
 // InitializeConsumerHandler 初始化 Consumer 服務的 Handler
-func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager) (*consumer.ConsumerHandler, error) {
+func InitializeConsumerHandler(cfg *config.Config, logger infrastructure.Logger, redisManager *redisCache.Manager, tracingService infrastructure.TracingService) (*consumer.ConsumerHandler, error) {
 	wire.Build(
 		wire.Bind(new(infrastructure.CacheManager), new(*redisCache.Manager)),
-		provideTracingService,
 		provideDistributedLockService,
 		queue.NewQueueService,
 		kds.NewKDSService,

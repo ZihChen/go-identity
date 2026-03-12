@@ -125,7 +125,7 @@ func initializeServices(
 	logger.InfoWithContext(ctx, "Successfully initialized Redis connection!")
 
 	// 初始化Consumer Handler
-	consumerHandler, err := di.InitializeConsumerHandler(cfg, logger, redisManager)
+	consumerHandler, err := di.InitializeConsumerHandler(cfg, logger, redisManager, tracer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize Consumer Handler: %w", err)
 	}

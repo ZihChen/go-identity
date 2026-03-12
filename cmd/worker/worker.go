@@ -162,6 +162,7 @@ func initializeServices(
 		logger,
 		redisManager,
 		db.GetDBConnection(),
+		tracer,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize worker components: %w", err)
