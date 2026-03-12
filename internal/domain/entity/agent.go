@@ -1,8 +1,9 @@
 package entity
 
 import (
-	"errors"
 	"time"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 )
 
 // Agent 代理模型
@@ -70,7 +71,7 @@ func (a *Agent) GetDeletedAt() *time.Time       { return a.deletedAt }
 // 業務方法
 func (a *Agent) UpdateAccount(newAccount string) error {
 	if newAccount == "" {
-		return errors.New("agent account cannot be empty")
+		return errmsg.ErrAgentAccountEmpty
 	}
 	a.account = newAccount
 	a.updatedAt = time.Now()
@@ -128,13 +129,13 @@ func (a *Agent) SetUpdatedAt(updatedAt time.Time) {
 // IsValid 驗證方法
 func (a *Agent) IsValid() error {
 	if a.globalAgentID == "" {
-		return errors.New("agent global ID cannot be empty")
+		return errmsg.ErrAgentGlobalIDEmpty
 	}
 	if a.account == "" {
-		return errors.New("agent account cannot be empty")
+		return errmsg.ErrAgentAccountEmpty
 	}
 	if a.merchantID == 0 {
-		return errors.New("agent merchant ID cannot be zero")
+		return errmsg.ErrAgentNoMerchant
 	}
 	return nil
 }

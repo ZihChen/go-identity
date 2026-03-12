@@ -2,10 +2,11 @@ package entity
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 )
 
 // Player 玩家模型
@@ -103,7 +104,7 @@ func (p *Player) UpdateLastActive() {
 
 func (p *Player) ChangeLevel(newLevelID uint64) error {
 	if newLevelID == 0 {
-		return errors.New("invalid level ID")
+		return errmsg.ErrPlayerInvalidLevelID
 	}
 	p.levelID = newLevelID
 	p.updatedAt = time.Now()
@@ -143,13 +144,13 @@ func (p *Player) RegenerateAPIKey() {
 // IsValid 驗證方法
 func (p *Player) IsValid() error {
 	if p.account == "" {
-		return errors.New("player account cannot be empty")
+		return errmsg.ErrPlayerAccountEmpty
 	}
 	if p.merchantID == 0 {
-		return errors.New("player must belong to a merchant")
+		return errmsg.ErrPlayerNoMerchant
 	}
 	if p.globalPlayerID == "" {
-		return errors.New("player global ID cannot be empty")
+		return errmsg.ErrPlayerGlobalIDEmpty
 	}
 	return nil
 }

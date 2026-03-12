@@ -2,10 +2,11 @@ package entity
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 )
 
 // Merchant 商戶模型
@@ -67,7 +68,7 @@ func (m *Merchant) GetDeletedAt() *time.Time    { return m.deletedAt }
 // UpdateName 業務方法
 func (m *Merchant) UpdateName(newName string) error {
 	if newName == "" {
-		return errors.New("merchant name cannot be empty")
+		return errmsg.ErrMerchantNameEmpty
 	}
 	m.name = newName
 	m.updatedAt = time.Now()
@@ -76,7 +77,7 @@ func (m *Merchant) UpdateName(newName string) error {
 
 func (m *Merchant) UpdateDisplayName(newDisplayName string) error {
 	if newDisplayName == "" {
-		return errors.New("merchant display name cannot be empty")
+		return errmsg.ErrMerchantDisplayNameEmpty
 	}
 	m.displayName = newDisplayName
 	m.updatedAt = time.Now()
@@ -121,13 +122,13 @@ func (m *Merchant) SetUpdatedAt(updatedAt time.Time) {
 // IsValid 驗證方法
 func (m *Merchant) IsValid() error {
 	if m.globalMerchantID == "" {
-		return errors.New("merchant global ID cannot be empty")
+		return errmsg.ErrMerchantGlobalIDEmpty
 	}
 	if m.name == "" {
-		return errors.New("merchant name cannot be empty")
+		return errmsg.ErrMerchantNameEmpty
 	}
 	if m.apiKey == "" {
-		return errors.New("merchant API key cannot be empty")
+		return errmsg.ErrMerchantAPIKeyEmpty
 	}
 	return nil
 }

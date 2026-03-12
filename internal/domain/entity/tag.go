@@ -2,8 +2,9 @@ package entity
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 )
 
 type Tag struct {
@@ -58,7 +59,7 @@ func (t *Tag) GetDeletedAt() *time.Time { return t.deletedAt }
 // UpdateName 業務方法 for Tag
 func (t *Tag) UpdateName(newName string) error {
 	if newName == "" {
-		return errors.New("tag name cannot be empty")
+		return errmsg.ErrTagNameEmpty
 	}
 	t.name = newName
 	t.updatedAt = time.Now()
@@ -73,13 +74,13 @@ func (t *Tag) SetDeletedAt(deletedAt *time.Time) {
 // IsValid 驗證方法 for Tag
 func (t *Tag) IsValid() error {
 	if t.merchantID == 0 {
-		return errors.New("tag must belong to a merchant")
+		return errmsg.ErrTagNoMerchant
 	}
 	if t.name == "" {
-		return errors.New("tag name cannot be empty")
+		return errmsg.ErrTagNameEmpty
 	}
 	if t.globalTagID == "" {
-		return errors.New("tag global ID cannot be empty")
+		return errmsg.ErrTagGlobalIDEmpty
 	}
 	return nil
 }

@@ -2,8 +2,9 @@ package entity
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 )
 
 type Level struct {
@@ -62,7 +63,7 @@ func (l *Level) GetDeletedAt() *time.Time       { return l.deletedAt }
 // 業務方法 for Level
 func (l *Level) UpdateName(newName string) error {
 	if newName == "" {
-		return errors.New("level name cannot be empty")
+		return errmsg.ErrLevelNameEmpty
 	}
 	l.name = newName
 	l.updatedAt = time.Now()
@@ -77,13 +78,13 @@ func (l *Level) SetDeletedAt(deletedAt *time.Time) {
 // IsValid 驗證方法 for Level
 func (l *Level) IsValid() error {
 	if l.merchantID == 0 {
-		return errors.New("level must belong to a merchant")
+		return errmsg.ErrLevelNoMerchant
 	}
 	if l.name == "" {
-		return errors.New("level name cannot be empty")
+		return errmsg.ErrLevelNameEmpty
 	}
 	if l.globalPlayerLevelID == "" {
-		return errors.New("level global player level ID cannot be empty")
+		return errmsg.ErrLevelGlobalIDEmpty
 	}
 	return nil
 }

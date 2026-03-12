@@ -2,8 +2,9 @@ package entity
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
+
+	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/errmsg"
 )
 
 // Manager 管理員模型
@@ -79,13 +80,13 @@ func (m *Manager) SetDeletedAt(deletedAt *time.Time) {
 // IsValid 驗證方法 for Manager
 func (m *Manager) IsValid() error {
 	if m.merchantID == 0 {
-		return errors.New("manager must belong to a merchant")
+		return errmsg.ErrManagerNoMerchant
 	}
 	if m.globalManagerID == "" {
-		return errors.New("manager global ID cannot be empty")
+		return errmsg.ErrManagerGlobalIDEmpty
 	}
 	if m.account == "" {
-		return errors.New("manager account cannot be empty")
+		return errmsg.ErrManagerAccountEmpty
 	}
 	return nil
 }
