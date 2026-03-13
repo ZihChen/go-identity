@@ -27,13 +27,16 @@ The application consists of three main services that can be run independently:
 The codebase follows hexagonal architecture with clear separation:
 
 - `internal/domain/` - Core business logic, interfaces (ports)
-  - `entity/` - Domain entities (Merchant, Player, Manager, Agent, Level, Tag, PlayerTag)
+  - `entity/` - Domain entities (Merchant, Player, Manager, Agent, Level, Tag, PlayerTag) + cross-boundary types
+    - `Span` interface, `SpanAttr` + helper funcs — domain-owned tracing types (replaces OTel types in ports)
+    - `CacheSetEntry` — domain-owned cache entry type (replaces Redis types in ports)
   - `dto/` - Data transfer objects for API communication
   - `ports/` - Interface definitions split into inbound and outbound
     - `inbound/` - Use Case interfaces
     - `outbound/` - Repository, Service, and Infrastructure interfaces
+      - `infrastructure/` - `DistributedLockService` port (replaces direct redsync dependency)
   - `consts/` - Domain constants and enumerations
-  - `errmsg/` - Custom error message definitions
+  - `errmsg/` - Sentinel error constants for all entity validation errors (18 errors across 6 entities)
   - `event/` - Event structure definitions for KDS integration
 - `internal/adapter/` - Implementation of domain interfaces
   - `inbound/` - Inbound adapters (external requests)

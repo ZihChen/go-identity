@@ -32,6 +32,20 @@ Comprehensive Redis cache integration across all UseCase layers with:
 ## Event-Driven Architecture
 System uses events for inter-service communication via KDS and Redis queues for identity synchronization
 
+## Domain Type Isolation Pattern ✨ **RECENTLY IMPLEMENTED**
+Domain port interfaces must not reference any framework or infrastructure types. All cross-boundary types are defined in the domain layer:
+- **`entity.Span`** - Domain interface replacing OTel `trace.Span` in `TracingService` port
+- **`entity.SpanAttr`** + helper funcs (`StringAttr`, `IntAttr`, `Int64Attr`, `BoolAttr`) - Replacing OTel `attribute.KeyValue`
+- **`entity.CacheSetEntry`** - Domain-typed cache entry replacing Redis-specific structs
+- **`infrastructure.DistributedLockService`** - Domain port replacing direct `redsync` usage
+- Infrastructure wrappers (`otelSpan`, `RedisLockService`) bridge domain types to concrete frameworks
+
+## Sentinel Error Pattern ✨ **RECENTLY IMPLEMENTED**
+All entity validation errors are defined as sentinel errors in `internal/domain/errmsg/errors.go`:
+- Callers can use `errors.Is()` for precise error comparison
+- Entities (`merchant.go`, `player.go`, `manager.go`, `tag.go`, `level.go`, `agent.go`) import `errmsg` and return named constants instead of inline `errors.New("string")`
+- 18 sentinel errors covering all 6 entity types
+
 ## Error Handling
 Custom error types defined in `internal/domain/errmsg/` for consistent error handling across the application
 

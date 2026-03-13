@@ -1,5 +1,43 @@
 # Recent Architecture Updates
 
+## Architecture Audit & Code Quality Fixes (2026-03-11 ~ 2026-03-12) ✅ 🆕
+
+### Domain Port Framework Type Leak Fix (2026-03-11)
+**P0 Critical Fix**: Eliminated all framework-specific types from domain port interfaces, enforcing strict Clean Architecture compliance
+
+- ✅ **New Domain Types**: `entity.Span` interface, `entity.SpanAttr` + helper funcs, `entity.CacheSetEntry`, `infrastructure.DistributedLockService` / `DistributedMutex` / `LockOptions`
+- ✅ **CacheManager Port**: Removed 5 Redis-specific methods (`Pipeline`, `GetMutex`, etc.), added `BatchSet`/`BatchDelete` with domain-typed entries
+- ✅ **TracingService Port**: All methods now use `entity.Span`/`entity.SpanAttr` instead of OTel `trace.Span`/`attribute.KeyValue`
+- ✅ **QueueService Port**: Removed `WrapHandlerWithTracing` (framework coupling eliminated)
+- ✅ **Infrastructure Wrappers**: `otelSpan` wrapper in `infrastructure/tracing/span.go`, `RedisLockService` in `infrastructure/cache/redis/lock.go`
+- ✅ **Full Callsite Update**: 6 use cases, KDS consumer/producer, worker handler, tracing middleware, DI wire, and all mocks updated
+- Branch: `refactor/domain-port-leak-fix` (merged to dev), 23 commits, 41 files, +2269/-727 lines
+
+### Entity Validation Sentinel Errors (2026-03-12)
+**P1 Fix**: Centralized all entity validation errors in `errmsg` package for precise `errors.Is()` comparison
+
+- ✅ **18 Sentinel Errors**: Added to `internal/domain/errmsg/errors.go` covering Merchant, Player, Manager, Tag, Level, Agent
+- ✅ **Entity Updates**: All 6 entity files (`merchant.go`, `player.go`, `manager.go`, `tag.go`, `level.go`, `agent.go`) use sentinel errors instead of inline `errors.New("string")`
+- Commit: `89802fe`
+
+### Context-Aware Logging in Handlers (2026-03-12)
+**P1 Fix**: Replaced all non-context log calls with context-aware equivalents where request context is available
+
+- ✅ **`http_handler.go` (14 locations)**: All handlers with `*gin.Context` now use `ErrorWithContext`/`InfoWithContext`/`WarnWithContext` with `c.Request.Context()`
+- ✅ **`batch_processor.go` (11 locations)**: All functions with `ctx context.Context` parameter now pass context to log calls
+- ✅ **Result**: Trace IDs are now properly propagated in all request-scoped log entries
+- Commit: `5e1f898`
+
+### TracingService Single Instantiation (2026-03-12)
+**P1 Fix**: Eliminated duplicate TracingService instantiation across all three service entry points
+
+- ✅ **Ownership Promoted to cmd Layer**: `cmd/web/web.go`, `cmd/consumer/consumer.go`, `cmd/worker/worker.go` each create one TracingService and pass it into Wire injectors
+- ✅ **Wire Updated**: `InitializeWebServer`, `InitializeWorkerServer`, `InitializeWorkerComponents`, `InitializeConsumerHandler` now accept `tracingService` as parameter instead of constructing internally
+- ✅ **Result**: Single TracingService instance per service — the same instance used by all handlers/use cases is also closed on shutdown
+- Commit: `64143aa`
+
+---
+
 ## Universal Cache Integration (2025-12-15) ✅ 🆕
 **Complete Cache System Implementation**: Comprehensive Redis cache integration across all UseCase layers with type-safe generic cache functions, Redis Pipeline optimization, and full Clean Architecture compliance
 
