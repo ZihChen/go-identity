@@ -1,5 +1,4 @@
 # 最積極的擴容：min=2, max=5
-# 敏感閾值：CPU 60%, Memory 75%
 # 快速擴容：60秒內可擴容50%
 # 緩慢縮容：5分鐘穩定期，每次最多縮10%
 
@@ -23,12 +22,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: 60
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 75
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 60

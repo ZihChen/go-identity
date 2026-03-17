@@ -1,5 +1,4 @@
 # 事件驅動擴容：min=2, max=5
-# 適中閾值：CPU 65%, Memory 80%
 # 批次擴容：每60秒最多+2個Pod
 # 長穩定期：10分鐘縮容穩定期，處理事件突發
 
@@ -23,12 +22,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: 65
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 80
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 120
