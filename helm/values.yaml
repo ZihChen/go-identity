@@ -22,11 +22,31 @@ app:
   image:
     repository: REDACTED_AWS_ACCOUNT_DEMO.dkr.ecr.ap-northeast-1.amazonaws.com/quantumcat/fatidentitycat
     tag: latest
-  replicas: 1
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 10m
+      memory: 64Mi
     limits:
-      cpu: 500m
-      memory: 512Mi
+      memory: 64Mi
+  hpa:
+    enabled: false
+
+consumer:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 64Mi
+  hpa:
+    enabled: false
+
+worker:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 64Mi
+  hpa:
+    enabled: false
