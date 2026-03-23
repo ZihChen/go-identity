@@ -18,7 +18,7 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.worker.hpa.targetCPUUtilizationPercentage | default 60 }}
+          averageUtilization: {{ .Values.worker.hpa.targetCPUUtilizationPercentage }}
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 120
