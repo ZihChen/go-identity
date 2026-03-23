@@ -30,6 +30,9 @@ app:
       memory: 64Mi
   hpa:
     enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
 
 consumer:
   resources:
@@ -40,6 +43,9 @@ consumer:
       memory: 64Mi
   hpa:
     enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 65
 
 worker:
   resources:
@@ -50,3 +56,6 @@ worker:
       memory: 64Mi
   hpa:
     enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
