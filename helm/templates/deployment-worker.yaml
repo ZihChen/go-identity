@@ -39,5 +39,5 @@ spec:
             - secretRef:
                 name: {{ include "fatidentitycat.fullname" . }}
           resources:
-            {{- toYaml .Values.app.resources | nindent 12 }}
+            {{- toYaml .Values.worker.resources | nindent 12 }}
       restartPolicy: Always

@@ -39,10 +39,5 @@ spec:
             - secretRef:
                 name: {{ include "fatidentitycat.fullname" . }}
           resources:
-            limits:
-              cpu: 1000m
-              memory: 1Gi
-            requests:
-              cpu: 200m
-              memory: 512Mi
+            {{- toYaml .Values.consumer.resources | nindent 12 }}
       restartPolicy: Always
