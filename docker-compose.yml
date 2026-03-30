@@ -40,6 +40,11 @@ services:
     networks:
       - fatcatnet
     restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.identity.rule=Host(`identity.localhost`)"
+      - "traefik.http.routers.identity.entrypoints=web"
+      - "traefik.http.services.identity.loadbalancer.server.port=8080"
   fat-identity-consumer:
     build:
       context: .
