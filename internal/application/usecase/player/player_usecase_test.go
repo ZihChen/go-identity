@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/entity"
 	"github.com/jvdiamondtech/ms-identity-cat/internal/domain/event"
 	"github.com/jvdiamondtech/ms-identity-cat/test/factories"
 	"github.com/jvdiamondtech/ms-identity-cat/test/mocks"
@@ -90,12 +89,6 @@ func TestPlayerUseCase_SyncPlayer_Upsert(t *testing.T) {
 	merchant := factories.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
 
-	// Mock player repository for tag query
-	existingPlayer := factories.CreateTestPlayer()
-	playerRepo.On("FindByGlobalID", mock.Anything, mock.Anything).Return(existingPlayer, nil)
-	playerTagRepo.On("FindTagsByPlayerID", mock.Anything, mock.Anything).
-		Return([]*entity.Tag{}, nil)
-
 	// Use BatchUpsert instead of Upsert since we're using batch processor
 	playerRepo.On("BatchUpsert", mock.Anything, mock.AnythingOfType("[]*entity.Player")).
 		Return(nil)
@@ -163,12 +156,6 @@ func TestPlayerUseCase_SyncPlayer_UpsertError(t *testing.T) {
 	// Setup mocks for batch processing with error
 	merchant := factories.CreateTestMerchant()
 	merchantRepo.On("FindByGlobalID", mock.Anything, "FATCAT-MERCHANT-1").Return(merchant, nil)
-
-	// Mock player repository for tag query
-	existingPlayer := factories.CreateTestPlayer()
-	playerRepo.On("FindByGlobalID", mock.Anything, mock.Anything).Return(existingPlayer, nil)
-	playerTagRepo.On("FindTagsByPlayerID", mock.Anything, mock.Anything).
-		Return([]*entity.Tag{}, nil)
 
 	// BatchUpsert fails
 	playerRepo.On("BatchUpsert", mock.Anything, mock.AnythingOfType("[]*entity.Player")).

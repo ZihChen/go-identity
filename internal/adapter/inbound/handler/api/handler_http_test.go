@@ -879,9 +879,6 @@ func TestHTTPHandler_PlayerLogin_MerchantIDMismatch(t *testing.T) {
 	// Set different merchant ID in context
 	c.Set("global_merchant_id", "FATCAT-MERCHANT-002")
 
-	// Setup mock logger
-	mockLogger.On("WarnLog", mock.Anything, mock.Anything).Return()
-
 	// Execute
 	handler.PlayerLogin(c)
 
@@ -894,6 +891,7 @@ func TestHTTPHandler_PlayerLogin_MerchantIDMismatch(t *testing.T) {
 
 	assert.Contains(t, response["error"], "Merchant ID does not match API key")
 
+	mockLogger.AssertNumberOfCalls(t, "WarnWithContext", 1)
 	mockLogger.AssertExpectations()
 }
 
@@ -921,8 +919,6 @@ func TestHTTPHandler_PlayerLogin_JWTGenerationError(t *testing.T) {
 	// Setup mock to return error
 	mockJWT.On("GenerateTokenWithMetadata", mock.Anything, mock.Anything).
 		Return("", errors.New("jwt generation failed"))
-	mockLogger.On("ErrorLog", mock.Anything, mock.Anything).Return()
-
 	// Execute
 	handler.PlayerLogin(c)
 
@@ -936,5 +932,6 @@ func TestHTTPHandler_PlayerLogin_JWTGenerationError(t *testing.T) {
 	assert.Contains(t, response["error"], "Failed to generate token")
 
 	mockJWT.AssertExpectations()
+	mockLogger.AssertNumberOfCalls(t, "ErrorWithContext", 1)
 	mockLogger.AssertExpectations()
 }

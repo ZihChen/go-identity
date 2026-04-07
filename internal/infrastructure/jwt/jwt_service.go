@@ -24,6 +24,12 @@ type jwtService struct {
 
 // NewJWTService 創建新的JWT服務
 func NewJWTService(secret, issuer string) JWTService {
+	if secret == "" {
+		panic("JWT secret cannot be empty")
+	}
+	if issuer == "" {
+		panic("JWT issuer cannot be empty")
+	}
 	return &jwtService{
 		secret: secret,
 		issuer: issuer,
